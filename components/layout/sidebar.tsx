@@ -34,6 +34,11 @@ const navigationItems = [
     icon: Users,
   },
   {
+    title: "Patient Management",
+    href: "/patients",
+    icon: Users,
+  },
+  {
     title: "Patient Feedback",
     href: "/feedback",
     icon: MessageSquare,
@@ -43,11 +48,6 @@ const navigationItems = [
   //   href: "/activity-logs",
   //   icon: Activity,
   // },
-  {
-    title: "Patient Management",
-    href: "/patients",
-    icon: Users,
-  },
   {
     title: "Settings",
     href: "/settings",

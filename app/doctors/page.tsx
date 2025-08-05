@@ -4,7 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { formatPhilippinePeso, formatDateToText } from "@/lib/utils";
+import { formatPhilippinePeso, formatDateToText, formatDateTimeToText } from "@/lib/utils";
+import { useDoctorActions } from "@/hooks/useDoctors";
+import { useAuth } from "@/hooks/useAuth";
+import { useScheduleData } from "@/hooks/use-schedule-data";
+import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
+import { ScheduleCard } from "@/components/schedules/schedule-card";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -51,8 +58,41 @@ import {
   UserX,
   Calendar,
   MapPin,
+  User,
+  Mail,
+  Phone,
+  Award,
+  Check,
+  Clock,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from "@/components/ui/sheet";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const specialties = [
   "All Specialties",
@@ -77,6 +117,8 @@ const sortOptions = [
 export default function DoctorsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { updateDoctorStatus, loading: actionLoading, error: actionError } = useDoctorActions();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All Specialties");
@@ -94,10 +136,79 @@ export default function DoctorsPage() {
     }
     return "All Status";
   });
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState("");
+  const [verificationNotes, setVerificationNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string>("");
 
   // Real Firebase data
   const { doctors, loading, error } = useRealDoctors();
   const { clinics, loading: clinicsLoading } = useRealClinics();
+
+  // Use the Firebase-integrated schedule data hook
+  const {
+    schedules,
+    loading: scheduleLoading,
+    error: scheduleError,
+    handleScheduleAdd,
+    handleScheduleEdit,
+    handleScheduleDelete,
+  } = useScheduleData(selectedDoctor?.id || "");
+
+  // Initialize verification status from doctor data
+  useEffect(() => {
+    if (selectedDoctor) {
+      setVerificationStatus(selectedDoctor.status || 'pending');
+    }
+  }, [selectedDoctor]);
+
+  const handleStatusChange = (newStatus: string) => {
+    setPendingStatus(newStatus);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!pendingStatus || !user || !selectedDoctor) return;
+    
+    setIsSaving(true);
+    try {
+      await updateDoctorStatus(
+        selectedDoctor.id, 
+        pendingStatus as 'pending' | 'verified' | 'suspended',
+        user.email,
+        verificationNotes
+      );
+      
+      // Update local state
+      setVerificationStatus(pendingStatus);
+      setShowConfirmDialog(false);
+      setPendingStatus("");
+      setVerificationNotes("");
+      
+      // Show success message
+      alert(`Doctor status successfully updated to ${pendingStatus}`);
+    } catch (error) {
+      console.error('Error updating doctor status:', error);
+      alert('Failed to update doctor status. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getStatusConfirmationMessage = (status: string) => {
+    switch (status) {
+      case 'verified':
+        return 'Are you sure you want to verify this doctor? This will grant them full access to the system and send them a confirmation email.';
+      case 'pending':
+        return 'Are you sure you want to set this doctor status to pending? This will restrict their access until further verification.';
+      case 'suspended':
+        return 'Are you sure you want to suspend this doctor? This will immediately revoke their access to the system.';
+      default:
+        return 'Are you sure you want to change this doctor\'s status?';
+    }
+  };
 
   // Create clinic name mapping
   const getClinicName = (clinicId: string) => {
@@ -436,11 +547,14 @@ export default function DoctorsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/doctors/${doctor.id}`}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </Link>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedDoctor(doctor);
+                                    setIsSheetOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
                                 </DropdownMenuItem>
                                 {/* <DropdownMenuItem asChild>
                                   <Link href={`/doctors/${doctor.id}/edit`}>
@@ -466,6 +580,228 @@ export default function DoctorsPage() {
           </>
         )}
       </div>
+      {/* Sheet for doctor details */}
+      {selectedDoctor && (
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetContent side="right" className="w-full max-w-md sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl backdrop-blur-md overflow-y-auto">
+            <div className="p-6">
+              <SheetHeader>
+                <SheetTitle>{selectedDoctor.firstName} {selectedDoctor.lastName} - Specialist Details</SheetTitle>
+                <SheetDescription>Full profile and professional information</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col items-center md:items-start gap-6 mt-6">
+                <Avatar className="h-20 w-20 mb-2">
+                  <AvatarImage src={selectedDoctor.profileImageUrl || ""} />
+                  <AvatarFallback className="text-lg">
+                    {`${selectedDoctor.firstName} ${selectedDoctor.lastName}`.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <Badge className={getStatusColor(selectedDoctor.status || 'pending')}>
+                  {getStatusIcon(selectedDoctor.status || 'pending')}
+                  <span className="ml-1 capitalize">{selectedDoctor.status}</span>
+                </Badge>
+              </div>
+              <div className="mt-8">
+                <Accordion type="single" collapsible defaultValue="overview">
+                  {/* Overview Section */}
+                  <AccordionItem value="overview">
+                    <AccordionTrigger className="text-lg font-semibold">Overview</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-8">
+                        {/* Personal Information */}
+                        <div>
+                          <h3 className="text-base font-semibold mb-4 text-foreground">Personal Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Full Name</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.firstName} {selectedDoctor.lastName}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Email</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.email || 'No email'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Contact Number</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.contactNumber}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Gender</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.gender ? selectedDoctor.gender.charAt(0).toUpperCase() + selectedDoctor.gender.slice(1) : 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Date of Birth</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.dateOfBirth ? formatDateToText(selectedDoctor.dateOfBirth) : 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Civil Status</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.civilStatus ? selectedDoctor.civilStatus.charAt(0).toUpperCase() + selectedDoctor.civilStatus.slice(1) : 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col md:col-span-2">
+                              <span className="text-xs text-muted-foreground mb-1">Address</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.address || 'No address'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Professional Information */}
+                        <div>
+                          <h3 className="text-base font-semibold mb-4 text-foreground">Professional Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Specialty</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.specialty || 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">PRC ID</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.prcId || 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">PRC Expiry</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.prcExpiryDate ? formatDateToText(selectedDoctor.prcExpiryDate) : 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Medical License</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.medicalLicenseNumber || 'Not specified'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Professional Fee</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{formatPhilippinePeso(selectedDoctor.professionalFee)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground mb-1">Last Login</span>
+                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.lastLogin ? formatDateTimeToText(selectedDoctor.lastLogin) : 'Not specified'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  {/* Schedules Section */}
+                  <AccordionItem value="schedules">
+                    <AccordionTrigger className="text-lg font-semibold">Schedules</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-6">
+                        <h3 className="text-base font-semibold mb-4 text-foreground">Schedule Management</h3>
+                        <DoctorInfoBanner
+                          doctor={{ ...selectedDoctor, id: selectedDoctor.id?.toString() || '', name: `${selectedDoctor.firstName} ${selectedDoctor.lastName}` }}
+                        />
+                        {scheduleError && (
+                          <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-600 text-sm">{scheduleError}</p>
+                          </div>
+                        )}
+                        <div className="space-y-6">
+                          <ScheduleCard
+                            schedules={schedules}
+                            onScheduleAdd={handleScheduleAdd}
+                            onScheduleEdit={handleScheduleEdit}
+                            onScheduleDelete={handleScheduleDelete}
+                            specialistId={selectedDoctor.id}
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  {/* Verification Section */}
+                  <AccordionItem value="verification">
+                    <AccordionTrigger className="text-lg font-semibold">Verification</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-6">
+                        <h3 className="text-base font-semibold mb-4 text-foreground">Verification Control</h3>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="status" className="text-sm font-medium">Current Status</Label>
+                            <div className="p-3 border rounded-lg bg-muted/50">
+                              <Badge className={getStatusColor(verificationStatus)}>
+                                {verificationStatus === "verified" && <Check className="h-3 w-3 mr-1" />}
+                                {verificationStatus === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                                {verificationStatus === "suspended" && <X className="h-3 w-3 mr-1" />}
+                                <span className="capitalize">{verificationStatus || 'pending'}</span>
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="newStatus" className="text-sm font-medium">Change Status To</Label>
+                            <Select value={pendingStatus} onValueChange={handleStatusChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select new status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending Review</SelectItem>
+                                <SelectItem value="verified">Verified</SelectItem>
+                                <SelectItem value="suspended">Suspended</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="notes" className="text-sm font-medium">Verification Notes</Label>
+                          <Textarea
+                            id="notes"
+                            placeholder="Add notes about the verification process..."
+                            value={verificationNotes}
+                            onChange={(e) => setVerificationNotes(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                        {actionError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-600 text-sm">{actionError}</p>
+                          </div>
+                        )}
+                        {pendingStatus && (
+                          <div className="flex justify-end">
+                            <Button onClick={() => setShowConfirmDialog(true)} disabled={isSaving || actionLoading}>
+                              {isSaving || actionLoading ? "Updating..." : "Update Status"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+              <div className="flex justify-end gap-2 mt-8">
+                <Button variant="outline"><Edit className="h-4 w-4 mr-2" /> Edit Details</Button>
+                <SheetClose asChild>
+                  <Button variant="ghost">Close</Button>
+                </SheetClose>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              {getStatusConfirmationMessage(pendingStatus)}
+              {verificationNotes && (
+                <div className="mt-3 p-3 bg-muted rounded-md">
+                  <p className="text-sm font-medium mb-1">Verification Notes:</p>
+                  <p className="text-sm text-muted-foreground">{verificationNotes}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowConfirmDialog(false);
+              setPendingStatus("");
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmStatusChange}
+              disabled={isSaving || actionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSaving || actionLoading ? "Updating..." : "Confirm Change"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

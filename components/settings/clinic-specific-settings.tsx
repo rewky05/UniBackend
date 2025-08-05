@@ -174,6 +174,7 @@ export function ClinicSpecificSettings({ onUnsavedChanges }: ClinicSpecificSetti
       toast({
         title: "Clinic settings saved",
         description: "Clinic-specific settings have been updated successfully.",
+        variant: "default",
       });
     } catch (error) {
       toast({

@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { formatDateToText } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,7 +102,7 @@ export default function PatientDetailPage() {
                   <span className="font-medium">Gender:</span> {patient.gender}
                 </div>
                 <div className="mb-2">
-                  <span className="font-medium">Date of Birth:</span> {patient.dateOfBirth}
+                  <span className="font-medium">Date of Birth:</span> {formatDateToText(patient.dateOfBirth)}
                 </div>
                 <div className="mb-2">
                   <span className="font-medium">Contact Number:</span> {patient.contactNumber}

@@ -31,6 +31,7 @@ export function DataAudit({ onUnsavedChanges }: DataAuditProps) {
       toast({
         title: "Backup completed",
         description: "System data has been backed up successfully.",
+        variant: "default",
       });
       
       setIsBackupDialogOpen(false);

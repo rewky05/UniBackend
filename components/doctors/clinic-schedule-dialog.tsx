@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown } from 'lucide-react';
+import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown, Edit } from 'lucide-react';
 import { cn, formatDateToText } from '@/lib/utils';
 import type { SpecialistSchedule } from '@/app/doctors/add/page';
 import { useRealClinics } from '@/hooks/useRealData';
@@ -22,6 +22,8 @@ interface ClinicScheduleDialogProps {
   existingSchedules: SpecialistSchedule[];
   onSave: (schedules: SpecialistSchedule[]) => void;
   specialistId?: string; // Add specialistId prop
+  editingSchedule?: SpecialistSchedule | null; // Add editing schedule prop
+  isEditMode?: boolean; // Add edit mode flag
 }
 
 
@@ -37,7 +39,7 @@ const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' }
 ];
 
-export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, onSave, specialistId }: ClinicScheduleDialogProps) {
+export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, onSave, specialistId, editingSchedule, isEditMode }: ClinicScheduleDialogProps) {
   const [clinicSearchOpen, setClinicSearchOpen] = useState(false);
   const [clinicSearchValue, setClinicSearchValue] = useState('');
   const [selectedClinic, setSelectedClinic] = useState<any>(null);
@@ -116,13 +118,52 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   // Initialize local schedules when dialog opens
   useEffect(() => {
     if (open) {
-      setLocalSchedules([...existingSchedules]);
-      resetForm();
+      if (isEditMode && editingSchedule) {
+        // Edit mode: populate form with existing schedule data
+        setLocalSchedules([editingSchedule]);
+        
+        // Find the clinic for the editing schedule
+        const clinic = clinics.find(c => c.id === editingSchedule.practiceLocation?.clinicId);
+        if (clinic) {
+          setSelectedClinic(clinic);
+          setClinicSearchValue(clinic.name);
+        }
+        
+        // Populate form data with existing schedule
+        setFormData({
+          clinicId: editingSchedule.practiceLocation?.clinicId || '',
+          roomOrUnit: editingSchedule.practiceLocation?.roomOrUnit || '',
+          dayOfWeek: editingSchedule.recurrence?.dayOfWeek || [],
+          startTime: '', // Will be calculated from slotTemplate
+          endTime: '', // Will be calculated from slotTemplate
+          slotDurationMinutes: getDurationFromSlotTemplate(editingSchedule.slotTemplate),
+          validFrom: editingSchedule.validFrom || new Date().toISOString().split('T')[0],
+          isActive: editingSchedule.isActive || true,
+          newClinicDetails: {
+            name: '',
+            addressLine: '',
+            contactNumber: '',
+            type: ''
+          }
+        });
+        
+        // Calculate start and end times from slotTemplate
+        const { startTime, endTime } = calculateTimeRangeFromSlotTemplate(editingSchedule.slotTemplate);
+        setFormData(prev => ({
+          ...prev,
+          startTime,
+          endTime
+        }));
+      } else {
+        // Add mode: start with empty form
+        setLocalSchedules([...existingSchedules]);
+        resetForm();
+      }
       
       // Test slotTemplate generation (for development only)
       testSlotTemplateGeneration();
     }
-  }, [open, existingSchedules]);
+  }, [open, existingSchedules, isEditMode, editingSchedule, clinics]);
 
   // Helper function to convert 12-hour format to 24-hour format
   const convertTo24Hour = (time12h: string): string => {
@@ -147,6 +188,60 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return `${displayHour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  };
+
+  // Helper function to convert 12-hour format to 24-hour format
+  const convert12HourTo24Hour = (time12h: string): string => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    
+    if (hours === '12') {
+      hours = modifier === 'PM' ? '12' : '00';
+    } else if (modifier === 'PM') {
+      hours = (parseInt(hours) + 12).toString();
+    } else {
+      hours = hours.padStart(2, '0');
+    }
+    
+    return `${hours}:${minutes}`;
+  };
+
+  // Helper function to calculate time range from slotTemplate
+  const calculateTimeRangeFromSlotTemplate = (slotTemplate: any): { startTime: string; endTime: string } => {
+    if (!slotTemplate || typeof slotTemplate !== 'object') {
+      return { startTime: '', endTime: '' };
+    }
+    
+    const timeSlots = Object.keys(slotTemplate).sort();
+    if (timeSlots.length === 0) {
+      return { startTime: '', endTime: '' };
+    }
+    
+    const firstSlot = timeSlots[0];
+    const lastSlot = timeSlots[timeSlots.length - 1];
+    
+    // Convert 12-hour format to 24-hour format for the time inputs
+    const startTime = convert12HourTo24Hour(firstSlot);
+    const endTime = convert12HourTo24Hour(lastSlot);
+    
+    // Add duration to end time
+    const duration = getDurationFromSlotTemplate(slotTemplate);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const endMinutes = endHour * 60 + endMinute + duration;
+    const finalEndHour = Math.floor(endMinutes / 60);
+    const finalEndMinute = endMinutes % 60;
+    const finalEndTime = `${finalEndHour.toString().padStart(2, '0')}:${finalEndMinute.toString().padStart(2, '0')}`;
+    
+    return { startTime, endTime: finalEndTime };
+  };
+
+  // Helper function to get duration from slotTemplate
+  const getDurationFromSlotTemplate = (slotTemplate: any): number => {
+    if (!slotTemplate || typeof slotTemplate !== 'object') {
+      return 30;
+    }
+    const firstSlot = Object.values(slotTemplate)[0] as any;
+    return firstSlot?.durationMinutes || 30;
   };
 
   // Helper function to format date consistently
@@ -251,30 +346,54 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       
 
       
-      const newSchedule: SpecialistSchedule = {
-        id: `sch_${Date.now()}`,
-        specialistId: specialistId || 'temp_specialist_id',
-        practiceLocation: {
-          clinicId: selectedClinic?.id || '',
-          roomOrUnit: formData.roomOrUnit
-        },
-        recurrence: {
-          dayOfWeek: formData.dayOfWeek,
-          type: 'weekly'
-        },
-        scheduleType: 'Weekly',
-        slotTemplate: slotTemplate,
-        validFrom: formData.validFrom,
-        isActive: formData.isActive,
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
-      };
-      
-      // Add to local schedules instead of saving immediately
-      setLocalSchedules(prev => [...prev, newSchedule]);
-      
-      // Reset form for next schedule block
-      resetForm();
+      if (isEditMode && editingSchedule) {
+        // Edit mode: update the existing schedule
+        const updatedSchedule: SpecialistSchedule = {
+          ...editingSchedule,
+          practiceLocation: {
+            clinicId: selectedClinic?.id || '',
+            roomOrUnit: formData.roomOrUnit
+          },
+          recurrence: {
+            dayOfWeek: formData.dayOfWeek,
+            type: 'weekly'
+          },
+          scheduleType: 'Weekly',
+          slotTemplate: slotTemplate,
+          validFrom: formData.validFrom,
+          isActive: formData.isActive,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        // Replace the existing schedule with the updated one
+        setLocalSchedules([updatedSchedule]);
+      } else {
+        // Add mode: create new schedule
+        const newSchedule: SpecialistSchedule = {
+          id: `sch_${Date.now()}`,
+          specialistId: specialistId || 'temp_specialist_id',
+          practiceLocation: {
+            clinicId: selectedClinic?.id || '',
+            roomOrUnit: formData.roomOrUnit
+          },
+          recurrence: {
+            dayOfWeek: formData.dayOfWeek,
+            type: 'weekly'
+          },
+          scheduleType: 'Weekly',
+          slotTemplate: slotTemplate,
+          validFrom: formData.validFrom,
+          isActive: formData.isActive,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+        
+        // Add to local schedules instead of saving immediately
+        setLocalSchedules(prev => [...prev, newSchedule]);
+        
+        // Reset form for next schedule block
+        resetForm();
+      }
     }
   };
 
@@ -309,6 +428,11 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const isFormValid = () => {
+    // In edit mode, we always have at least one schedule (the one being edited)
+    if (isEditMode) {
+      return localSchedules.length > 0;
+    }
+    
     // Allow saving if there's at least one schedule block
     if (localSchedules.length > 0) {
       return true;
@@ -336,10 +460,13 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Manage Schedule Blocks
+            {isEditMode ? 'Edit Schedule Block' : 'Manage Schedule Blocks'}
           </DialogTitle>
           <DialogDescription>
-            Add and manage multiple schedule blocks for this doctor. Click "Add Schedule Block" to add a new block, then "Save" when done.
+            {isEditMode 
+              ? 'Edit the selected schedule block for this doctor. Make your changes and click "Save" when done.'
+              : 'Add and manage multiple schedule blocks for this doctor. Click "Add Schedule Block" to add a new block, then "Save" when done.'
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -527,7 +654,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
 
               {/* Add new schedule block */}
               <div className="space-y-4 p-4 border rounded-lg">
-                <h4 className="font-medium">Add New Schedule Block</h4>
+                <h4 className="font-medium">{isEditMode ? 'Edit Schedule Block' : 'Add New Schedule Block'}</h4>
                 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -607,8 +734,17 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                   disabled={!isScheduleValid()}
                   className="w-full"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add This Schedule Block
+                  {isEditMode ? (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Update Schedule Block
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add This Schedule Block
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -620,7 +756,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!isFormValid()}>
-            Save All Schedule Blocks
+            {isEditMode ? 'Save Changes' : 'Save All Schedule Blocks'}
           </Button>
         </DialogFooter>
       </DialogContent>

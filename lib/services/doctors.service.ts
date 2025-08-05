@@ -59,10 +59,16 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
   ): Promise<void> {
     try {
       const updates: UpdateDoctorDto = {
-        status,
-        verificationDate: status === 'verified' ? Date.now() : undefined,
-        verifiedBy: status === 'verified' ? verifiedBy : undefined
+        status
       };
+
+      // Only add verificationDate and verifiedBy if status is 'verified'
+      if (status === 'verified') {
+        updates.verificationDate = Date.now();
+        if (verifiedBy) {
+          updates.verifiedBy = verifiedBy;
+        }
+      }
 
       await this.update(doctorId, updates);
 

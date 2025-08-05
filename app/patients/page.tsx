@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { formatDateToText } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -72,6 +73,7 @@ const patients = [
   {
     id: "1",
     firstName: "Juan",
+    middleName: "Miguel",
     lastName: "Dela Cruz",
     gender: "Male",
     dateOfBirth: "1990-01-01",
@@ -83,6 +85,7 @@ const patients = [
   {
     id: "2",
     firstName: "Maria",
+    middleName: "",
     lastName: "Santos",
     gender: "Female",
     dateOfBirth: "1985-05-10",
@@ -94,6 +97,7 @@ const patients = [
   {
     id: "3",
     firstName: "Pedro",
+    middleName: "Antonio",
     lastName: "Reyes",
     gender: "Male",
     dateOfBirth: "1992-09-20",
@@ -108,7 +112,7 @@ export default function PatientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedSort, setSelectedSort] = useState("date-desc");
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const filteredPatients = patients.filter((patient) => {
@@ -127,9 +131,9 @@ export default function PatientsPage() {
       case 'name-desc':
         return `${b.firstName} ${b.lastName}`.localeCompare(`${a.firstName} ${a.lastName}`);
       case 'date-desc':
-        return new Date(b.admissionDate || 0).getTime() - new Date(a.admissionDate || 0).getTime();
+        return new Date(b.dateOfBirth || 0).getTime() - new Date(a.dateOfBirth || 0).getTime();
       case 'date-asc':
-        return new Date(a.admissionDate || 0).getTime() - new Date(b.admissionDate || 0).getTime();
+        return new Date(a.dateOfBirth || 0).getTime() - new Date(b.dateOfBirth || 0).getTime();
       case 'status-asc':
         return (a.status || '').localeCompare(b.status || '');
       case 'status-desc':
@@ -178,7 +182,7 @@ export default function PatientsPage() {
           </div>
           <div className="flex gap-2">
             <Button asChild>
-              <Link href="#">
+              <Link href="/patients/add">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Patient
               </Link>
@@ -287,12 +291,14 @@ export default function PatientsPage() {
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="font-medium">{patient.firstName} {patient.lastName}</div>
+                                                             <div className="font-medium">
+                                 {patient.firstName} {patient.lastName}
+                               </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>{patient.gender}</TableCell>
-                        <TableCell>{patient.dateOfBirth}</TableCell>
+                                                 <TableCell>{formatDateToText(patient.dateOfBirth)}</TableCell>
                         <TableCell>{patient.contactNumber}</TableCell>
                         <TableCell>{patient.email}</TableCell>
                         <TableCell>
@@ -365,18 +371,32 @@ export default function PatientsPage() {
               </div>
               <div className="mt-8 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Full Name</span>
-                    <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.firstName} {selectedPatient.lastName}</span>
-                  </div>
+                                     <div className="flex flex-col">
+                     <span className="text-xs text-muted-foreground">First Name</span>
+                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                       {selectedPatient.firstName}
+                     </span>
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="text-xs text-muted-foreground">Middle Name</span>
+                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                       {selectedPatient.middleName || "N/A"}
+                     </span>
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="text-xs text-muted-foreground">Last Name</span>
+                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                       {selectedPatient.lastName}
+                     </span>
+                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground">Gender</span>
                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.gender}</span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Date of Birth</span>
-                    <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.dateOfBirth}</span>
-                  </div>
+                                     <div className="flex flex-col">
+                     <span className="text-xs text-muted-foreground">Date of Birth</span>
+                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{formatDateToText(selectedPatient.dateOfBirth)}</span>
+                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground">Contact Number</span>
                     <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.contactNumber}</span>

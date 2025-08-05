@@ -284,6 +284,8 @@ export function ScheduleCard({
           existingSchedules={schedules}
           onSave={handleSave}
           specialistId={specialistId}
+          editingSchedule={editingSchedule}
+          isEditMode={!!editingSchedule}
         />
       )}
     </>

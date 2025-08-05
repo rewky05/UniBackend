@@ -11,20 +11,26 @@ import { PersonalInfoForm } from '@/components/doctors/personal-info-form';
 import { ProfessionalDetailsForm } from '@/components/doctors/professional-details-form';
 import { AffiliationsEducationForm } from '@/components/doctors/affiliations-education-form';
 import { DocumentUploadsForm } from '@/components/doctors/document-uploads-form';
-import { ArrowLeft, UserPlus, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, UserPlus, AlertTriangle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { RealDataService } from '@/lib/services/real-data.service';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase/config';
+import { signOut } from 'firebase/auth';
+import { authService } from '@/lib/auth/auth.service';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export interface DoctorFormData {
   // Personal Information
@@ -89,6 +95,11 @@ export default function AddDoctorPage() {
   const [successData, setSuccessData] = useState<{email: string, password: string} | null>(null);
   const [clearDialog, setClearDialog] = useState(false);
   
+  // Admin authentication state
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminAuth, setShowAdminAuth] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState('');
+  
   // Initial form data
   const initialFormData: DoctorFormData = {
     // Personal Information
@@ -135,7 +146,19 @@ export default function AddDoctorPage() {
   };
 
   const confirmSubmit = async () => {
+    // Show admin authentication dialog first
+    setShowAdminAuth(true);
+    setSubmitDialog(false);
+  };
+
+  const handleAdminAuth = async () => {
+    if (!adminPassword.trim()) {
+      setAdminAuthError('Please enter your password');
+      return;
+    }
+
     setIsSubmitting(true);
+    setAdminAuthError('');
     
     try {
       const realDataService = new RealDataService();
@@ -173,8 +196,12 @@ export default function AddDoctorPage() {
       // Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
       const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
       
-      // Clear saved form data after successful submission
-      // clearData(); // This line is removed as per the edit hint
+      // Re-authenticate the admin user using their credentials
+      await authService.reauthenticateAdmin(user?.email || '', adminPassword);
+      
+      // Clear admin password from state
+      setAdminPassword('');
+      setShowAdminAuth(false);
       
       // Set success data and show dialog
       setSuccessData({
@@ -183,12 +210,15 @@ export default function AddDoctorPage() {
       });
       setSuccessDialog(true);
       
-      // Navigate back to doctors list after a delay
-      setTimeout(() => {
-        router.push('/doctors');
-      }, 3000);
+      // Show a success toast
+      toast({
+        title: "Doctor created successfully",
+        description: "Your admin session has been restored automatically.",
+        variant: "default",
+      });
     } catch (error) {
       console.error('Error creating doctor:', error);
+      setAdminAuthError('Failed to create doctor or restore admin session. Please try again.');
       toast({
         title: "Error creating doctor",
         description: "Please try again.",
@@ -196,7 +226,6 @@ export default function AddDoctorPage() {
       });
     } finally {
       setIsSubmitting(false);
-      setSubmitDialog(false);
     }
   };
 
@@ -210,6 +239,7 @@ export default function AddDoctorPage() {
     toast({
       title: "Form cleared",
       description: "All form data has been cleared.",
+      variant: "default",
     });
   };
 
@@ -690,6 +720,81 @@ export default function AddDoctorPage() {
         </div>
       </div>
 
+      {/* Admin Authentication Dialog */}
+      <Dialog open={showAdminAuth} onOpenChange={setShowAdminAuth}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Admin Authentication Required</DialogTitle>
+            <DialogDescription>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    <p className="font-medium mb-1">Security Verification Required</p>
+                    <p>
+                      To create a new doctor account, we need to verify your admin credentials. 
+                      This ensures your session remains active after the doctor is created.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-password" className="text-sm font-medium">
+                      Admin Password
+                    </Label>
+                    <Input
+                      id="admin-password"
+                      type="password"
+                      placeholder="Enter your admin password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAdminAuth();
+                        }
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  {adminAuthError && (
+                    <div className="flex items-center space-x-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                      <span>{adminAuthError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAdminAuth(false);
+                setAdminPassword('');
+                setAdminAuthError('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAdminAuth}
+              disabled={isSubmitting || !adminPassword.trim()}
+              className="min-w-[120px]"
+            >
+              {isSubmitting ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                  <span>Creating...</span>
+                </div>
+              ) : (
+                'Create Doctor'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation Dialog */}
       <ConfirmationDialog
         open={submitDialog}
@@ -712,20 +817,60 @@ export default function AddDoctorPage() {
               <div className="space-y-3">
                 <p>A new doctor account has been created successfully.</p>
                 {successData && (
-                  <div className="bg-muted p-3 rounded-lg space-y-2">
-                    <p className="text-sm font-medium">Please share these credentials with the doctor:</p>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Email:</span> {successData.email}</p>
-                      <p><span className="font-medium">Temporary Password:</span> {successData.password}</p>
+                  <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                        Credentials Generated Successfully
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      The doctor should change their password on first login.
-                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Email:</span>
+                        <span className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                          {successData.email}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Temporary Password:</span>
+                        <span className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                          {successData.password}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>The doctor should change their password on first login.</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        const credentials = `Email: ${successData.email}\nTemporary Password: ${successData.password}`;
+                        navigator.clipboard.writeText(credentials);
+                        toast({
+                          title: "Credentials copied",
+                          description: "Email and password copied to clipboard",
+                          variant: "default",
+                        });
+                      }}
+                    >
+                      Copy Credentials
+                    </Button>
                   </div>
                 )}
               </div>
             </DialogDescription>
           </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={() => router.push('/doctors')}
+              className="w-full"
+            >
+              Go to Doctors List
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

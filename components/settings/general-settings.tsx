@@ -110,6 +110,7 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
       toast({
         title: "Settings saved",
         description: "General system settings have been updated successfully.",
+        variant: "default",
       });
     } catch (error) {
       toast({

@@ -6,7 +6,9 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail,
-  sendEmailVerification
+  sendEmailVerification,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { passwordResetService } from '@/lib/services/password-reset.service';
 import { ref, set, get } from 'firebase/database';
@@ -405,6 +407,26 @@ export class AuthService {
    */
   getCurrentUser(): User | null {
     return auth.currentUser;
+  }
+
+  /**
+   * Re-authenticate admin after creating a new user
+   * This method is used when createUserWithEmailAndPassword auto-logs in the new user
+   * and we need to restore the admin's session
+   */
+  async reauthenticateAdmin(adminEmail: string, adminPassword: string): Promise<AdminUser> {
+    try {
+      // First, sign out the current user (which is the newly created doctor)
+      await signOut(auth);
+      
+      // Then sign in the admin user
+      const adminUser = await this.signIn(adminEmail, adminPassword);
+      
+      return adminUser;
+    } catch (error: any) {
+      console.error('Error re-authenticating admin:', error);
+      throw new Error('Failed to restore admin session. Please sign in again.');
+    }
   }
 
   /**

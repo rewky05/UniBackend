@@ -156,6 +156,7 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
       toast({
         title: "Item updated",
         description: "The item has been updated successfully.",
+        variant: "default",
       });
     } else {
              const newItem: ServiceItem = {
@@ -192,6 +193,7 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
       toast({
         title: "Item deleted",
         description: "The item has been removed successfully.",
+        variant: "default",
       });
     } catch (error) {
       toast({

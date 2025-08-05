@@ -65,6 +65,7 @@ import {
   Check,
   Clock,
   X,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -93,6 +94,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { BulkImportDialog } from "@/components/doctors/bulk-import-dialog";
 
 const specialties = [
   "All Specialties",
@@ -136,13 +138,14 @@ export default function DoctorsPage() {
     }
     return "All Status";
   });
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState("");
   const [verificationNotes, setVerificationNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>("");
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   // Real Firebase data
   const { doctors, loading, error } = useRealDoctors();
@@ -156,7 +159,7 @@ export default function DoctorsPage() {
     handleScheduleAdd,
     handleScheduleEdit,
     handleScheduleDelete,
-  } = useScheduleData(selectedDoctor?.id || "");
+  } = useScheduleData(selectedDoctor?.id?.toString() || "");
 
   // Initialize verification status from doctor data
   useEffect(() => {
@@ -319,6 +322,13 @@ export default function DoctorsPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => setShowBulkImport(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import
+            </Button>
             <Button asChild>
               <Link href="/doctors/add">
                 <Plus className="h-4 w-4 mr-2" />
@@ -449,22 +459,22 @@ export default function DoctorsPage() {
               <CardContent>
                 <div className="rounded-md border">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Doctor</TableHead>
-                        <TableHead>Specialty</TableHead>
-                        {/* <TableHead>Professional Fee</TableHead> */}
-                        <TableHead>Clinics</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>PRC Expiry</TableHead>
-                        <TableHead>Join Date</TableHead>
-                        <TableHead className="w-[50px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                                         <TableHeader>
+                       <TableRow>
+                         <TableHead>Full Name</TableHead>
+                         <TableHead>Contact Number</TableHead>
+                         <TableHead>Email</TableHead>
+                         <TableHead>Specialty</TableHead>
+                         {/* <TableHead>Professional Fee</TableHead> */}
+                         <TableHead>Clinics</TableHead>
+                         <TableHead>Status</TableHead>
+                         <TableHead className="w-[50px]">Actions</TableHead>
+                       </TableRow>
+                     </TableHeader>
                                          <TableBody>
                        {sortedDoctors.length === 0 ? (
-                         <TableRow>
-                           <TableCell colSpan={7} className="text-center py-8">
+                                                   <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8">
                              <div className="flex flex-col items-center space-y-2">
                                <div className="text-muted-foreground text-lg">👨‍⚕️</div>
                                <p className="text-muted-foreground font-medium">No specialists found</p>
@@ -477,28 +487,32 @@ export default function DoctorsPage() {
                        ) : (
                          sortedDoctors.map((doctor) => (
                           <TableRow key={doctor.id} className="table-row-hover">
-                          <TableCell>
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={doctor.profileImageUrl || ""} />
-                                <AvatarFallback>
-                                  {`${doctor.firstName} ${doctor.lastName}`
-                                    .split(" ")
-                                    .map((n: string) => n[0])
-                                    .join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{doctor.firstName} {doctor.lastName}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {doctor.email}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {doctor.contactNumber}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
+                                                     <TableCell>
+                             <div className="flex items-center space-x-3">
+                               <Avatar className="h-8 w-8">
+                                 <AvatarImage src={doctor.profileImageUrl || ""} />
+                                 <AvatarFallback>
+                                   {`${doctor.firstName} ${doctor.lastName}`
+                                     .split(" ")
+                                     .map((n: string) => n[0])
+                                     .join("")}
+                                 </AvatarFallback>
+                               </Avatar>
+                               <div className="font-medium">
+                                 {doctor.firstName} {doctor.lastName}
+                               </div>
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             <div className="text-sm text-muted-foreground">
+                               {doctor.contactNumber || 'No contact number'}
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             <div className="text-sm text-muted-foreground">
+                               {doctor.email || 'No email'}
+                             </div>
+                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{doctor.specialty}</Badge>
                           </TableCell>
@@ -520,25 +534,14 @@ export default function DoctorsPage() {
                               ))}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(doctor.status || 'pending')}>
-                              {getStatusIcon(doctor.status || 'pending')}
-                              <span className="ml-1 capitalize">
-                                {doctor.status}
-                              </span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              {doctor.prcExpiryDate ? formatDateToText(doctor.prcExpiryDate) : 'N/A'}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              PRC: {doctor.prcId}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {doctor.createdAt ? formatDateToText(doctor.createdAt) : 'N/A'}
-                          </TableCell>
+                                                     <TableCell>
+                             <Badge className={getStatusColor(doctor.status || 'pending')}>
+                               {getStatusIcon(doctor.status || 'pending')}
+                               <span className="ml-1 capitalize">
+                                 {doctor.status}
+                               </span>
+                             </Badge>
+                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -612,10 +615,24 @@ export default function DoctorsPage() {
                         <div>
                           <h3 className="text-base font-semibold mb-4 text-foreground">Personal Information</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Full Name</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.firstName} {selectedDoctor.lastName}</span>
-                            </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">First Name</span>
+                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                 {selectedDoctor.firstName || 'Not specified'}
+                               </span>
+                             </div>
+                             <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Middle Name</span>
+                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                 {selectedDoctor.middleName || "N/A"}
+                               </span>
+                             </div>
+                             <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Last Name</span>
+                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                 {selectedDoctor.lastName || 'Not specified'}
+                               </span>
+                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs text-muted-foreground mb-1">Email</span>
                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.email || 'No email'}</span>
@@ -681,22 +698,22 @@ export default function DoctorsPage() {
                     <AccordionContent>
                       <div className="space-y-6">
                         <h3 className="text-base font-semibold mb-4 text-foreground">Schedule Management</h3>
-                        <DoctorInfoBanner
-                          doctor={{ ...selectedDoctor, id: selectedDoctor.id?.toString() || '', name: `${selectedDoctor.firstName} ${selectedDoctor.lastName}` }}
-                        />
+                                                 <DoctorInfoBanner
+                           doctor={{ ...selectedDoctor, id: selectedDoctor.id?.toString() || '', name: `${selectedDoctor.firstName || ''} ${selectedDoctor.lastName || ''}` }}
+                         />
                         {scheduleError && (
                           <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-red-600 text-sm">{scheduleError}</p>
                           </div>
                         )}
                         <div className="space-y-6">
-                          <ScheduleCard
-                            schedules={schedules}
-                            onScheduleAdd={handleScheduleAdd}
-                            onScheduleEdit={handleScheduleEdit}
-                            onScheduleDelete={handleScheduleDelete}
-                            specialistId={selectedDoctor.id}
-                          />
+                                                     <ScheduleCard
+                             schedules={schedules}
+                             onScheduleAdd={handleScheduleAdd}
+                             onScheduleEdit={handleScheduleEdit}
+                             onScheduleDelete={handleScheduleDelete}
+                             specialistId={selectedDoctor.id?.toString() || ""}
+                           />
                         </div>
                       </div>
                     </AccordionContent>
@@ -802,6 +819,16 @@ export default function DoctorsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Import Dialog */}
+      <BulkImportDialog
+        open={showBulkImport}
+        onOpenChange={setShowBulkImport}
+        onSuccess={() => {
+          // Refresh the doctors list
+          window.location.reload();
+        }}
+      />
     </DashboardLayout>
   );
 }

@@ -10,6 +10,7 @@ export interface BaseEntity {
 export interface Doctor {
   id?: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   email: string;
   contactNumber: string;
@@ -123,6 +124,7 @@ export interface Appointment {
 export interface Patient {
   userId: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   dateOfBirth: string;
   gender: string;

@@ -18,15 +18,28 @@ import type {
 
 export class RealDataService {
   /**
-   * Generate a random temporary password
+   * Generate a random temporary password that meets Firebase requirements
    */
   private generateTemporaryPassword(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    
     let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    
+    // Ensure at least one letter, one number, and one special character
+    password += letters.charAt(Math.floor(Math.random() * letters.length));
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
+    
+    // Fill the rest with random characters from all categories
+    const allChars = letters + numbers + specialChars;
+    for (let i = 3; i < 12; i++) {
+      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
     }
-    return password;
+    
+    // Shuffle the password to make it more random
+    return password.split('').sort(() => Math.random() - 0.5).join('');
   }
 
   /**
@@ -39,7 +52,10 @@ export class RealDataService {
       const temporaryPassword = this.generateTemporaryPassword();
 
       // 1. Create Firebase Authentication account
-      await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
+      const userCredential = await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
+      
+      // Note: createUserWithEmailAndPassword automatically signs in the new user
+      // We need to handle this in the calling component to prevent the admin from being signed out
 
       // 2. Create user entry
       const userData = {
@@ -701,6 +717,60 @@ export class RealDataService {
       }));
     } catch (error) {
       console.error('Error fetching consultation types:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new patient with entries in users and patients nodes
+   */
+  async createPatient(patientData: any): Promise<{ patientId: string; temporaryPassword: string }> {
+    try {
+      const patientId = `pat_${patientData.firstName.toLowerCase()}_${patientData.lastName.toLowerCase()}_${Date.now()}`;
+      const timestamp = new Date().toISOString();
+      const temporaryPassword = this.generateTemporaryPassword();
+
+      // 1. Create Firebase Authentication account
+      const userCredential = await createUserWithEmailAndPassword(auth, patientData.email, temporaryPassword);
+      
+      // Note: createUserWithEmailAndPassword automatically signs in the new user
+      // We need to handle this in the calling component to prevent the admin from being signed out
+
+      // 2. Create user entry
+      const userData = {
+        contactNumber: patientData.phone,
+        createdAt: timestamp,
+        email: patientData.email,
+        firstName: patientData.firstName,
+        lastName: patientData.lastName,
+        role: 'patient',
+        patientId: patientId
+      };
+
+      // 3. Create patient entry
+      const patientEntry = {
+        userId: patientId,
+        firstName: patientData.firstName,
+        middleName: patientData.middleName || '',
+        lastName: patientData.lastName,
+        dateOfBirth: patientData.dateOfBirth,
+        gender: patientData.gender,
+        bloodType: patientData.bloodType || '',
+        allergies: patientData.allergies || [],
+        medicalConditions: patientData.medicalConditions || [],
+        emergencyContact: patientData.emergencyContact,
+        address: patientData.address || '',
+        createdAt: timestamp,
+        lastUpdated: timestamp
+      };
+
+      // 4. Save to Firebase
+      await set(ref(db, `users/${patientId}`), userData);
+      await set(ref(db, `patients/${patientId}`), patientEntry);
+
+      return { patientId, temporaryPassword };
+    } catch (error) {
+      console.error('Error creating patient:', error);
       throw error;
     }
   }

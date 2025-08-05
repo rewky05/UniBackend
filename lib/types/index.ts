@@ -170,10 +170,59 @@ export interface CreateActivityLogDto {
   action: string;
   category: 'verification' | 'schedule' | 'document' | 'profile' | 'system' | 'feedback';
   targetId?: string;
-  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule';
+  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule' | 'patient';
   details: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
+}
+
+// Patient types
+export interface Patient extends BaseEntity {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female' | 'other';
+  bloodType?: string;
+  allergies?: string[];
+  medicalConditions?: string[];
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  address?: string;
+}
+
+export interface CreatePatientDto {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female' | 'other';
+  bloodType?: string;
+  allergies?: string[];
+  medicalConditions?: string[];
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  address?: string;
+}
+
+export interface UpdatePatientDto extends Partial<CreatePatientDto> {
+  lastUpdated?: number;
+}
+
+export interface PatientFilters {
+  gender?: string;
+  bloodType?: string;
+  search?: string;
 }
 
 // Document types

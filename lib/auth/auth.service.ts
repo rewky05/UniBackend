@@ -35,67 +35,52 @@ export class AuthService {
    */
   async signIn(email: string, password: string, captchaSolution?: CaptchaSolution): Promise<AdminUser> {
     try {
-      // Check if account is locked
-      const { locked, record } = await securityService.isAccountLocked(email);
-      if (locked && record) {
-        const remainingTime = record.lockoutUntil! - Date.now();
-        const minutes = Math.ceil(remainingTime / (1000 * 60));
-        const hours = Math.floor(minutes / 60);
-        const remainingMinutes = minutes % 60;
-        
-        let timeMessage = '';
-        if (hours > 0) {
-          timeMessage = `${hours} hour${hours > 1 ? 's' : ''} and ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`;
-        } else {
-          timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''}`;
-        }
-        
-        throw new Error(`Account is locked. Please try again in ${timeMessage}.`);
-      }
-
-      // Captcha validation temporarily disabled
-      // if (!captchaSolution) {
-      //   await securityService.recordFailedAttempt(email);
-      //   throw new Error('Security verification is required');
-      // }
-
-      // const currentPuzzle = this.getCurrentPuzzle(email);
-      // if (!currentPuzzle) {
-      //   console.error('No puzzle found for email:', email);
-      //   await securityService.recordFailedAttempt(email);
-      //   throw new Error('Invalid security verification session. Please refresh and try again.');
-      // }
-
-      // const isCaptchaValid = captchaService.validateSolution(currentPuzzle, captchaSolution);
-      // if (!isCaptchaValid) {
-      //   console.error('Captcha validation failed for email:', email);
-      //   await securityService.recordFailedAttempt(email);
-      //   throw new Error('Security verification failed. Please try again.');
-      // }
-
-      // If captcha is valid, proceed with password authentication
+      // Clear previous logs
+      localStorage.removeItem('signInLogs');
+      const logs = [];
+      
+      logs.push('=== Starting signIn ===');
+      logs.push(`SignIn email: ${email}`);
+      logs.push(`SignIn password length: ${password.length}`);
+      logs.push(`Current auth user before signIn: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Window location: ${typeof window !== 'undefined' ? window.location.href : 'server-side'}`);
+      logs.push(`Document ready state: ${typeof document !== 'undefined' ? document.readyState : 'server-side'}`);
+      
+      console.log('=== Starting signIn ===');
+      console.log('SignIn email:', email);
+      console.log('SignIn password length:', password.length);
+      console.log('Current auth user before signIn:', auth.currentUser);
+      console.log('Window location:', typeof window !== 'undefined' ? window.location.href : 'server-side');
+      console.log('Document ready state:', typeof document !== 'undefined' ? document.readyState : 'server-side');
+      
+      logs.push('About to call signInWithEmailAndPassword...');
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Record successful login
-      await securityService.recordSuccessfulAttempt(email);
-
-      // Update last login time
-      await this.updateLastLogin(user.uid);
-
-      // Get admin user details from database
-      let adminUser: AdminUser;
+      logs.push(`signInWithEmailAndPassword completed. User: ${user.email}`);
+      logs.push(`Current auth user after signInWithEmailAndPassword: ${auth.currentUser?.email || 'null'}`);
       
-      try {
-        // Try to get user from database first
-        const userRef = ref(db, `users/${user.uid}`);
-        const snapshot = await get(userRef);
-        
-        if (snapshot.exists()) {
-          const userData = snapshot.val();
-          adminUser = {
+      console.log('signInWithEmailAndPassword completed. User:', user);
+      console.log('Current auth user after signInWithEmailAndPassword:', auth.currentUser);
+      
+      // Fetch user details from the users node
+      const userRef = ref(db, `users/${user.uid}`);
+      const userSnapshot = await get(userRef);
+      
+      if (!userSnapshot.exists()) {
+        throw new Error('User not found in database');
+      }
+      
+      const userData = userSnapshot.val();
+      
+      logs.push(`User data fetched from database: ${JSON.stringify(userData)}`);
+      
+      console.log('User data fetched from database:', userData);
+      
+      const adminUser: AdminUser = {
             uid: user.uid,
-            email: user.email!,
+        email: user.email || '',
             displayName: userData.displayName || user.displayName || 'Admin User',
             role: userData.role || 'admin',
             permissions: this.getRolePermissions(userData.role || 'admin'),
@@ -103,86 +88,59 @@ export class AuthService {
             createdAt: userData.createdAt || Date.now(),
             lastLoginAt: Date.now()
           };
-        } else {
-          // Fallback for users not in database
-          adminUser = {
-            uid: user.uid,
-            email: user.email!,
-            displayName: user.displayName || 'Admin User',
-            role: 'admin', // Default to admin role
-            permissions: this.getRolePermissions('admin'),
-            isActive: true,
+      
+      logs.push(`Admin user object created: ${JSON.stringify(adminUser)}`);
+      logs.push('About to create session...');
+      
+      console.log('Admin user object created:', adminUser);
+      console.log('About to create session...');
+      
+      // Create session
+      const sessionData = {
+        sessionId: SecureSessionStorage.getSessionId() || 'N/A',
+        userId: adminUser.uid,
+        userEmail: adminUser.email,
+        userRole: adminUser.role,
             createdAt: Date.now(),
-            lastLoginAt: Date.now()
-          };
-        }
-      } catch (error) {
-        console.error('Error fetching user details:', error);
-        // Fallback for database errors
-        adminUser = {
-          uid: user.uid,
-          email: user.email!,
-          displayName: user.displayName || 'Admin User',
-          role: 'admin', // Default to admin role
-          permissions: this.getRolePermissions('admin'),
-          isActive: true,
-          createdAt: Date.now(),
-          lastLoginAt: Date.now()
-        };
-      }
-
-      // Create session for the user
-      try {
-        const sessionData = await sessionService.createSession(
-          user.uid,
-          user.email!,
-          adminUser.role,
-          this.getClientIP(),
-          navigator.userAgent
-        );
-
-        // Store session securely on client
+        lastActivity: Date.now(),
+        expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+        isActive: true
+      };
+      
+      // Store session in localStorage
         SecureSessionStorage.storeSession(sessionData);
 
-        // Start activity tracking
+      // Track session activity
         SessionActivityTracker.startTracking();
         
-        // Trigger a small delay to ensure session is properly stored
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } catch (sessionError) {
-        console.error('Error creating session:', sessionError);
-        // Continue with login even if session creation fails
-      }
+      logs.push('Session created and stored successfully');
+      logs.push('=== signIn completed successfully ===');
+      
+      console.log('Session created and stored successfully');
+      console.log('=== signIn completed successfully ===');
+      
+      // Store logs in localStorage
+      localStorage.setItem('signInLogs', JSON.stringify(logs));
       
       return adminUser;
-
     } catch (error: any) {
-      // Record failed attempt for authentication errors
-      const isAuthError = error.code && (
-        error.code.includes('wrong-password') || 
-        error.code.includes('user-not-found') ||
-        error.code.includes('invalid-credential') ||
-        error.code === 'auth/wrong-password' ||
-        error.code === 'auth/user-not-found' ||
-        error.code === 'auth/invalid-credential'
-      );
-
-      if (isAuthError) {
-        await securityService.recordFailedAttempt(email);
-      }
+      const errorLogs = [];
+      errorLogs.push('=== Error in signIn ===');
+      errorLogs.push(`Error code: ${error.code}`);
+      errorLogs.push(`Error message: ${error.message}`);
+      errorLogs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
+      errorLogs.push(`Error stack: ${error.stack}`);
       
-      // Handle different types of errors
-      if (error.message) {
-        // If it's already a user-friendly error message, use it
-        throw new Error(error.message);
-      } else if (error.code) {
-        // If it's a Firebase auth error, convert it
-        throw new Error(this.getAuthErrorMessage(error.code));
-      } else {
-        // Fallback for unknown errors
-        console.error('Authentication error:', error);
-        throw new Error('An authentication error occurred. Please try again.');
-      }
+      console.error('=== Error in signIn ===');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Current auth user after error:', auth.currentUser);
+      console.error('Error stack:', error.stack);
+      
+      // Store error logs in localStorage
+      localStorage.setItem('signInErrorLogs', JSON.stringify(errorLogs));
+      
+      throw error;
     }
   }
 
@@ -292,7 +250,7 @@ export class AuthService {
         createdAt: Date.now()
       };
 
-      await set(ref(db, `admin-users/${user.uid}`), adminUser);
+      await set(ref(db, `users/${user.uid}`), adminUser);
 
       return adminUser;
     } catch (error: any) {
@@ -305,7 +263,7 @@ export class AuthService {
    */
   async getAdminUser(uid: string): Promise<AdminUser | null> {
     try {
-      const snapshot = await get(ref(db, `admin-users/${uid}`));
+      const snapshot = await get(ref(db, `users/${uid}`));
       return snapshot.exists() ? snapshot.val() as AdminUser : null;
     } catch (error) {
       console.error('Error getting admin user:', error);
@@ -318,7 +276,7 @@ export class AuthService {
    */
   private async updateLastLogin(uid: string): Promise<void> {
     try {
-      await set(ref(db, `admin-users/${uid}/lastLoginAt`), Date.now());
+      await set(ref(db, `users/${uid}/lastLoginAt`), Date.now());
     } catch (error) {
       console.error('Error updating last login:', error);
     }
@@ -410,22 +368,66 @@ export class AuthService {
   }
 
   /**
-   * Re-authenticate admin after creating a new user
+   * Re-authenticate the admin user after creating a new user
    * This method is used when createUserWithEmailAndPassword auto-logs in the new user
    * and we need to restore the admin's session
    */
-  async reauthenticateAdmin(adminEmail: string, adminPassword: string): Promise<AdminUser> {
+  async reauthenticateAdmin(adminEmail: string, adminPassword: string): Promise<AdminUser | null> {
     try {
-      // First, sign out the current user (which is the newly created doctor)
+      // Clear previous logs
+      localStorage.removeItem('reauthenticateAdminLogs');
+      const logs = [];
+      
+      logs.push('=== Starting reauthenticateAdmin ===');
+      logs.push(`Admin email: ${adminEmail}`);
+      logs.push(`Admin password length: ${adminPassword.length}`);
+      logs.push(`Current auth user before signOut: ${auth.currentUser?.email || 'null'}`);
+      
+      console.log('=== Starting reauthenticateAdmin ===');
+      console.log('Admin email:', adminEmail);
+      console.log('Admin password length:', adminPassword.length);
+      console.log('Current auth user before signOut:', auth.currentUser);
+      
+      // Sign out the current user (which is the newly created doctor)
       await signOut(auth);
       
-      // Then sign in the admin user
+      logs.push(`SignOut completed. Current auth user after signOut: ${auth.currentUser?.email || 'null'}`);
+      logs.push('About to sign in admin user...');
+      
+      console.log('SignOut completed. Current auth user after signOut:', auth.currentUser);
+      console.log('About to sign in admin user...');
+      
+      // Sign in the admin user
       const adminUser = await this.signIn(adminEmail, adminPassword);
+      
+      logs.push(`SignIn completed. Admin user: ${adminUser?.email || 'null'}`);
+      logs.push(`Current auth user after signIn: ${auth.currentUser?.email || 'null'}`);
+      logs.push('=== reauthenticateAdmin completed successfully ===');
+      
+      console.log('SignIn completed. Admin user:', adminUser);
+      console.log('Current auth user after signIn:', auth.currentUser);
+      console.log('=== reauthenticateAdmin completed successfully ===');
+      
+      // Store logs in localStorage
+      localStorage.setItem('reauthenticateAdminLogs', JSON.stringify(logs));
       
       return adminUser;
     } catch (error: any) {
-      console.error('Error re-authenticating admin:', error);
-      throw new Error('Failed to restore admin session. Please sign in again.');
+      const errorLogs = [];
+      errorLogs.push('=== Error in reauthenticateAdmin ===');
+      errorLogs.push(`Error code: ${error.code}`);
+      errorLogs.push(`Error message: ${error.message}`);
+      errorLogs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
+      
+      console.error('=== Error in reauthenticateAdmin ===');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Current auth user after error:', auth.currentUser);
+      
+      // Store error logs in localStorage
+      localStorage.setItem('reauthenticateAdminErrorLogs', JSON.stringify(errorLogs));
+      
+      throw error;
     }
   }
 
@@ -474,7 +476,7 @@ export class AuthService {
         updatedAt: Date.now()
       };
 
-      await set(ref(db, `admin-users/${uid}`), updatedData);
+      await set(ref(db, `users/${uid}`), updatedData);
     } catch (error: any) {
       throw new Error('Failed to update admin user');
     }
@@ -496,7 +498,7 @@ export class AuthService {
    */
   async getAllAdminUsers(): Promise<AdminUser[]> {
     try {
-      const snapshot = await get(ref(db, 'admin-users'));
+      const snapshot = await get(ref(db, 'users'));
       if (!snapshot.exists()) {
         return [];
       }

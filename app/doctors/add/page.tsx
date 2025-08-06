@@ -52,7 +52,7 @@ export interface DoctorFormData {
    medicalLicense: string;
    prcId: string;
    prcExpiry: string;
-   professionalFee?: number; // Professional fee in Philippine pesos
+   professionalFee: number; // Professional fee in Philippine pesos
 
        // Schedules
     schedules: SpecialistSchedule[];
@@ -92,7 +92,8 @@ export default function AddDoctorPage() {
   // Confirmation dialog state
   const [submitDialog, setSubmitDialog] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
-  const [successData, setSuccessData] = useState<{email: string, password: string} | null>(null);
+  const [successData, setSuccessData] = useState<{ email: string; password: string; doctorId: string } | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [clearDialog, setClearDialog] = useState(false);
   
   // Admin authentication state
@@ -121,7 +122,7 @@ export default function AddDoctorPage() {
     medicalLicense: '',
     prcId: '',
     prcExpiry: '',
-    professionalFee: undefined,
+    professionalFee: 0,
 
     // Schedules
     schedules: []
@@ -129,8 +130,27 @@ export default function AddDoctorPage() {
 
   // Use regular useState instead of form persistence to fix input issues
   const [formData, setFormData] = useState<DoctorFormData>(initialFormData);
-  const [isLoaded, setIsLoaded] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Initialize form data when component mounts
+  useEffect(() => {
+    setFormData(initialFormData);
+    setIsLoaded(true);
+  }, []);
+
+  // Track success dialog state changes
+  useEffect(() => {
+    if (successDialog) {
+      console.log('=== Success Dialog Opened ===');
+      console.log('Success dialog state:', successDialog);
+      console.log('Success data:', successData);
+      console.log('Success data type:', typeof successData);
+      console.log('Success data password:', successData?.password);
+      console.log('Success data password type:', typeof successData?.password);
+      console.log('Success data password length:', successData?.password?.length);
+    }
+  }, [successDialog, successData]);
 
   // Cleanup timeout on unmount
   // useEffect(() => {
@@ -152,8 +172,8 @@ export default function AddDoctorPage() {
   };
 
   const handleAdminAuth = async () => {
-    if (!adminPassword.trim()) {
-      setAdminAuthError('Please enter your password');
+    if (!user || !adminPassword) {
+      setAdminAuthError('Please enter your password to continue.');
       return;
     }
 
@@ -161,6 +181,19 @@ export default function AddDoctorPage() {
     setAdminAuthError('');
     
     try {
+      // Clear previous logs
+      localStorage.removeItem('adminAuthLogs');
+      const logs = [];
+      
+      logs.push('=== Starting handleAdminAuth ===');
+      logs.push(`Current user before doctor creation: ${user?.email}`);
+      logs.push(`Admin password length: ${adminPassword.length}`);
+      
+      console.log('=== Starting handleAdminAuth ===');
+      console.log('Current user before doctor creation:', user);
+      console.log('Admin email:', user?.email);
+      console.log('Admin password length:', adminPassword.length);
+      
       const realDataService = new RealDataService();
       
       // Create doctor data for Firebase
@@ -193,35 +226,118 @@ export default function AddDoctorPage() {
         yearsOfExperience: 0 // Can be calculated or added later
       };
 
+      console.log('About to create doctor with email:', doctorData.email);
+      
+      logs.push(`About to create doctor with email: ${doctorData.email}`);
+      
       // Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
       const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
       
+      console.log('Doctor created successfully:', { doctorId, temporaryPassword });
+      console.log('Temporary password type:', typeof temporaryPassword);
+      console.log('Temporary password length:', temporaryPassword?.length);
+      console.log('Current auth user after doctor creation:', auth.currentUser);
+      console.log('About to reauthenticate admin...');
+      
+      logs.push(`Doctor created successfully. ID: ${doctorId}`);
+      logs.push(`Temporary password: ${temporaryPassword}`);
+      logs.push(`Temporary password type: ${typeof temporaryPassword}`);
+      logs.push(`Temporary password length: ${temporaryPassword?.length || 0}`);
+      logs.push(`Current auth user after doctor creation: ${auth.currentUser?.email || 'null'}`);
+      logs.push('About to reauthenticate admin...');
+      
       // Re-authenticate the admin user using their credentials
-      await authService.reauthenticateAdmin(user?.email || '', adminPassword);
+      console.log('About to reauthenticate admin with email:', user?.email);
+      console.log('Admin password provided:', adminPassword ? 'Yes' : 'No');
+      
+      logs.push(`About to reauthenticate admin with email: ${user?.email}`);
+      logs.push(`Admin password provided: ${adminPassword ? 'Yes' : 'No'}`);
+      
+      const reauthenticatedAdmin = await authService.reauthenticateAdmin(user?.email || '', adminPassword);
+      
+      console.log('Reauthentication successful:', reauthenticatedAdmin);
+      console.log('Current auth user after reauthentication:', auth.currentUser);
+      console.log('Reauthentication result email:', reauthenticatedAdmin?.email);
+      console.log('Current auth user email:', auth.currentUser?.email);
+      
+      logs.push(`Reauthentication successful: ${reauthenticatedAdmin?.email || 'null'}`);
+      logs.push(`Current auth user after reauthentication: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Reauthentication result email: ${reauthenticatedAdmin?.email || 'null'}`);
+      logs.push(`Current auth user email: ${auth.currentUser?.email || 'null'}`);
       
       // Clear admin password from state
       setAdminPassword('');
       setShowAdminAuth(false);
       
       // Set success data and show dialog
-      setSuccessData({
+      const successDataObj = {
         email: formData.email,
-        password: temporaryPassword
-      });
-      setSuccessDialog(true);
+        password: temporaryPassword,
+        doctorId: doctorId
+      };
+      console.log('Setting success data:', successDataObj);
+      console.log('Success data email:', successDataObj.email);
+      console.log('Success data password:', successDataObj.password);
+      console.log('=== handleAdminAuth completed successfully ===');
       
-      // Show a success toast
+      // Store logs in localStorage
+      localStorage.setItem('adminAuthLogs', JSON.stringify(logs));
+      
+             setSuccessData(successDataObj);
+       setSuccessDialog(true);
+       
+       // Clear form data after successful creation
+       setFormData(initialFormData);
+       setActiveTab('personal');
+       
+       // Show a success toast
+       toast({
+         title: "Specialist created successfully",
+         description: "Your admin session has been restored automatically.",
+         variant: "default",
+       });
+      
+    } catch (error: any) {
+      console.error('=== Error in handleAdminAuth ===');
+      console.error('Error creating specialist:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Current auth user after error:', auth.currentUser);
+      console.error('Error stack:', error.stack);
+      
+      logs.push(`=== Error in handleAdminAuth ===`);
+      logs.push(`Error code: ${error.code}`);
+      logs.push(`Error message: ${error.message}`);
+      logs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Error stack: ${error.stack}`);
+      
+      let errorMessage = 'Failed to create specialist. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('email-already-in-use')) {
+          errorMessage = 'A doctor with this email already exists.';
+        } else if (error.message.includes('invalid-email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (error.message.includes('weak-password')) {
+          errorMessage = 'Password is too weak.';
+        } else if (error.message.includes('wrong-password')) {
+          errorMessage = 'Incorrect admin password. Please try again.';
+        } else if (error.message.includes('user-not-found')) {
+          errorMessage = 'Admin user not found. Please check your credentials.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('Failed to restore admin session')) {
+          errorMessage = 'Specialist created but admin session could not be restored. Please sign in again.';
+        }
+      }
+      
+      // Store error logs in localStorage
+      localStorage.setItem('adminAuthErrorLogs', JSON.stringify(logs));
+      
+      setAdminAuthError(errorMessage);
       toast({
-        title: "Doctor created successfully",
-        description: "Your admin session has been restored automatically.",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error('Error creating doctor:', error);
-      setAdminAuthError('Failed to create doctor or restore admin session. Please try again.');
-      toast({
-        title: "Error creating doctor",
-        description: "Please try again.",
+        title: "Error creating specialist",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -234,7 +350,8 @@ export default function AddDoctorPage() {
   };
 
   const confirmClearForm = () => {
-    // clearData(); // This line is removed as per the edit hint
+    setFormData(initialFormData);
+    setActiveTab('personal');
     setClearDialog(false);
     toast({
       title: "Form cleared",
@@ -279,14 +396,21 @@ export default function AddDoctorPage() {
       isValidLicense(formData.medicalLicense),
       isValidPRCId(formData.prcId),
       isValidExpiry(formData.prcExpiry),
-      isValidProfessionalFee(formData.professionalFee)
+      isValidProfessionalFee(formData.professionalFee),
+      // Add schedules validation - at least one valid schedule is required
+      formData.schedules.length > 0 && formData.schedules.some(schedule => 
+        schedule.practiceLocation?.clinicId && 
+        schedule.practiceLocation?.roomOrUnit &&
+        schedule.recurrence?.dayOfWeek?.length > 0 &&
+        schedule.validFrom
+      )
     ];
     
     // Debug: Log validation results
     const fieldNames = [
       'firstName', 'lastName', 'middleName', 'suffix', 'email', 'phone', 
       'address', 'dateOfBirth', 'gender', 'civilStatus', 'specialty', 
-      'medicalLicense', 'prcId', 'prcExpiry', 'professionalFee'
+      'medicalLicense', 'prcId', 'prcExpiry', 'professionalFee', 'schedules'
     ];
     
     const failedFields = fieldNames.filter((_, index) => !validations[index]);
@@ -340,7 +464,7 @@ export default function AddDoctorPage() {
 
   // Calculate form completion percentage with validation
   const calculateProgress = () => {
-    const totalFields = 17; // Total number of required fields (excluding sub-specialty and profile picture)
+    const totalFields = 16; // Total number of required fields (10 personal + 5 professional + 1 schedules)
     let completedFields = 0;
 
     // Personal Information (10 fields) - with validation
@@ -362,19 +486,19 @@ export default function AddDoctorPage() {
     if (isValidExpiry(formData.prcExpiry)) completedFields++;
     if (isValidProfessionalFee(formData.professionalFee)) completedFields++;
 
-         // Schedules (2 fields) - only count if valid schedules exist
-     if (formData.schedules.length > 0) {
-       // Check if schedules have valid data
-       const validSchedules = formData.schedules.filter(schedule => 
-         schedule.practiceLocation?.clinicId && 
-         schedule.practiceLocation?.roomOrUnit &&
-         schedule.recurrence?.dayOfWeek?.length > 0 &&
-         schedule.validFrom
-       );
-       if (validSchedules.length > 0) {
-         completedFields += 2;
-       }
-     }
+    // Schedules (1 field) - required, count if valid schedules exist
+    if (formData.schedules.length > 0) {
+      // Check if schedules have valid data
+      const validSchedules = formData.schedules.filter(schedule => 
+        schedule.practiceLocation?.clinicId && 
+        schedule.practiceLocation?.roomOrUnit &&
+        schedule.recurrence?.dayOfWeek?.length > 0 &&
+        schedule.validFrom
+      );
+      if (validSchedules.length > 0) {
+        completedFields += 1;
+      }
+    }
 
     return Math.round((completedFields / totalFields) * 100);
   };
@@ -565,6 +689,37 @@ export default function AddDoctorPage() {
     );
   }
 
+  // Function to get debug logs from localStorage
+  const getDebugLogs = () => {
+    const logs = [];
+    
+    const adminAuthLogs = localStorage.getItem('adminAuthLogs');
+    if (adminAuthLogs) {
+      logs.push('=== Admin Auth Logs ===');
+      logs.push(...JSON.parse(adminAuthLogs));
+    }
+    
+    const reauthenticateAdminLogs = localStorage.getItem('reauthenticateAdminLogs');
+    if (reauthenticateAdminLogs) {
+      logs.push('=== Reauthenticate Admin Logs ===');
+      logs.push(...JSON.parse(reauthenticateAdminLogs));
+    }
+    
+    const signInLogs = localStorage.getItem('signInLogs');
+    if (signInLogs) {
+      logs.push('=== Sign In Logs ===');
+      logs.push(...JSON.parse(signInLogs));
+    }
+    
+    const errorLogs = localStorage.getItem('adminAuthErrorLogs');
+    if (errorLogs) {
+      logs.push('=== Error Logs ===');
+      logs.push(...JSON.parse(errorLogs));
+    }
+    
+    return logs.join('\n');
+  };
+
   return (
     <DashboardLayout title="">
       <div className="space-y-6 animate-fade-in">
@@ -579,7 +734,7 @@ export default function AddDoctorPage() {
             <div>
               <h2 className="text-2xl font-bold flex items-center">
                 <UserPlus className="h-6 w-6 mr-2" />
-                Add New Doctor
+                Add New Specialist
               </h2>
               <p className="text-muted-foreground">
                 Register a new healthcare professional in the system
@@ -603,7 +758,7 @@ export default function AddDoctorPage() {
                                    <CardHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <CardTitle>Doctor Registration Form</CardTitle>
+                  <CardTitle>Specialist Registration Form</CardTitle>
                   <CardDescription>
                     Complete all required information to submit
                   </CardDescription>
@@ -725,16 +880,16 @@ export default function AddDoctorPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Admin Authentication Required</DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
               <div className="space-y-4">
                 <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-medium mb-1">Security Verification Required</p>
-                    <p>
+                    <div className="font-medium mb-1">Security Verification Required</div>
+                    <div>
                       To create a new doctor account, we need to verify your admin credentials. 
                       This ensures your session remains active after the doctor is created.
-                    </p>
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -813,16 +968,16 @@ export default function AddDoctorPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Doctor Created Successfully!</DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
               <div className="space-y-3">
-                <p>A new doctor account has been created successfully.</p>
+                <div>A new doctor account has been created successfully.</div>
                 {successData && (
                   <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                      <div className="text-sm font-medium text-green-700 dark:text-green-400">
                         Credentials Generated Successfully
-                      </p>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
@@ -834,9 +989,19 @@ export default function AddDoctorPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Temporary Password:</span>
                         <span className="text-sm font-mono bg-background px-2 py-1 rounded border">
-                          {successData.password}
+                          {successData.password || 'No password generated'}
                         </span>
                       </div>
+                    </div>
+                    {/* Debug info - remove after testing */}
+                    <div className="text-xs text-muted-foreground">
+                      Debug: successData = {JSON.stringify(successData)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Debug: successData.password type = {typeof successData.password}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Debug: successData.password length = {successData.password?.length || 0}
                     </div>
                     <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                       <AlertTriangle className="h-3 w-3" />
@@ -858,6 +1023,19 @@ export default function AddDoctorPage() {
                     >
                       Copy Credentials
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDebugInfo(!showDebugInfo)}
+                      className="w-full"
+                    >
+                      {showDebugInfo ? 'Hide' : 'Show'} Debug Logs
+                    </Button>
+                    {showDebugInfo && (
+                      <div className="bg-black text-green-400 p-4 rounded-lg text-xs font-mono max-h-60 overflow-y-auto">
+                        <pre>{getDebugLogs()}</pre>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

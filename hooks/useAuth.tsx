@@ -58,9 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Firebase user authenticated - fetch additional user details first
-        try {
+      try {
+        console.log('Firebase auth state changed:', firebaseUser?.email);
+        
+        if (firebaseUser) {
+          // Firebase user authenticated - fetch additional user details
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           const snapshot = await get(userRef);
           
@@ -83,39 +85,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
           }
 
-          // Set user first, then validate session
+          console.log('Setting user details:', userDetails);
           setUser(userDetails);
-          
-          // For fresh logins, add a grace period before session validation
-          const session = SecureSessionStorage.getSession();
-          if (session) {
-            // Add a small delay to prevent immediate validation conflicts
-            setTimeout(async () => {
-              const sessionValid = await SessionValidator.validateSession();
-              
-              if (!sessionValid) {
-                // Session is invalid, clear everything
-                setUser(null);
-                setLoading(false);
-                return;
-              }
-            }, 1000); // 1 second grace period
-          }
-          
           setLoading(false);
-        } catch (error) {
-          console.error('Error fetching user details:', error);
-          setUser(null);
-          setLoading(false);
-        }
-      } else {
-        // No Firebase user - check for superadmin
-        const superadminUser = checkSuperadminAuth();
-        if (superadminUser) {
-          setUser(superadminUser);
         } else {
-          setUser(null);
+          // No Firebase user - check for superadmin
+          const superadminUser = checkSuperadminAuth();
+          if (superadminUser) {
+            console.log('Setting superadmin user:', superadminUser);
+            setUser(superadminUser);
+          } else {
+            console.log('No user found, setting null');
+            setUser(null);
+          }
+          setLoading(false);
         }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        setUser(null);
         setLoading(false);
       }
     });
@@ -158,24 +145,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('sessionDestroyed', handleSessionDestroyed);
     return () => window.removeEventListener('sessionDestroyed', handleSessionDestroyed);
   }, []);
-
-  // Periodic session validation (every 30 seconds) - disabled for now to prevent login issues
-  // useEffect(() => {
-  //   const validateSessionPeriodically = async () => {
-  //     if (user && SecureSessionStorage.isSessionActive()) {
-  //       const sessionValid = await SessionValidator.validateSession();
-  //       if (!sessionValid) {
-  //         setUser(null);
-  //         setLoading(false);
-  //         SecureSessionStorage.clearSession();
-  //         window.location.href = '/login';
-  //       }
-  //     }
-  //   };
-
-  //   const interval = setInterval(validateSessionPeriodically, 30000); // 30 seconds
-  //   return () => clearInterval(interval);
-  // }, [user]);
 
   const signOut = async () => {
     try {

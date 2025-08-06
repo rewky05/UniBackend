@@ -3,20 +3,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Phone, User, Users } from 'lucide-react';
 
-interface EmergencyContactFormProps {
-  formData: {
-    emergencyContact: {
-      name: string;
-      phone: string;
-      relationship: string;
-    };
+interface EmergencyContactData {
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
   };
-  onFormDataChange: (field: string, value: any) => void;
 }
 
-export function EmergencyContactForm({ formData, onFormDataChange }: EmergencyContactFormProps) {
+interface EmergencyContactFormProps {
+  data: EmergencyContactData;
+  onUpdate: (data: Partial<EmergencyContactData>) => void;
+}
+
+export function EmergencyContactForm({ data, onUpdate }: EmergencyContactFormProps) {
   return (
     <Card>
       <CardHeader>
@@ -35,14 +38,16 @@ export function EmergencyContactForm({ formData, onFormDataChange }: EmergencyCo
             <div className="space-y-2">
               <Label htmlFor="emergencyName" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Contact Name *
+                Contact Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="emergencyName"
-                value={formData.emergencyContact.name}
-                onChange={(e) => onFormDataChange('emergencyContact', {
-                  ...formData.emergencyContact,
-                  name: e.target.value
+                value={data.emergencyContact.name}
+                onChange={(e) => onUpdate({
+                  emergencyContact: {
+                    ...data.emergencyContact,
+                    name: e.target.value
+                  }
                 })}
                 placeholder="Enter contact name"
                 required
@@ -51,54 +56,49 @@ export function EmergencyContactForm({ formData, onFormDataChange }: EmergencyCo
             <div className="space-y-2">
               <Label htmlFor="emergencyPhone" className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
-                Contact Phone *
+                Contact Phone <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="emergencyPhone"
                 type="tel"
-                value={formData.emergencyContact.phone}
-                onChange={(e) => onFormDataChange('emergencyContact', {
-                  ...formData.emergencyContact,
-                  phone: e.target.value
+                value={data.emergencyContact.phone}
+                onChange={(e) => onUpdate({
+                  emergencyContact: {
+                    ...data.emergencyContact,
+                    phone: e.target.value
+                  }
                 })}
                 placeholder="Enter contact phone"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="emergencyRelationship">Relationship *</Label>
-              <Input
-                id="emergencyRelationship"
-                value={formData.emergencyContact.relationship}
-                onChange={(e) => onFormDataChange('emergencyContact', {
-                  ...formData.emergencyContact,
-                  relationship: e.target.value
+              <Label htmlFor="emergencyRelationship">Relationship <span className="text-destructive">*</span></Label>
+              <Select
+                value={data.emergencyContact.relationship}
+                onValueChange={(value) => onUpdate({
+                  emergencyContact: {
+                    ...data.emergencyContact,
+                    relationship: value
+                  }
                 })}
-                placeholder="e.g., Spouse, Parent, Sibling"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Emergency Contact Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Additional Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="emergencyAddress">Contact Address (Optional)</Label>
-              <Input
-                id="emergencyAddress"
-                placeholder="Enter contact address"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="emergencyEmail">Contact Email (Optional)</Label>
-              <Input
-                id="emergencyEmail"
-                type="email"
-                placeholder="Enter contact email"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spouse">Spouse</SelectItem>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="sibling">Sibling</SelectItem>
+                  <SelectItem value="child">Child</SelectItem>
+                  <SelectItem value="grandparent">Grandparent</SelectItem>
+                  <SelectItem value="uncle-aunt">Uncle/Aunt</SelectItem>
+                  <SelectItem value="cousin">Cousin</SelectItem>
+                  <SelectItem value="friend">Friend</SelectItem>
+                  <SelectItem value="guardian">Guardian</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

@@ -101,7 +101,7 @@ export function AffiliationsEducationForm({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center mb-2">
                 <Calendar className="h-5 w-5 mr-2" />
                 Schedule Management
               </CardTitle>
@@ -121,6 +121,9 @@ export function AffiliationsEducationForm({
               <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground mb-2">
                 No schedules configured
+              </p>
+              <p className="text-sm text-muted-foreground mb-2">
+                At least one schedule is required to complete registration
               </p>
               <p className="text-sm text-muted-foreground">
                 Click &quot;Add Schedule&quot; to set up doctor availability

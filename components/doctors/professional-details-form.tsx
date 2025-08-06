@@ -12,7 +12,7 @@ interface ProfessionalDetailsData {
   medicalLicense: string;
   prcId: string;
   prcExpiry: string;
-  professionalFee?: number; // Professional fee in Philippine pesos
+  professionalFee: number; // Professional fee in Philippine pesos
 }
 
 interface ProfessionalDetailsFormProps {

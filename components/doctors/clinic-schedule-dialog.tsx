@@ -15,6 +15,8 @@ import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown,
 import { cn, formatDateToText } from '@/lib/utils';
 import type { SpecialistSchedule } from '@/app/doctors/add/page';
 import { useRealClinics } from '@/hooks/useRealData';
+import { ClinicsService } from '@/lib/services/schedules.service';
+import { toast } from '@/hooks/use-toast';
 
 interface ClinicScheduleDialogProps {
   open: boolean;
@@ -44,9 +46,24 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   const [clinicSearchValue, setClinicSearchValue] = useState('');
   const [selectedClinic, setSelectedClinic] = useState<any>(null);
   const [isNewClinic, setIsNewClinic] = useState(false);
+  const [showClinicDialog, setShowClinicDialog] = useState(false);
   
   // Get real clinic data from Firebase
   const { clinics, loading: clinicsLoading } = useRealClinics();
+  
+  // Clinic creation form state
+  const [clinicFormData, setClinicFormData] = useState({
+    name: '',
+    address: '',
+    city: '',
+    province: '',
+    zipCode: '',
+    email: '',
+    phone: '',
+    type: '' as 'hospital' | 'multi_specialty_clinic' | 'community_clinic' | 'private_clinic'
+  });
+  
+  const clinicsService = new ClinicsService();
   
 
   
@@ -281,27 +298,80 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const handleNewClinicSelect = (name: string) => {
-    setSelectedClinic(null);
-    setIsNewClinic(true);
     setClinicSearchValue(name);
-    setFormData(prev => ({
-      ...prev,
-      clinicId: '',
-      roomOrUnit: '',
-      dayOfWeek: [],
-      startTime: '',
-      endTime: '',
-      slotDurationMinutes: 30,
-      validFrom: new Date().toISOString().split('T')[0],
-      isActive: true,
-      newClinicDetails: {
-        name: name,
-        addressLine: '',
-        contactNumber: '',
-        type: ''
-      }
-    }));
+    setClinicFormData(prev => ({ ...prev, name }));
+    setShowClinicDialog(true);
     setClinicSearchOpen(false);
+  };
+
+  const handleCreateClinic = async () => {
+    try {
+      // Validate required fields
+      if (!clinicFormData.name || !clinicFormData.address || !clinicFormData.city || 
+          !clinicFormData.province || !clinicFormData.zipCode || !clinicFormData.email || 
+          !clinicFormData.phone || !clinicFormData.type) {
+        toast({
+          title: "Missing required fields",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create the clinic
+      const clinicId = await clinicsService.createClinic({
+        ...clinicFormData,
+        isActive: true
+      });
+      
+      // Get the created clinic data
+      const createdClinic = {
+        id: clinicId,
+        ...clinicFormData,
+        isActive: true
+      };
+
+      // Set as selected clinic
+      setSelectedClinic(createdClinic);
+      setClinicSearchValue(createdClinic.name);
+      setShowClinicDialog(false);
+      
+      // Reset form
+      setClinicFormData({
+        name: '',
+        address: '',
+        city: '',
+        province: '',
+        zipCode: '',
+        email: '',
+        phone: '',
+        type: '' as 'hospital' | 'multi_specialty_clinic' | 'community_clinic' | 'private_clinic'
+      });
+
+      toast({
+        title: "Clinic created successfully",
+        description: `${createdClinic.name} has been added to the system.`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error creating clinic:', error);
+      toast({
+        title: "Error creating clinic",
+        description: "Failed to create clinic. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isClinicFormValid = () => {
+    return clinicFormData.name.trim() && 
+           clinicFormData.address.trim() && 
+           clinicFormData.city.trim() && 
+           clinicFormData.province.trim() && 
+           clinicFormData.zipCode.trim() && 
+           clinicFormData.email.trim() && 
+           clinicFormData.phone.trim() && 
+           clinicFormData.type;
   };
 
   const addScheduleBlock = () => {
@@ -342,10 +412,6 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
         }
       }
       
-
-      
-
-      
       if (isEditMode && editingSchedule) {
         // Edit mode: update the existing schedule
         const updatedSchedule: SpecialistSchedule = {
@@ -368,9 +434,10 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
         // Replace the existing schedule with the updated one
         setLocalSchedules([updatedSchedule]);
       } else {
-        // Add mode: create new schedule
+        // Add mode: create new schedule with temporary ID for local state
+        // The actual unique key will be generated when saving to Firebase
         const newSchedule: SpecialistSchedule = {
-          id: `sch_${Date.now()}`,
+          id: `temp_${Date.now()}`, // Temporary ID for local state management
           specialistId: specialistId || 'temp_specialist_id',
           practiceLocation: {
             clinicId: selectedClinic?.id || '',
@@ -536,7 +603,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                                 />
                                 <div>
                                   <div className="font-medium">{clinic.name}</div>
-                                  <div className="text-sm text-muted-foreground">{clinic.addressLine}</div>
+                                  <div className="text-sm text-muted-foreground">{clinic.address}</div>
                                 </div>
                               </CommandItem>
                             ))}
@@ -760,6 +827,121 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Clinic Creation Dialog */}
+      <Dialog open={showClinicDialog} onOpenChange={setShowClinicDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Clinic</DialogTitle>
+            <DialogDescription>
+              Add a new clinic to the system. All fields are required.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic-name">Clinic Name *</Label>
+                <Input
+                  id="clinic-name"
+                  value={clinicFormData.name}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter clinic name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clinic-type">Clinic Type *</Label>
+                <Select value={clinicFormData.type} onValueChange={(value) => setClinicFormData(prev => ({ ...prev, type: value as any }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select clinic type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hospital">Hospital</SelectItem>
+                    <SelectItem value="multi_specialty_clinic">Multi-Specialty Clinic</SelectItem>
+                    <SelectItem value="community_clinic">Community Clinic</SelectItem>
+                    <SelectItem value="private_clinic">Private Clinic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clinic-address">Address *</Label>
+              <Input
+                id="clinic-address"
+                value={clinicFormData.address}
+                onChange={(e) => setClinicFormData(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Enter complete address"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic-city">City *</Label>
+                <Input
+                  id="clinic-city"
+                  value={clinicFormData.city}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Enter city"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clinic-province">Province *</Label>
+                <Input
+                  id="clinic-province"
+                  value={clinicFormData.province}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, province: e.target.value }))}
+                  placeholder="Enter province"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clinic-zipcode">Zip Code *</Label>
+                <Input
+                  id="clinic-zipcode"
+                  value={clinicFormData.zipCode}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                  placeholder="Enter zip code"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic-email">Email *</Label>
+                <Input
+                  id="clinic-email"
+                  type="email"
+                  value={clinicFormData.email}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter email address"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clinic-phone">Phone *</Label>
+                <Input
+                  id="clinic-phone"
+                  value={clinicFormData.phone}
+                  onChange={(e) => setClinicFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Enter phone number"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClinicDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateClinic} disabled={!isClinicFormValid()}>
+              Create Clinic
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

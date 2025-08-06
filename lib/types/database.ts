@@ -45,10 +45,17 @@ export interface Doctor {
 export interface Clinic {
   id?: string;
   name: string;
-  addressLine: string;
-  contactNumber: string;
-  type: 'hospital' | 'multi_specialty_clinic' | 'community_clinic';
+  address: string;
+  city: string;
+  province: string;
+  zipCode: string;
+  email: string;
+  phone: string;
+  type: 'hospital' | 'multi_specialty_clinic' | 'community_clinic' | 'private_clinic';
   isActive: boolean;
+  createdAt?: number;
+  updatedAt?: number;
+  createdBy?: string;
 }
 
 // Feedback from your database
@@ -80,6 +87,7 @@ export interface Feedback {
 
 // Users from your database
 export interface User {
+  id?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -122,15 +130,19 @@ export interface Appointment {
 
 // Patients from your database
 export interface Patient {
+  id?: string;
   userId: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   dateOfBirth: string;
   gender: string;
+  address?: string;
   bloodType?: string;
   allergies?: string[];
   medicalConditions?: string[];
+  educationalAttainment?: string;
+  isActive?: boolean;
   emergencyContact: {
     name: string;
     phone: string;

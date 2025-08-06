@@ -559,15 +559,18 @@ export default function DoctorsPage() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Details
                                 </DropdownMenuItem>
-                                {/* <DropdownMenuItem asChild>
-                                  <Link href={`/doctors/${doctor.id}/edit`}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </Link>
-                                </DropdownMenuItem> */}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedDoctor(doctor);
+                                    setIsSheetOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Details
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="text-destructive">
                                   <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
+                                  Suspend Account
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -779,9 +782,9 @@ export default function DoctorsPage() {
               </div>
               <div className="flex justify-end gap-2 mt-8">
                 <Button variant="outline"><Edit className="h-4 w-4 mr-2" /> Edit Details</Button>
-                <SheetClose asChild>
+                {/* <SheetClose asChild>
                   <Button variant="ghost">Close</Button>
-                </SheetClose>
+                </SheetClose> */}
               </div>
             </div>
           </SheetContent>

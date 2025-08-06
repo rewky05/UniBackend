@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaCompleted, setCaptchaCompleted] = useState(false);
   const [lockoutRecord, setLockoutRecord] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState('');
   const router = useRouter();
 
   // Check for account lockout when email changes
@@ -45,8 +46,6 @@ export default function LoginPage() {
     return () => clearTimeout(timeoutId);
   }, [email]);
 
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,22 +65,29 @@ export default function LoginPage() {
       setShowCaptcha(false);
       setIsLoading(true);
       setError('');
+      setDebugInfo('Starting authentication...');
 
       try {
+        setDebugInfo('Calling authService.signIn...');
         // Only now proceed with Firebase authentication
         const adminUser = await authService.signIn(email, password);
         
+        setDebugInfo('Authentication successful, storing user info...');
         // Store user info in localStorage for UI purposes
         localStorage.setItem('userRole', adminUser.role);
         localStorage.setItem('userEmail', adminUser.email);
         localStorage.setItem('userDisplayName', adminUser.displayName);
         
-        // Navigate to dashboard
-        router.push('/dashboard');
+        setDebugInfo('Redirecting to dashboard...');
+        // Add a longer delay to ensure authentication state is properly set
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
       } catch (error: any) {
         console.error('Login error:', error);
         setError(error.message || 'Invalid email or password. Please try again.');
         setCaptchaCompleted(false);
+        setDebugInfo(`Error: ${error.message}`);
         
         // Check for lockout after failed attempt
         try {
@@ -103,14 +109,13 @@ export default function LoginPage() {
   const handleCaptchaReset = () => {
     setCaptchaCompleted(false);
     setError('');
+    setDebugInfo('');
   };
 
   const handleLockoutExpired = () => {
     setLockoutRecord(null);
     setError('');
   };
-
-
 
   return (
     <div className="min-h-screen healthcare-gradient flex items-center justify-center p-4">
@@ -145,6 +150,14 @@ export default function LoginPage() {
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              {debugInfo && (
+                <Alert>
+                  <AlertDescription className="text-xs font-mono">
+                    {debugInfo}
+                  </AlertDescription>
                 </Alert>
               )}
               
@@ -188,8 +201,6 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </div>
-
-
 
               <Button
                 type="submit"
@@ -244,8 +255,6 @@ export default function LoginPage() {
           onExpired={handleLockoutExpired}
         />
       )}
-
-
     </div>
   );
 }

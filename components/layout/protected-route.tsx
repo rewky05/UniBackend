@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 
@@ -12,17 +11,25 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requireSuperadmin = false }: ProtectedRouteProps) {
   const { user, loading, isSuperadmin } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
+    console.log('ProtectedRoute - loading:', loading, 'user:', user?.email, 'requireSuperadmin:', requireSuperadmin);
+    
     if (!loading) {
       if (!user) {
-        router.push('/login');
+        console.log('No user found, redirecting to login');
+        // Add a small delay to prevent race conditions
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
       } else if (requireSuperadmin && !isSuperadmin()) {
-        router.push('/dashboard');
+        console.log('User is not superadmin, redirecting to dashboard');
+        window.location.href = '/dashboard';
+      } else {
+        console.log('User authenticated successfully');
       }
     }
-  }, [user, loading, requireSuperadmin, isSuperadmin, router]);
+  }, [user, loading, requireSuperadmin, isSuperadmin]);
 
   if (loading) {
     return (

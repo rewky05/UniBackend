@@ -21,20 +21,22 @@ export class RealDataService {
    * Generate a random temporary password that meets Firebase requirements
    */
   private generateTemporaryPassword(): string {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
     const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
     
     let password = '';
     
-    // Ensure at least one letter, one number, and one special character
-    password += letters.charAt(Math.floor(Math.random() * letters.length));
+    // Ensure at least one character from each category
+    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
     password += numbers.charAt(Math.floor(Math.random() * numbers.length));
     password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
     
     // Fill the rest with random characters from all categories
-    const allChars = letters + numbers + specialChars;
-    for (let i = 3; i < 12; i++) {
+    const allChars = lowercase + uppercase + numbers + specialChars;
+    for (let i = 4; i < 12; i++) {
       password += allChars.charAt(Math.floor(Math.random() * allChars.length));
     }
     
@@ -47,9 +49,10 @@ export class RealDataService {
    */
   async createDoctor(doctorData: any): Promise<{ doctorId: string; temporaryPassword: string }> {
     try {
-      const doctorId = `doc_${doctorData.firstName.toLowerCase()}_${doctorData.lastName.toLowerCase()}_${Date.now()}`;
       const timestamp = new Date().toISOString();
       const temporaryPassword = this.generateTemporaryPassword();
+      
+      console.log('Creating doctor with temporary password:', temporaryPassword);
 
       // 1. Create Firebase Authentication account
       const userCredential = await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
@@ -57,7 +60,10 @@ export class RealDataService {
       // Note: createUserWithEmailAndPassword automatically signs in the new user
       // We need to handle this in the calling component to prevent the admin from being signed out
 
-      // 2. Create user entry
+      // 2. Create user entry with push() for unique key
+      const userRef = push(ref(db, 'users'));
+      const doctorId = userRef.key!;
+      
       const userData = {
         contactNumber: doctorData.phone,
         createdAt: timestamp,
@@ -105,9 +111,13 @@ export class RealDataService {
       // 4. Create specialist schedules
       const schedulesData: any = {};
       if (doctorData.schedules && doctorData.schedules.length > 0) {
-        doctorData.schedules.forEach((schedule: any, index: number) => {
-          const scheduleId = `sched_${doctorId}_${index + 1}`;
-          schedulesData[scheduleId] = {
+        // Use Promise.all to create all schedules with push() for unique keys
+        const schedulePromises = doctorData.schedules.map(async (schedule: any) => {
+          const schedulesRef = ref(db, `specialistSchedules/${doctorId}`);
+          const newScheduleRef = push(schedulesRef);
+          const scheduleId = newScheduleRef.key!;
+          
+          const scheduleData = {
             createdAt: timestamp,
             isActive: schedule.isActive,
             lastUpdated: timestamp,
@@ -118,18 +128,21 @@ export class RealDataService {
             specialistId: doctorId,
             validFrom: schedule.validFrom
           };
+          
+          return set(newScheduleRef, scheduleData);
         });
+        
+        // Wait for all schedules to be created
+        await Promise.all(schedulePromises);
       }
 
       // Save to Firebase
       await Promise.all([
         set(ref(db, `users/${doctorId}`), userData),
-        set(ref(db, `doctors/${doctorId}`), doctorEntry),
-        schedulesData && Object.keys(schedulesData).length > 0 
-          ? set(ref(db, `specialistSchedules/${doctorId}`), schedulesData)
-          : Promise.resolve()
+        set(ref(db, `doctors/${doctorId}`), doctorEntry)
       ]);
 
+      console.log('Doctor created successfully. Returning:', { doctorId, temporaryPassword });
       return { doctorId, temporaryPassword };
     } catch (error) {
       console.error('Error creating doctor:', error);
@@ -726,7 +739,6 @@ export class RealDataService {
    */
   async createPatient(patientData: any): Promise<{ patientId: string; temporaryPassword: string }> {
     try {
-      const patientId = `pat_${patientData.firstName.toLowerCase()}_${patientData.lastName.toLowerCase()}_${Date.now()}`;
       const timestamp = new Date().toISOString();
       const temporaryPassword = this.generateTemporaryPassword();
 
@@ -736,7 +748,10 @@ export class RealDataService {
       // Note: createUserWithEmailAndPassword automatically signs in the new user
       // We need to handle this in the calling component to prevent the admin from being signed out
 
-      // 2. Create user entry
+      // 2. Create user entry with push() for unique key
+      const userRef = push(ref(db, 'users'));
+      const patientId = userRef.key!;
+      
       const userData = {
         contactNumber: patientData.phone,
         createdAt: timestamp,
@@ -755,13 +770,12 @@ export class RealDataService {
         lastName: patientData.lastName,
         dateOfBirth: patientData.dateOfBirth,
         gender: patientData.gender,
-        bloodType: patientData.bloodType || '',
-        allergies: patientData.allergies || [],
-        medicalConditions: patientData.medicalConditions || [],
+        educationalAttainment: patientData.educationalAttainment || '',
         emergencyContact: patientData.emergencyContact,
         address: patientData.address || '',
         createdAt: timestamp,
-        lastUpdated: timestamp
+        lastUpdated: timestamp,
+        isActive: true // Default to active
       };
 
       // 4. Save to Firebase

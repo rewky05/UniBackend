@@ -20,22 +20,32 @@ interface BulkImportDialogProps {
 }
 
 interface SpecialistData {
+  // Personal Information (Required)
   firstName: string;
-  middleName?: string;
+  middleName: string;
   lastName: string;
+  suffix: string;
   email: string;
   phone: string;
   dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
-  civilStatus: 'single' | 'married' | 'divorced' | 'widowed';
+  gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+  civilStatus: 'single' | 'married' | 'divorced' | 'widowed' | 'separated';
+  address: string;
+  
+  // Professional Information (Required)
+  specialty: string;
+  medicalLicense: string;
   prcId: string;
   prcExpiry: string;
-  specialty: string;
-  subSpecialty?: string;
-  yearsOfExperience: number;
-  bio?: string;
-  address?: string;
-  professionalFee?: number;
+  professionalFee: number;
+  
+  // Schedule Information (Required)
+  clinicName: string;
+  roomOrUnit: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  validFrom: string;
 }
 
 interface ValidationResult {
@@ -62,130 +72,222 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
   const [adminAuthError, setAdminAuthError] = useState('');
   const [progress, setProgress] = useState(0);
 
-  const downloadTemplate = () => {
-    // Create template data
-    const templateData = [
-      {
-        firstName: 'John',
-        middleName: 'Michael',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '+639123456789',
-        dateOfBirth: '1985-03-15',
-        gender: 'male',
-        civilStatus: 'married',
-        prcId: '123456',
-        prcExpiry: '2025-12-31',
-        specialty: 'Cardiology',
-        subSpecialty: 'Interventional Cardiology',
-        yearsOfExperience: 10,
-        bio: 'Experienced cardiologist with expertise in interventional procedures.',
-        address: '123 Medical Center, Metro Manila',
-        professionalFee: 2500
-      },
-      {
-        firstName: 'Jane',
-        middleName: '',
-        lastName: 'Smith',
-        email: 'jane.smith@example.com',
-        phone: '+639987654321',
-        dateOfBirth: '1990-07-22',
-        gender: 'female',
-        civilStatus: 'single',
-        prcId: '789012',
-        prcExpiry: '2026-06-30',
-        specialty: 'Pediatrics',
-        subSpecialty: 'Neonatology',
-        yearsOfExperience: 8,
-        bio: 'Specialized in neonatal care and pediatric medicine.',
-        address: '456 Children\'s Hospital, Quezon City',
-        professionalFee: 2000
-      }
-    ];
+  const downloadTemplate = async () => {
+    try {
+      // Fetch clinics from database
+      const realDataService = new RealDataService();
+      const clinics = await realDataService.getClinics();
+      
+             // Create template data with all required fields
+       const templateData = [
+         {
+           // Personal Information Section
+           'First Name*': 'John',
+           'Middle Name*': 'Michael',
+           'Last Name*': 'Doe',
+           'Suffix*': 'MD',
+           'Email*': 'john.doe@example.com',
+           'Phone*': '+639123456789',
+           'Date of Birth*': '1985-03-15',
+           'Gender*': 'male',
+           'Civil Status*': 'married',
+           'Address*': '123 Medical Center, Metro Manila, Philippines',
+           
+           // Professional Information Section
+           'Specialty*': 'Cardiology',
+           'Medical License*': 'MD123456789',
+           'PRC ID*': 'PRC123456',
+           'PRC Expiry*': '2025-12-31',
+           'Professional Fee*': 2500,
+           
+           // Schedule Information Section
+           'Clinic Name*': clinics.length > 0 ? clinics[0].name : 'Select Clinic',
+           'Room/Unit*': 'Room 201',
+           'Day of Week*': 'monday,wednesday,friday',
+           'Start Time*': '09:00',
+           'End Time*': '17:00',
+           'Valid From*': '2025-01-01'
+         },
+         {
+           // Personal Information Section
+           'First Name*': 'Jane',
+           'Middle Name*': 'Santos',
+           'Last Name*': 'Smith',
+           'Suffix*': 'MD',
+           'Email*': 'jane.smith@example.com',
+           'Phone*': '+639987654321',
+           'Date of Birth*': '1990-07-22',
+           'Gender*': 'female',
+           'Civil Status*': 'single',
+           'Address*': '456 Children\'s Hospital, Quezon City, Philippines',
+           
+           // Professional Information Section
+           'Specialty*': 'Pediatrics',
+           'Medical License*': 'MD789012345',
+           'PRC ID*': 'PRC789012',
+           'PRC Expiry*': '2026-06-30',
+           'Professional Fee*': 2000,
+           
+           // Schedule Information Section
+           'Clinic Name*': clinics.length > 1 ? clinics[1].name : 'Select Clinic',
+           'Room/Unit*': 'Room 305',
+           'Day of Week*': 'tuesday,thursday,saturday',
+           'Start Time*': '08:00',
+           'End Time*': '16:00',
+           'Valid From*': '2025-01-01'
+         }
+       ];
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(templateData);
 
-    // Add headers
-    const headers = [
-      'firstName*',
-      'middleName',
-      'lastName*',
-      'email*',
-      'phone*',
-      'dateOfBirth*',
-      'gender*',
-      'civilStatus*',
-      'prcId*',
-      'prcExpiry*',
-      'specialty*',
-      'subSpecialty',
-      'yearsOfExperience*',
-      'bio',
-      'address',
-      'professionalFee'
-    ];
+         // Add headers - Organized by sections for easy navigation
+     const headers = [
+       // Personal Information Section
+       'First Name*',
+       'Middle Name*', 
+       'Last Name*',
+       'Suffix*',
+       'Email*',
+       'Phone*',
+       'Date of Birth*',
+       'Gender*',
+       'Civil Status*',
+       'Address*',
+       
+       // Professional Information Section
+       'Specialty*',
+       'Medical License*',
+       'PRC ID*',
+       'PRC Expiry*',
+       'Professional Fee*',
+       
+       // Schedule Information Section
+       'Clinic Name*',
+       'Room/Unit*',
+       'Day of Week*',
+       'Start Time*',
+       'End Time*',
+       'Valid From*'
+     ];
 
-    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
+         XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
 
-    // Set column widths
+     // Make headers bold
+     for (let i = 0; i < headers.length; i++) {
+       const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+       if (!ws[cellRef]) {
+         ws[cellRef] = { v: headers[i] };
+       }
+       ws[cellRef].s = { font: { bold: true } };
+     }
+
+     // Set column widths - Optimized for readability
     const colWidths = [
+      // Personal Information Section
       { wch: 15 }, // firstName
       { wch: 15 }, // middleName
       { wch: 15 }, // lastName
+      { wch: 12 }, // suffix
       { wch: 25 }, // email
-      { wch: 15 }, // phone
+      { wch: 18 }, // phone
       { wch: 12 }, // dateOfBirth
       { wch: 10 }, // gender
       { wch: 12 }, // civilStatus
-      { wch: 10 }, // prcId
-      { wch: 12 }, // prcExpiry
+      { wch: 35 }, // address
+      
+      // Professional Information Section
       { wch: 20 }, // specialty
-      { wch: 25 }, // subSpecialty
-      { wch: 8 },  // yearsOfExperience
-      { wch: 40 }, // bio
-      { wch: 30 }, // address
-      { wch: 12 }  // professionalFee
+      { wch: 15 }, // medicalLicense
+      { wch: 12 }, // prcId
+      { wch: 12 }, // prcExpiry
+      { wch: 15 }, // professionalFee
+      
+      // Schedule Information Section
+      { wch: 25 }, // clinicName
+      { wch: 15 }, // roomOrUnit
+      { wch: 25 }, // dayOfWeek
+      { wch: 10 }, // startTime
+      { wch: 10 }, // endTime
+      { wch: 12 }  // validFrom
     ];
     ws['!cols'] = colWidths;
+
+
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Specialists Template');
 
-    // Create instructions sheet
+    // Create comprehensive instructions sheet
     const instructions = [
-      ['Instructions:'],
-      ['1. Fill in the required fields marked with *'],
-      ['2. Do not modify the column headers'],
-      ['3. Use the exact format for dates (YYYY-MM-DD)'],
-      ['4. Gender must be: male, female, or other'],
-      ['5. Civil Status must be: single, married, divorced, or widowed'],
-      ['6. Email addresses must be unique'],
-      ['7. Phone numbers should include country code (+63 for Philippines)'],
-      ['8. PRC ID must be unique'],
-      ['9. Years of Experience should be a number'],
-      ['10. Professional Fee should be a number (in PHP)'],
+      ['BULK IMPORT SPECIALIST TEMPLATE - INSTRUCTIONS'],
       [''],
-      ['Required Fields:'],
-      ['- firstName: First name of the specialist'],
-      ['- lastName: Last name of the specialist'],
-      ['- email: Unique email address'],
-      ['- phone: Contact phone number'],
-      ['- dateOfBirth: Date of birth (YYYY-MM-DD)'],
-      ['- gender: male, female, or other'],
-      ['- civilStatus: single, married, divorced, or widowed'],
-      ['- prcId: PRC license number'],
-      ['- prcExpiry: PRC expiry date (YYYY-MM-DD)'],
-      ['- specialty: Medical specialty'],
-      ['- yearsOfExperience: Number of years of experience'],
+             ['GENERAL INSTRUCTIONS:'],
+       ['1. Fill in ALL required fields marked with * (asterisk)'],
+       ['2. Do NOT modify or delete any column headers'],
+       ['3. Use exact formats as specified for each field type'],
+       ['4. Each row represents one specialist to be created'],
+       ['5. Save file as .xlsx format before uploading'],
       [''],
-      ['Optional Fields:'],
-      ['- middleName: Middle name (if any)'],
-      ['- subSpecialty: Sub-specialty area'],
-      ['- bio: Professional biography'],
-      ['- address: Practice address'],
-      ['- professionalFee: Consultation fee in PHP']
+      ['FIELD FORMAT REQUIREMENTS:'],
+      ['• Dates: Use YYYY-MM-DD format (e.g., 1985-03-15)'],
+      ['• Phone: Include country code (+63 for Philippines)'],
+      ['• Email: Must be unique and valid format'],
+      ['• Numbers: Use digits only (no commas or currency symbols)'],
+      ['• Text: Use proper capitalization and spelling'],
+      [''],
+      ['PERSONAL INFORMATION SECTION (Columns A-J):'],
+      ['• firstName*: First name (minimum 2 characters)'],
+      ['• middleName*: Middle name (minimum 2 characters)'],
+      ['• lastName*: Last name (minimum 2 characters)'],
+      ['• suffix*: Name suffix (e.g., MD, PhD, Jr., Sr.)'],
+      ['• email*: Unique email address (e.g., doctor@hospital.com)'],
+      ['• phone*: Contact number with country code (+639123456789)'],
+             ['• dateOfBirth*: Birth date in YYYY-MM-DD format'],
+       ['• gender*: Choose from: male, female, other, prefer-not-to-say'],
+       ['• civilStatus*: Choose from: single, married, divorced, widowed, separated'],
+       ['• address*: Complete address (minimum 10 characters)'],
+      [''],
+      ['PROFESSIONAL INFORMATION SECTION (Columns K-O):'],
+      ['• specialty*: Medical specialty (minimum 3 characters)'],
+      ['• medicalLicense*: Medical license number (minimum 5 characters)'],
+      ['• prcId*: PRC license ID (minimum 6 characters)'],
+      ['• prcExpiry*: PRC expiry date (YYYY-MM-DD, must be future date)'],
+      ['• professionalFee*: Consultation fee in PHP (positive number)'],
+      [''],
+             ['SCHEDULE INFORMATION SECTION (Columns P-U):'],
+       ['• clinicName*: Clinic name (case-insensitive, must match available clinics)'],
+       ['• roomOrUnit*: Room or unit number (e.g., Room 201)'],
+       ['• dayOfWeek*: Days of week (comma-separated: monday,wednesday,friday)'],
+       ['• startTime*: Start time in HH:MM format (e.g., 09:00 or 9:00)'],
+       ['• endTime*: End time in HH:MM format (e.g., 17:00 or 5:00)'],
+       ['• validFrom*: Schedule start date (YYYY-MM-DD format)'],
+      [''],
+             ['AVAILABLE CLINICS:'],
+       ...clinics.map(clinic => [`• ${clinic.name}`]),
+      [''],
+      ['VALIDATION RULES:'],
+      ['• All required fields (*) must be filled'],
+      ['• Email addresses must be unique across all specialists'],
+      ['• PRC IDs must be unique across all specialists'],
+      ['• Phone numbers must include country code'],
+      ['• Dates must be valid and in correct format'],
+      ['• Professional fee must be between 0 and 100,000 PHP'],
+             ['• Clinic name must match available clinics (case-insensitive)'],
+      [''],
+      ['COMMON SPECIALTIES:'],
+      ['Cardiology, Dermatology, Emergency Medicine, Family Medicine,'],
+      ['Internal Medicine, Neurology, Obstetrics and Gynecology,'],
+      ['Oncology, Orthopedics, Pediatrics, Psychiatry, Radiology, Surgery, Urology'],
+      [''],
+      ['TROUBLESHOOTING:'],
+      ['• If upload fails, check all required fields are filled'],
+      ['• Ensure email and PRC ID are unique'],
+      ['• Verify date formats are YYYY-MM-DD'],
+      ['• Check phone numbers include country code'],
+      ['• Ensure professional fee is a number without symbols'],
+             ['• Verify clinic name matches available clinics (case-insensitive)']
     ];
 
     const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
@@ -199,77 +301,193 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       description: "Excel template has been downloaded. Fill in the data and upload it back.",
       variant: "default",
     });
+  } catch (error) {
+    console.error('Error downloading template:', error);
+    toast({
+      title: "Error downloading template",
+      description: "Failed to download template. Please try again.",
+      variant: "destructive",
+    });
+  }
   };
 
-  const validateSpecialistData = (data: any, row: number): ValidationResult => {
+  const validateSpecialistData = async (data: any, row: number): Promise<ValidationResult> => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Required field validation
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'civilStatus', 'prcId', 'prcExpiry', 'specialty', 'yearsOfExperience'];
+         // Required field validation - All required fields
+     const requiredFields = [
+       'First Name*', 'Middle Name*', 'Last Name*', 'Suffix*', 'Email*', 'Phone*', 
+       'Date of Birth*', 'Gender*', 'Civil Status*', 'Address*', 'Specialty*', 
+       'Medical License*', 'PRC ID*', 'PRC Expiry*', 'Professional Fee*',
+       'Clinic Name*', 'Room/Unit*', 'Day of Week*', 'Start Time*', 'End Time*', 'Valid From*'
+     ];
     
-    requiredFields.forEach(field => {
-      if (!data[field] || data[field].toString().trim() === '') {
-        errors.push(`Row ${row}: ${field} is required`);
-      }
-    });
+         requiredFields.forEach(field => {
+       const value = data[field];
+       if (!value || String(value).trim() === '') {
+         errors.push(`Row ${row}: ${field} is required`);
+       }
+     });
 
-    // Email validation
-    if (data.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        errors.push(`Row ${row}: Invalid email format`);
-      }
-    }
+         // Email validation
+     if (data['Email*']) {
+       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+       if (!emailRegex.test(String(data['Email*']))) {
+         errors.push(`Row ${row}: Invalid email format`);
+       }
+     }
 
-    // Phone validation
-    if (data.phone) {
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      if (!phoneRegex.test(data.phone.replace(/\s/g, ''))) {
-        errors.push(`Row ${row}: Invalid phone number format`);
-      }
-    }
+     // Phone validation
+     if (data['Phone*']) {
+       const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+       const phoneString = String(data['Phone*']).replace(/\s/g, '');
+       if (!phoneRegex.test(phoneString)) {
+         errors.push(`Row ${row}: Invalid phone number format`);
+       }
+     }
 
-    // Date validation
-    if (data.dateOfBirth) {
-      const date = new Date(data.dateOfBirth);
-      if (isNaN(date.getTime())) {
-        errors.push(`Row ${row}: Invalid date format for dateOfBirth`);
-      }
-    }
+     // Date validation
+     if (data['Date of Birth*']) {
+       const date = new Date(String(data['Date of Birth*']));
+       if (isNaN(date.getTime())) {
+         errors.push(`Row ${row}: Invalid date format for Date of Birth`);
+       }
+     }
 
-    if (data.prcExpiry) {
-      const date = new Date(data.prcExpiry);
-      if (isNaN(date.getTime())) {
-        errors.push(`Row ${row}: Invalid date format for prcExpiry`);
-      }
-    }
+     if (data['PRC Expiry*']) {
+       const date = new Date(String(data['PRC Expiry*']));
+       if (isNaN(date.getTime())) {
+         errors.push(`Row ${row}: Invalid date format for PRC Expiry`);
+       }
+     }
 
-    // Gender validation
-    if (data.gender && !['male', 'female', 'other'].includes(data.gender.toLowerCase())) {
-      errors.push(`Row ${row}: Gender must be male, female, or other`);
-    }
+     // Gender validation
+     if (data['Gender*'] && !['male', 'female', 'other', 'prefer-not-to-say'].includes(String(data['Gender*']).toLowerCase())) {
+       errors.push(`Row ${row}: Gender must be male, female, other, or prefer-not-to-say`);
+     }
 
-    // Civil status validation
-    if (data.civilStatus && !['single', 'married', 'divorced', 'widowed'].includes(data.civilStatus.toLowerCase())) {
-      errors.push(`Row ${row}: Civil status must be single, married, divorced, or widowed`);
-    }
+     // Civil status validation
+     if (data['Civil Status*'] && !['single', 'married', 'divorced', 'widowed', 'separated'].includes(String(data['Civil Status*']).toLowerCase())) {
+       errors.push(`Row ${row}: Civil status must be single, married, divorced, widowed, or separated`);
+     }
 
-    // Years of experience validation
-    if (data.yearsOfExperience) {
-      const years = parseInt(data.yearsOfExperience);
-      if (isNaN(years) || years < 0) {
-        errors.push(`Row ${row}: Years of experience must be a positive number`);
-      }
-    }
+     // Address validation
+     if (data['Address*'] && String(data['Address*']).trim().length < 10) {
+       errors.push(`Row ${row}: Address must be at least 10 characters long`);
+     }
 
-    // Professional fee validation
-    if (data.professionalFee) {
-      const fee = parseFloat(data.professionalFee);
-      if (isNaN(fee) || fee < 0) {
-        errors.push(`Row ${row}: Professional fee must be a positive number`);
-      }
-    }
+     // Medical license validation
+     if (data['Medical License*'] && String(data['Medical License*']).trim().length < 5) {
+       errors.push(`Row ${row}: Medical license must be at least 5 characters long`);
+     }
+
+     // Suffix validation
+     if (data['Suffix*'] && String(data['Suffix*']).trim().length === 0) {
+       errors.push(`Row ${row}: Suffix is required`);
+     }
+
+    
+
+                        // Professional fee validation
+     if (data['Professional Fee*']) {
+       const fee = parseFloat(String(data['Professional Fee*']));
+       if (isNaN(fee) || fee < 0) {
+         errors.push(`Row ${row}: Professional fee must be a positive number`);
+       }
+     }
+      
+           // Schedule validation
+     if (data['Valid From*']) {
+       const date = new Date(String(data['Valid From*']));
+       if (isNaN(date.getTime())) {
+         errors.push(`Row ${row}: Invalid date format for Valid From`);
+       }
+     }
+      
+           // Time format validation - Accept both 7:00 and 07:00 formats, and Excel decimal format
+     if (data['Start Time*']) {
+       const timeValue = data['Start Time*'];
+       console.log(`Validating start time: "${timeValue}" (type: ${typeof timeValue})`);
+       
+       let isValidTime = false;
+       
+       if (typeof timeValue === 'string') {
+         // Handle string format (HH:MM)
+         const timeRegex = /^([0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+         isValidTime = timeRegex.test(timeValue);
+       } else if (typeof timeValue === 'number') {
+         // Handle Excel decimal format (fraction of day)
+         // Convert decimal to hours and validate
+         const hours = timeValue * 24;
+         const wholeHours = Math.floor(hours);
+         const minutes = Math.round((hours - wholeHours) * 60);
+         
+         isValidTime = wholeHours >= 0 && wholeHours <= 23 && minutes >= 0 && minutes <= 59;
+         console.log(`Converted decimal ${timeValue} to ${wholeHours}:${minutes.toString().padStart(2, '0')}`);
+       }
+       
+       if (!isValidTime) {
+         console.log(`Time validation failed for: "${timeValue}"`);
+         errors.push(`Row ${row}: Start time must be in HH:MM format (e.g., 09:00 or 9:00)`);
+       }
+     }
+     
+     if (data['End Time*']) {
+       const timeValue = data['End Time*'];
+       console.log(`Validating end time: "${timeValue}" (type: ${typeof timeValue})`);
+       
+       let isValidTime = false;
+       
+       if (typeof timeValue === 'string') {
+         // Handle string format (HH:MM)
+         const timeRegex = /^([0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+         isValidTime = timeRegex.test(timeValue);
+       } else if (typeof timeValue === 'number') {
+         // Handle Excel decimal format (fraction of day)
+         // Convert decimal to hours and validate
+         const hours = timeValue * 24;
+         const wholeHours = Math.floor(hours);
+         const minutes = Math.round((hours - wholeHours) * 60);
+         
+         isValidTime = wholeHours >= 0 && wholeHours <= 23 && minutes >= 0 && minutes <= 59;
+         console.log(`Converted decimal ${timeValue} to ${wholeHours}:${minutes.toString().padStart(2, '0')}`);
+       }
+       
+       if (!isValidTime) {
+         console.log(`Time validation failed for: "${timeValue}"`);
+         errors.push(`Row ${row}: End time must be in HH:MM format (e.g., 17:00 or 5:00)`);
+       }
+     }
+      
+           // Day of week validation
+     if (data['Day of Week*']) {
+       const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+       const days = String(data['Day of Week*']).toLowerCase().split(',').map(d => d.trim());
+       const invalidDays = days.filter(day => !validDays.includes(day));
+       if (invalidDays.length > 0) {
+         errors.push(`Row ${row}: Invalid day(s) in Day of Week: ${invalidDays.join(', ')}`);
+       }
+     }
+
+             // Clinic name validation
+       if (data['Clinic Name*']) {
+         try {
+           const realDataService = new RealDataService();
+           const clinics = await realDataService.getClinics();
+           const clinicName = String(data['Clinic Name*']).trim();
+           const foundClinic = clinics.find(c => 
+             c.name.toLowerCase() === clinicName.toLowerCase()
+           );
+           
+           if (!foundClinic) {
+             const clinicNames = clinics.map(c => c.name);
+             errors.push(`Row ${row}: Invalid clinic name. Available clinics: ${clinicNames.join(', ')}`);
+           }
+         } catch (error) {
+           errors.push(`Row ${row}: Unable to validate clinic name. Please try again.`);
+         }
+       }
 
     return {
       isValid: errors.length === 0,
@@ -297,7 +515,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
 
     try {
       const data = await readExcelFile(file);
-      const validationResults = validateBulkData(data);
+      const validationResults = await validateBulkData(data);
       
       if (validationResults.totalErrors > 0) {
         toast({
@@ -365,19 +583,20 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     });
   };
 
-  const validateBulkData = (data: SpecialistData[]) => {
+  const validateBulkData = async (data: SpecialistData[]) => {
     const errors: Array<{ row: number; error: string }> = [];
     let totalErrors = 0;
 
-    data.forEach((specialist, index) => {
-      const row = index + 2; // +2 because Excel is 1-indexed and we have headers
-      const validation = validateSpecialistData(specialist, row);
+    for (let i = 0; i < data.length; i++) {
+      const specialist = data[i];
+      const row = i + 2; // +2 because Excel is 1-indexed and we have headers
+      const validation = await validateSpecialistData(specialist, row);
       
       validation.errors.forEach(error => {
         errors.push({ row, error });
         totalErrors++;
       });
-    });
+    }
 
     return { errors, totalErrors };
   };
@@ -397,36 +616,107 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       const file = fileInputRef.current?.files?.[0];
       if (!file) throw new Error('No file selected');
 
-      const specialists = await readExcelFile(file);
-      const realDataService = new RealDataService();
-      
-      const results: ImportResult = {
-        total: specialists.length,
-        successful: 0,
-        failed: 0,
-        errors: [],
-        credentials: []
-      };
+             const specialists = await readExcelFile(file);
+       const realDataService = new RealDataService();
+       
+       const results: ImportResult = {
+         total: specialists.length,
+         successful: 0,
+         failed: 0,
+         errors: [],
+         credentials: []
+       };
 
-      for (let i = 0; i < specialists.length; i++) {
-        const specialist = specialists[i];
-        setProgress(Math.round(((i + 1) / specialists.length) * 100));
+       for (let i = 0; i < specialists.length; i++) {
+         const specialist = specialists[i];
+         setProgress(Math.round(((i + 1) / specialists.length) * 100));
 
-        try {
-          const { doctorId, temporaryPassword } = await realDataService.createDoctor(specialist);
-          results.successful++;
-          results.credentials.push({
-            email: specialist.email,
-            password: temporaryPassword
-          });
-        } catch (error) {
-          results.failed++;
-          results.errors.push({
-            row: i + 2,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
-      }
+         try {
+           // Validate clinic name exists and get clinic ID
+           const clinics = await realDataService.getClinics();
+           const clinicName = specialist['Clinic Name*'].trim();
+           const foundClinic = clinics.find(c => 
+             c.name.toLowerCase() === clinicName.toLowerCase()
+           );
+           
+           if (!foundClinic) {
+             const clinicNames = clinics.map(c => c.name);
+             throw new Error(`Clinic name "${clinicName}" not found. Available clinics: ${clinicNames.join(', ')}`);
+           }
+
+                       // Transform Excel data to expected format
+            const transformedSpecialist = {
+              firstName: String(specialist['First Name*'] || ''),
+              middleName: String(specialist['Middle Name*'] || ''),
+              lastName: String(specialist['Last Name*'] || ''),
+              suffix: String(specialist['Suffix*'] || ''),
+              email: String(specialist['Email*'] || ''),
+              phone: String(specialist['Phone*'] || ''),
+              dateOfBirth: String(specialist['Date of Birth*'] || ''),
+              gender: String(specialist['Gender*'] || ''),
+              civilStatus: String(specialist['Civil Status*'] || ''),
+              address: String(specialist['Address*'] || ''),
+              specialty: String(specialist['Specialty*'] || ''),
+              medicalLicense: String(specialist['Medical License*'] || ''),
+              prcId: String(specialist['PRC ID*'] || ''),
+              prcExpiry: String(specialist['PRC Expiry*'] || ''),
+              professionalFee: parseFloat(String(specialist['Professional Fee*'] || '0')),
+                           schedules: [{
+                practiceLocation: {
+                  clinicId: foundClinic.id, // Save clinic's unique ID
+                  roomOrUnit: String(specialist['Room/Unit*'] || '')
+                },
+                recurrence: {
+                  dayOfWeek: String(specialist['Day of Week*'] || '').split(',').map((day: string) => day.trim().toLowerCase())
+                },
+                                 slotTemplate: {
+                   startTime: (() => {
+                     const timeValue = specialist['Start Time*'];
+                     if (typeof timeValue === 'string') {
+                       return timeValue;
+                     } else if (typeof timeValue === 'number') {
+                       // Convert Excel decimal format to HH:MM
+                       const hours = timeValue * 24;
+                       const wholeHours = Math.floor(hours);
+                       const minutes = Math.round((hours - wholeHours) * 60);
+                       return `${wholeHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                     }
+                     return '';
+                   })(),
+                   endTime: (() => {
+                     const timeValue = specialist['End Time*'];
+                     if (typeof timeValue === 'string') {
+                       return timeValue;
+                     } else if (typeof timeValue === 'number') {
+                       // Convert Excel decimal format to HH:MM
+                       const hours = timeValue * 24;
+                       const wholeHours = Math.floor(hours);
+                       const minutes = Math.round((hours - wholeHours) * 60);
+                       return `${wholeHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                     }
+                     return '';
+                   })()
+                 },
+                validFrom: String(specialist['Valid From*'] || ''),
+               isActive: true,
+               scheduleType: 'regular'
+             }]
+           };
+
+           const { doctorId, temporaryPassword } = await realDataService.createDoctor(transformedSpecialist);
+           results.successful++;
+                       results.credentials.push({
+              email: specialist['Email*'],
+              password: temporaryPassword
+            });
+         } catch (error) {
+           results.failed++;
+           results.errors.push({
+             row: i + 2,
+             error: error instanceof Error ? error.message : 'Unknown error'
+           });
+         }
+       }
 
       // Re-authenticate admin
       await authService.reauthenticateAdmin('admin@unihealth.ph', adminPassword);

@@ -113,7 +113,7 @@ export function ScheduleCard({
   const handleSave = (schedulesData: SpecialistSchedule[]) => {
     // Handle multiple schedules from the dialog
     schedulesData.forEach(schedule => {
-      if (schedule.id && schedule.id.startsWith('sch_')) {
+      if (schedule.id && schedule.id.startsWith('temp_')) {
         // This is a new schedule (has temporary ID)
         const { id, ...scheduleWithoutId } = schedule;
         onScheduleAdd(scheduleWithoutId);

@@ -367,11 +367,15 @@ export class ClinicsService extends BaseFirebaseService<Clinic> {
   /**
    * Create new clinic
    */
-  async createClinic(clinicData: Omit<Clinic, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  async createClinic(clinicData: Omit<Clinic, 'id' | 'createdAt' | 'updatedAt'>, createdBy?: string): Promise<string> {
     try {
+      const now = Date.now();
       return await this.create({
         ...clinicData,
-        isActive: true
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: createdBy || 'system'
       });
     } catch (error) {
       this.handleError('createClinic', error);
@@ -468,7 +472,8 @@ export class ClinicsService extends BaseFirebaseService<Clinic> {
           clinic.isActive && (
             clinic.name.toLowerCase().includes(searchTermLower) ||
             clinic.address.toLowerCase().includes(searchTermLower) ||
-            clinic.city.toLowerCase().includes(searchTermLower)
+            clinic.city.toLowerCase().includes(searchTermLower) ||
+            clinic.province.toLowerCase().includes(searchTermLower)
           )
         )
         .sort((a, b) => a.name.localeCompare(b.name));

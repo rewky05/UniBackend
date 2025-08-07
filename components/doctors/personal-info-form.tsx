@@ -34,6 +34,7 @@ interface PersonalInfoData {
   gender: string;
   civilStatus: string;
   avatar?: File | null;
+  temporaryPassword?: string; // TEMPORARY: For testing purposes
 }
 
 interface PersonalInfoFormProps {
@@ -143,7 +144,7 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
             </div>
           </div>
           
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="email">
                 Email Address <span className="text-destructive">*</span>
@@ -157,6 +158,22 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="temporaryPassword">
+                Temporary Password <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="temporaryPassword"
+                type="password"
+                placeholder="Enter temporary password"
+                value={data.temporaryPassword || ''}
+                onChange={(e) => handleInputChange("temporaryPassword", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="phone">
                 Phone Number <span className="text-destructive">*</span>
@@ -192,6 +209,8 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
               </Select>
             </div>
           </div>
+
+
 
           <div className="space-y-2">
             <Label htmlFor="address">

@@ -56,6 +56,9 @@ export interface DoctorFormData {
 
        // Schedules
     schedules: SpecialistSchedule[];
+    
+    // TEMPORARY: For testing purposes
+    temporaryPassword?: string;
 }
 
 export interface SpecialistSchedule {
@@ -125,7 +128,10 @@ export default function AddDoctorPage() {
     professionalFee: 0,
 
     // Schedules
-    schedules: []
+    schedules: [],
+    
+    // TEMPORARY: For testing purposes
+    temporaryPassword: ''
   };
 
   // Use regular useState instead of form persistence to fix input issues
@@ -180,10 +186,11 @@ export default function AddDoctorPage() {
     setIsSubmitting(true);
     setAdminAuthError('');
     
+    // Clear previous logs
+    localStorage.removeItem('adminAuthLogs');
+    const logs = [];
+    
     try {
-      // Clear previous logs
-      localStorage.removeItem('adminAuthLogs');
-      const logs = [];
       
       logs.push('=== Starting handleAdminAuth ===');
       logs.push(`Current user before doctor creation: ${user?.email}`);
@@ -223,7 +230,10 @@ export default function AddDoctorPage() {
         // Add other fields as needed
         accreditations: [], // Can be added later
         fellowships: [], // Can be added later
-        yearsOfExperience: 0 // Can be calculated or added later
+        yearsOfExperience: 0, // Can be calculated or added later
+        
+        // TEMPORARY: Pass the temporary password from form
+        temporaryPassword: formData.temporaryPassword
       };
 
       console.log('About to create doctor with email:', doctorData.email);
@@ -790,7 +800,8 @@ export default function AddDoctorPage() {
                     dateOfBirth: formData.dateOfBirth,
                     gender: formData.gender,
                     civilStatus: formData.civilStatus,
-                    avatar: formData.avatar
+                    avatar: formData.avatar,
+                    temporaryPassword: formData.temporaryPassword
                   }}
                   onUpdate={(data) => {
                     setFormData(prev => ({ ...prev, ...data }));

@@ -46,6 +46,8 @@ export interface PatientFormData {
     phone: string;
     relationship: string;
   };
+  // TEMPORARY: For testing purposes
+  temporaryPassword?: string;
 }
 
 export default function AddPatientPage() {
@@ -81,7 +83,9 @@ export default function AddPatientPage() {
       name: '',
       phone: '',
       relationship: ''
-    }
+    },
+    // TEMPORARY: For testing purposes
+    temporaryPassword: ''
   };
 
   const [formData, setFormData] = useState<PatientFormData>(initialFormData);
@@ -188,7 +192,8 @@ export default function AddPatientPage() {
       formData.address.trim().length >= 10 &&
       formData.educationalAttainment.trim().length > 0 &&
       isValidDate(formData.dateOfBirth) &&
-      formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender);
+      formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) &&
+      formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6;
     
     // Emergency Contact validation
     const emergencyValid = 
@@ -222,14 +227,15 @@ export default function AddPatientPage() {
 
   // Calculate form completion percentage with validation
   const calculateProgress = () => {
-    const totalFields = 12; // Total number of required fields (9 personal + 3 emergency contact)
+    const totalFields = 13; // Total number of required fields (10 personal + 3 emergency contact)
     let completedFields = 0;
 
-    // Personal Information (9 fields) - with validation
+    // Personal Information (10 fields) - with validation
     if (formData.firstName.trim().length >= 2) completedFields++;
     if (formData.lastName.trim().length >= 2) completedFields++;
     if (formData.middleName.trim().length >= 2) completedFields++;
     if (isValidEmail(formData.email)) completedFields++;
+    if (formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6) completedFields++;
     if (isValidPhone(formData.phone)) completedFields++;
     if (formData.address.trim().length >= 10) completedFields++;
     if (formData.educationalAttainment.trim().length > 0) completedFields++;
@@ -254,6 +260,7 @@ export default function AddPatientPage() {
           { field: 'lastName', valid: formData.lastName.trim().length >= 2 },
           { field: 'middleName', valid: formData.middleName.trim().length >= 2 },
           { field: 'email', valid: isValidEmail(formData.email) },
+          { field: 'temporaryPassword', valid: formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6 },
           { field: 'phone', valid: isValidPhone(formData.phone) },
           { field: 'address', valid: formData.address.trim().length >= 10 },
           { field: 'educationalAttainment', valid: formData.educationalAttainment.trim().length > 0 },
@@ -265,7 +272,7 @@ export default function AddPatientPage() {
           if (valid) completedPersonal++;
         });
         
-        return Math.round((completedPersonal / 9) * 100);
+        return Math.round((completedPersonal / 10) * 100);
       
       case 'emergency':
         let completedEmergency = 0;
@@ -377,37 +384,36 @@ export default function AddPatientPage() {
                 <TabsTrigger value="emergency">{renderTabIndicator(emergencyProgress, 'Emergency')}</TabsTrigger>
               </TabsList>
 
-                             <TabsContent value="personal" className="space-y-6">
-                 <PersonalInfoForm
-                   key={`personal-${JSON.stringify(formData)}`}
-                   data={{
-                     firstName: formData.firstName,
-                     middleName: formData.middleName,
-                     lastName: formData.lastName,
-                     email: formData.email,
-                     phone: formData.phone,
-                     address: formData.address,
-                     educationalAttainment: formData.educationalAttainment,
-                     dateOfBirth: formData.dateOfBirth,
-                     gender: formData.gender
-                   }}
-                   onUpdate={(data) => {
-                     setFormData(prev => ({ ...prev, ...data }));
-                   }}
-                 />
-               </TabsContent>
+                                                           <TabsContent value="personal" className="space-y-6">
+                  <PersonalInfoForm
+                    data={{
+                      firstName: formData.firstName,
+                      middleName: formData.middleName,
+                      lastName: formData.lastName,
+                      email: formData.email,
+                      phone: formData.phone,
+                      address: formData.address,
+                      educationalAttainment: formData.educationalAttainment,
+                      dateOfBirth: formData.dateOfBirth,
+                      gender: formData.gender,
+                      temporaryPassword: formData.temporaryPassword
+                    }}
+                    onUpdate={(data) => {
+                      setFormData(prev => ({ ...prev, ...data }));
+                    }}
+                  />
+                </TabsContent>
 
-               <TabsContent value="emergency" className="space-y-6">
-                 <EmergencyContactForm
-                   key={`emergency-${JSON.stringify(formData.emergencyContact)}`}
-                   data={{
-                     emergencyContact: formData.emergencyContact
-                   }}
-                   onUpdate={(data) => {
-                     setFormData(prev => ({ ...prev, ...data }));
-                   }}
-                 />
-               </TabsContent>
+                               <TabsContent value="emergency" className="space-y-6">
+                  <EmergencyContactForm
+                    data={{
+                      emergencyContact: formData.emergencyContact
+                    }}
+                    onUpdate={(data) => {
+                      setFormData(prev => ({ ...prev, ...data }));
+                    }}
+                  />
+                </TabsContent>
             </Tabs>
           </CardContent>
         </Card>

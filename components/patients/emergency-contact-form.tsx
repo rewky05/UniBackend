@@ -15,11 +15,12 @@ interface EmergencyContactData {
 }
 
 interface EmergencyContactFormProps {
-  data: EmergencyContactData;
-  onUpdate: (data: Partial<EmergencyContactData>) => void;
+  data: any;
+  onUpdate: (data: any) => void;
+  disabled?: boolean;
 }
 
-export function EmergencyContactForm({ data, onUpdate }: EmergencyContactFormProps) {
+export function EmergencyContactForm({ data, onUpdate, disabled }: EmergencyContactFormProps) {
   return (
     <Card>
       <CardHeader>
@@ -51,6 +52,7 @@ export function EmergencyContactForm({ data, onUpdate }: EmergencyContactFormPro
                 })}
                 placeholder="Enter contact name"
                 required
+                disabled={disabled}
               />
             </div>
             <div className="space-y-2">
@@ -70,6 +72,7 @@ export function EmergencyContactForm({ data, onUpdate }: EmergencyContactFormPro
                 })}
                 placeholder="Enter contact phone"
                 required
+                disabled={disabled}
               />
             </div>
             <div className="space-y-2">
@@ -82,6 +85,7 @@ export function EmergencyContactForm({ data, onUpdate }: EmergencyContactFormPro
                     relationship: value
                   }
                 })}
+                disabled={disabled}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select relationship" />

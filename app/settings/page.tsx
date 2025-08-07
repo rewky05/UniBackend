@@ -45,13 +45,13 @@ const settingsCategories = [
     description: 'Monitor and manage account lockouts',
     allowedRoles: ['superadmin']
   },
-  {
-    id: 'sessions',
-    label: 'Session Management',
-    icon: Monitor,
-    description: 'Monitor and manage active sessions',
-    allowedRoles: ['superadmin']
-  },
+  // {
+  //   id: 'sessions',
+  //   label: 'Session Management',
+  //   icon: Monitor,
+  //   description: 'Monitor and manage active sessions',
+  //   allowedRoles: ['superadmin']
+  // },
   {
     id: 'services',
     label: 'Medical Services & Catalogs',

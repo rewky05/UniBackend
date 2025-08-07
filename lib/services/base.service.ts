@@ -154,29 +154,30 @@ export abstract class BaseFirebaseService<T extends BaseEntity> {
     callback: (entities: T[]) => void,
     onError: (error: Error) => void
   ): () => void {
-    const filteredQuery = query(
-      this.collectionRef,
-      orderByChild(field as string),
-      equalTo(value)
-    );
+    try {
+      const queryRef = query(
+        this.collectionRef,
+        orderByChild(field as string),
+        equalTo(value)
+      );
 
-    const unsubscribe = onValue(
-      filteredQuery,
-      (snapshot) => {
-        try {
+      const unsubscribe = onValue(queryRef, (snapshot) => {
+        if (snapshot.exists()) {
           const data = snapshot.val();
-          const entities = data ? Object.values(data) as T[] : [];
-          callback(entities);
-        } catch (error) {
-          onError(new Error(`Failed to process filtered data: ${error.message}`));
+          const items = Object.values(data) as T[];
+          callback(items);
+        } else {
+          callback([]);
         }
-      },
-      (error) => {
-        onError(new Error(`Filtered subscription failed: ${error.message}`));
-      }
-    );
-    
-    return () => off(filteredQuery, 'value', unsubscribe);
+      }, (error) => {
+        onError(error);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      onError(error as Error);
+      return () => {};
+    }
   }
 
   /**

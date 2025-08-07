@@ -19,7 +19,9 @@ import type {
 export class RealDataService {
   /**
    * Generate a random temporary password that meets Firebase requirements
+   * TEMPORARILY COMMENTED OUT FOR TESTING - REPLACED WITH STATIC PASSWORD
    */
+  /*
   private generateTemporaryPassword(): string {
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -30,7 +32,7 @@ export class RealDataService {
     
     // Ensure at least one character from each category
     password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    password += uppercase.charAt(Math.random() * uppercase.length));
     password += numbers.charAt(Math.floor(Math.random() * numbers.length));
     password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
     
@@ -43,6 +45,14 @@ export class RealDataService {
     // Shuffle the password to make it more random
     return password.split('').sort(() => Math.random() - 0.5).join('');
   }
+  */
+  
+  /**
+   * TEMPORARY: Return a static password for testing
+   */
+  private generateTemporaryPassword(): string {
+    return 'TestPass123!';
+  }
 
   /**
    * Create a new doctor with entries in users, doctors, and specialistSchedules nodes
@@ -50,7 +60,8 @@ export class RealDataService {
   async createDoctor(doctorData: any): Promise<{ doctorId: string; temporaryPassword: string }> {
     try {
       const timestamp = new Date().toISOString();
-      const temporaryPassword = this.generateTemporaryPassword();
+      // Use provided temporary password or generate one
+      const temporaryPassword = doctorData.temporaryPassword || this.generateTemporaryPassword();
       
       console.log('Creating doctor with temporary password:', temporaryPassword);
 
@@ -60,9 +71,8 @@ export class RealDataService {
       // Note: createUserWithEmailAndPassword automatically signs in the new user
       // We need to handle this in the calling component to prevent the admin from being signed out
 
-      // 2. Create user entry with push() for unique key
-      const userRef = push(ref(db, 'users'));
-      const doctorId = userRef.key!;
+      // 2. Use the Firebase Auth UID as the unique key
+      const doctorId = userCredential.user.uid;
       
       const userData = {
         contactNumber: doctorData.phone,
@@ -242,7 +252,7 @@ export class RealDataService {
   /**
    * Get all feedback from your database
    */
-  async getFeedback(): Promise<Feedback[]> {
+  async getFeedback(): Promise<any[]> {
     try {
       const snapshot = await get(ref(db, 'feedback'));
       if (!snapshot.exists()) return [];
@@ -254,28 +264,30 @@ export class RealDataService {
         // Transform the data to match UI expectations
         return {
           id,
-          // Patient info
-          patientName: `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
-          patientInitials: `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
+          // Patient info - handle both old and new structures
+          patientName: rawFeedback.patientName || `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
+          patientInitials: rawFeedback.patientName ? 
+            rawFeedback.patientName.split(' ').map(n => n.charAt(0)).join('').toUpperCase() :
+            `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
           patientId: rawFeedback.patientId,
           
-          // Doctor/Provider info
-          doctorName: `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
+          // Doctor/Provider info - handle both old and new structures
+          doctorName: rawFeedback.doctorName || `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
           doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
-          providerId: rawFeedback.providerId,
+          providerId: rawFeedback.doctorId || rawFeedback.providerId,
           
-          // Clinic info
+          // Clinic info - handle both old and new structures
           clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
           clinicId: rawFeedback.clinicId,
           
           // Rating and comments
           rating: rawFeedback.rating || 0,
-          comment: rawFeedback.comments || 'No comment provided',
+          comment: rawFeedback.comment || rawFeedback.comments || 'No comment provided',
           
           // Appointment info
           appointmentDate: rawFeedback.appointmentDate,
           appointmentTime: rawFeedback.appointmentTime,
-          appointmentType: rawFeedback.appointmentType,
+          appointmentType: rawFeedback.appointmentType || rawFeedback.treatmentType,
           clinicAppointmentId: rawFeedback.clinicAppointmentId,
           
           // Additional fields
@@ -285,12 +297,12 @@ export class RealDataService {
           timestamp: rawFeedback.timestamp,
           
           // UI-specific fields
-          status: 'pending', // Default status since it's not in the original data
+          status: rawFeedback.status || 'pending',
           date: rawFeedback.timestamp || rawFeedback.appointmentDate,
-          createdAt: rawFeedback.timestamp,
+          createdAt: rawFeedback.createdAt || rawFeedback.timestamp,
           
           // Tags for UI display (based on sentiment and rating)
-          tags: [
+          tags: rawFeedback.tags || [
             rawFeedback.sentiment === 'positive' ? 'Positive' : 
             rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
             rawFeedback.rating >= 4 ? 'High Rating' : 
@@ -307,11 +319,11 @@ export class RealDataService {
   /**
    * Subscribe to real-time feedback updates
    */
-  subscribeToFeedback(callback: (feedback: Feedback[]) => void): () => void {
+  subscribeToFeedback(callback: (feedback: any[]) => void): () => void {
     const feedbackRef = ref(db, 'feedback');
     
     const unsubscribe = onValue(feedbackRef, (snapshot) => {
-      const feedback: Feedback[] = [];
+              const feedback: any[] = [];
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(id => {
@@ -320,28 +332,30 @@ export class RealDataService {
           // Transform the data to match UI expectations
           const transformedFeedback = {
             id,
-            // Patient info
-            patientName: `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
-            patientInitials: `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
+            // Patient info - handle both old and new structures
+            patientName: rawFeedback.patientName || `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
+            patientInitials: rawFeedback.patientName ? 
+              rawFeedback.patientName.split(' ').map((n: string) => n.charAt(0)).join('').toUpperCase() :
+              `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
             patientId: rawFeedback.patientId,
             
-            // Doctor/Provider info
-            doctorName: `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
+            // Doctor/Provider info - handle both old and new structures
+            doctorName: rawFeedback.doctorName || `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
             doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
-            providerId: rawFeedback.providerId,
+            providerId: rawFeedback.doctorId || rawFeedback.providerId,
             
-            // Clinic info
+            // Clinic info - handle both old and new structures
             clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
             clinicId: rawFeedback.clinicId,
             
             // Rating and comments
             rating: rawFeedback.rating || 0,
-            comment: rawFeedback.comments || 'No comment provided',
+            comment: rawFeedback.comment || rawFeedback.comments || 'No comment provided',
             
             // Appointment info
             appointmentDate: rawFeedback.appointmentDate,
             appointmentTime: rawFeedback.appointmentTime,
-            appointmentType: rawFeedback.appointmentType,
+            appointmentType: rawFeedback.appointmentType || rawFeedback.treatmentType,
             clinicAppointmentId: rawFeedback.clinicAppointmentId,
             
             // Additional fields
@@ -554,7 +568,7 @@ export class RealDataService {
       return doctors.filter(doctor => 
         doctor.firstName.toLowerCase().includes(term) ||
         doctor.lastName.toLowerCase().includes(term) ||
-        (doctor.fullName && doctor.fullName.toLowerCase().includes(term)) ||
+        (`${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(term)) ||
         doctor.specialty.toLowerCase().includes(term)
       );
     } catch (error) {
@@ -740,7 +754,8 @@ export class RealDataService {
   async createPatient(patientData: any): Promise<{ patientId: string; temporaryPassword: string }> {
     try {
       const timestamp = new Date().toISOString();
-      const temporaryPassword = this.generateTemporaryPassword();
+      // Use provided temporary password or generate one
+      const temporaryPassword = patientData.temporaryPassword || this.generateTemporaryPassword();
 
       // 1. Create Firebase Authentication account
       const userCredential = await createUserWithEmailAndPassword(auth, patientData.email, temporaryPassword);
@@ -748,9 +763,8 @@ export class RealDataService {
       // Note: createUserWithEmailAndPassword automatically signs in the new user
       // We need to handle this in the calling component to prevent the admin from being signed out
 
-      // 2. Create user entry with push() for unique key
-      const userRef = push(ref(db, 'users'));
-      const patientId = userRef.key!;
+      // 2. Use the Firebase Auth UID as the unique key
+      const patientId = userCredential.user.uid;
       
       const userData = {
         contactNumber: patientData.phone,
@@ -785,6 +799,19 @@ export class RealDataService {
       return { patientId, temporaryPassword };
     } catch (error) {
       console.error('Error creating patient:', error);
+      throw error;
+    }
+  }
+
+  async updatePatient(patientId: string, patientData: any): Promise<void> {
+    try {
+      const patientRef = ref(db, `patients/${patientId}`);
+      await set(patientRef, {
+        ...patientData,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating patient:', error);
       throw error;
     }
   }

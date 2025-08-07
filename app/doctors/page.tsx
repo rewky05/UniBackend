@@ -474,7 +474,7 @@ export default function DoctorsPage() {
                                          <TableBody>
                        {sortedDoctors.length === 0 ? (
                                                    <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8">
+                            <TableCell colSpan={7} className="text-center py-8">
                              <div className="flex flex-col items-center space-y-2">
                                <div className="text-muted-foreground text-lg">👨‍⚕️</div>
                                <p className="text-muted-foreground font-medium">No specialists found</p>

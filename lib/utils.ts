@@ -22,11 +22,22 @@ export function formatPhilippinePeso(amount: number | undefined | null): string 
 
 /**
  * Format a date string to text format (e.g., "May 6, 2025")
- * @param dateString - The date string or Date object
+ * @param dateString - The date string, Date object, or timestamp
  * @returns Formatted date string
  */
-export function formatDateToText(dateString: string | Date): string {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export function formatDateToText(dateString: string | Date | number): string {
+  let date: Date;
+  
+  if (typeof dateString === 'number') {
+    // Handle timestamp (milliseconds since epoch)
+    date = new Date(dateString);
+  } else if (typeof dateString === 'string') {
+    // Handle string dates
+    date = new Date(dateString);
+  } else {
+    // Handle Date object
+    date = dateString;
+  }
   
   // Check if date is valid
   if (isNaN(date.getTime())) {
@@ -42,11 +53,22 @@ export function formatDateToText(dateString: string | Date): string {
 
 /**
  * Format a date and time to text format (e.g., "May 6, 2025 at 2:30 PM")
- * @param dateString - The date string or Date object
+ * @param dateString - The date string, Date object, or timestamp
  * @returns Formatted date and time string
  */
-export function formatDateTimeToText(dateString: string | Date): string {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export function formatDateTimeToText(dateString: string | Date | number): string {
+  let date: Date;
+  
+  if (typeof dateString === 'number') {
+    // Handle timestamp (milliseconds since epoch)
+    date = new Date(dateString);
+  } else if (typeof dateString === 'string') {
+    // Handle string dates
+    date = new Date(dateString);
+  } else {
+    // Handle Date object
+    date = dateString;
+  }
   
   // Check if date is valid
   if (isNaN(date.getTime())) {

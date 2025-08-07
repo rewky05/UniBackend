@@ -459,7 +459,7 @@ export default function FeedbackPage() {
                                       </div>
                                       <div className="flex items-center space-x-2">
                                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                                        <span>{new Date(selectedFeedback.date).toLocaleString()}</span>
+                                        <span>{formatDateToText(selectedFeedback.date)}</span>
                                       </div>
                                     </div>
                                   </div>

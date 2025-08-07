@@ -133,13 +133,13 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <Card 
-              key={stat.title} 
-              className={stat.isClickable 
-                ? "cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100" 
-                : "bg-white"
-              }
-            >
+                         <Card 
+               key={stat.title} 
+               className={stat.isClickable 
+                 ? "cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100" 
+                 : "bg-card"
+               }
+             >
               {stat.isClickable ? (
                 <Link href={stat.href!} className="block">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -158,22 +158,22 @@ export default function DashboardPage() {
                     </p>
                   </CardContent>
                 </Link>
-              ) : (
-                <>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                    <stat.icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <p className={`text-xs ${
-                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change} from last month
-                    </p>
-                  </CardContent>
-                </>
-              )}
+                             ) : (
+                 <>
+                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                     <CardTitle className="text-sm font-medium text-foreground">{stat.title}</CardTitle>
+                     <stat.icon className="h-4 w-4 text-muted-foreground" />
+                   </CardHeader>
+                   <CardContent>
+                     <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                     <p className={`text-xs ${
+                       stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                     }`}>
+                       {stat.change} from last month
+                     </p>
+                   </CardContent>
+                 </>
+               )}
             </Card>
           ))}
         </div>

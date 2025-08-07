@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Settings, LogOut, User, Shield, Menu } from "lucide-react";
+import { Settings, LogOut, User, Shield, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -83,14 +83,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full justify-center p-0 text-xs bg-destructive">
-            3
-          </Badge>
-        </Button>
-
         {/* Theme Toggle */}
         <ThemeToggle />
 

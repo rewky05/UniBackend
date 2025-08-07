@@ -59,6 +59,8 @@ import {
   SheetDescription,
   SheetClose,
 } from "@/components/ui/sheet";
+import { PrintView } from "@/components/ui/print-view";
+import { Pagination } from "@/components/ui/pagination";
 
 const statuses = ["All Status"];
 const sortOptions = [
@@ -102,6 +104,10 @@ export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Fetch patients from both Firebase nodes
   useEffect(() => {
@@ -182,6 +188,34 @@ export default function PatientsPage() {
         return 0;
     }
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedPatients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPatients = sortedPatients.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStatus, selectedSort]);
+
+  // Print columns configuration
+  const printColumns = [
+    { key: 'name', label: 'Full Name', render: (patient: Patient) => `${patient.firstName} ${patient.lastName}` },
+    { key: 'contactNumber', label: 'Contact Number' },
+    { key: 'email', label: 'Email' },
+    { key: 'dateOfBirth', label: 'Date of Birth', render: (patient: Patient) => formatDateToText(patient.dateOfBirth) },
+    { key: 'gender', label: 'Gender', render: (patient: Patient) => capitalizeFirstLetter(patient.gender) },
+    { key: 'isActive', label: 'Status', render: (patient: Patient) => patient.isActive ? 'Active' : 'Deactivated' },
+    { key: 'createdAt', label: 'Date Added', render: (patient: Patient) => formatDateToText(patient.createdAt) },
+  ];
+
+  // Print filters
+  const printFilters = [
+    { label: 'Search', value: searchQuery || 'None' },
+    { label: 'Status', value: selectedStatus },
+  ].filter(filter => filter.value !== 'All Status');
 
   const getStatusColor = (status: boolean) => {
     return status ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400";
@@ -288,21 +322,9 @@ export default function PatientsPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select> */}
                 <Select value={selectedSort} onValueChange={setSelectedSort}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
                     {sortOptions.map((option) => (
@@ -320,81 +342,107 @@ export default function PatientsPage() {
         {/* Patients Table */}
         <Card className="card-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Patients ({sortedPatients.length})
-            </CardTitle>
-            <CardDescription>
-              Manage patient information and records
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Patients ({sortedPatients.length})
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  Comprehensive list of patient records and information
+                </CardDescription>
+              </div>
+              <PrintView 
+                title="Patients Report"
+                subtitle="Comprehensive list of patient records and information"
+                data={sortedPatients}
+                columns={printColumns}
+                filters={printFilters}
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            {sortedPatients.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No patients found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {searchQuery || selectedStatus !== "All Status"
-                    ? "Try adjusting your search or filter criteria."
-                    : "Get started by adding your first patient."}
-                </p>
-                {!searchQuery && selectedStatus === "All Status" && (
-                  <Button asChild>
-                    <Link href="/patients/add">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Patient
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Full Name</TableHead>
+                    <TableHead>Contact Number</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Date of Birth</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedPatients.length === 0 ? (
                     <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Contact Number</TableHead>
-                      <TableHead>Date of Birth</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex flex-col items-center space-y-2">
+                          <div className="text-muted-foreground text-lg">👥</div>
+                          <p className="text-muted-foreground font-medium">No patients found</p>
+                          <p className="text-sm text-muted-foreground">
+                            {searchQuery || selectedStatus !== "All Status"
+                              ? "Try adjusting your search criteria or filters"
+                              : "Get started by adding your first patient"}
+                          </p>
+                          {!searchQuery && selectedStatus === "All Status" && (
+                            <Button asChild size="sm" className="mt-2">
+                              <Link href="/patients/add">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add First Patient
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedPatients.map((patient) => (
-                      <TableRow key={patient.id}>
+                  ) : (
+                    paginatedPatients.map((patient) => (
+                      <TableRow key={patient.id} className="table-row-hover">
                         <TableCell>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center space-x-3">
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={patient.profileImageUrl} />
                               <AvatarFallback>
-                                {patient.firstName?.charAt(0) || ''}{patient.lastName?.charAt(0) || ''}
+                                {`${patient.firstName} ${patient.lastName}`
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <div className="font-medium">
-                                {patient.firstName || 'N/A'} {patient.lastName || 'N/A'}
-                              </div>
-                              {!patient.isActive && (
-                                <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400">
-                                  Deactivated
-                                </Badge>
-                              )}
+                            <div className="font-medium">
+                              {patient.firstName || 'N/A'} {patient.lastName || 'N/A'}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{patient.email || 'N/A'}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {patient.contactNumber || 'No contact number'}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{patient.contactNumber || 'N/A'}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {patient.email || 'No email'}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {patient.dateOfBirth ? formatDateToText(patient.dateOfBirth) : 'N/A'}
+                          <div className="text-sm text-muted-foreground">
+                            {patient.dateOfBirth ? formatDateToText(patient.dateOfBirth) : 'Not specified'}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
+                          <Badge className={getStatusColor(patient.isActive || true)}>
+                            {getStatusIcon(patient.isActive || true)}
+                            <span className="ml-1 capitalize">
+                              {patient.isActive ? 'Active' : 'Deactivated'}
+                            </span>
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="icon">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -404,10 +452,10 @@ export default function PatientsPage() {
                                 View Details
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleViewPatient(patient)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Details
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Deactivate Account
                               </DropdownMenuItem>
@@ -415,10 +463,22 @@ export default function PatientsPage() {
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* Pagination */}
+            {sortedPatients.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={sortedPatients.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
             )}
           </CardContent>
         </Card>

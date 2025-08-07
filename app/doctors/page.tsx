@@ -95,6 +95,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { BulkImportDialog } from "@/components/doctors/bulk-import-dialog";
+import { PrintView } from "@/components/ui/print-view";
+import { Pagination } from "@/components/ui/pagination";
 
 const specialties = [
   "All Specialties",
@@ -146,6 +148,10 @@ export default function DoctorsPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>("");
   const [showBulkImport, setShowBulkImport] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Real Firebase data
   const { doctors, loading, error } = useRealDoctors();
@@ -284,6 +290,37 @@ export default function DoctorsPage() {
     }
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(sortedDoctors.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDoctors = sortedDoctors.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedSpecialty, selectedStatus, selectedClinic, selectedSort]);
+
+  // Print columns configuration
+  const printColumns = [
+    { key: 'name', label: 'Full Name', render: (doctor: any) => `${doctor.firstName} ${doctor.lastName}` },
+    { key: 'email', label: 'Email' },
+    { key: 'specialty', label: 'Specialty' },
+    { key: 'status', label: 'Status', render: (doctor: any) => doctor.status?.charAt(0).toUpperCase() + doctor.status?.slice(1) },
+    { key: 'clinicAffiliations', label: 'Clinic Affiliations', render: (doctor: any) => 
+      doctor.clinicAffiliations?.map((clinicId: string) => getClinicName(clinicId)).join(', ') || 'N/A' 
+    },
+    { key: 'createdAt', label: 'Date Added', render: (doctor: any) => formatDateToText(doctor.createdAt) },
+  ];
+
+  // Print filters
+  const printFilters = [
+    { label: 'Search', value: searchQuery || 'None' },
+    { label: 'Specialty', value: selectedSpecialty },
+    { label: 'Status', value: selectedStatus },
+    { label: 'Clinic', value: selectedClinic },
+  ].filter(filter => filter.value !== 'All Specialties' && filter.value !== 'All Status' && filter.value !== 'All Clinics');
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "verified":
@@ -407,39 +444,39 @@ export default function DoctorsPage() {
                        <SelectContent>
                          <SelectItem value="All Clinics">All Clinics</SelectItem>
                          {clinics.map((clinic) => (
-                           <SelectItem key={clinic.id} value={clinic.id}>
+                           <SelectItem key={clinic.id} value={clinic.id || ""}>
                              {clinic.name}
                            </SelectItem>
                          ))}
                        </SelectContent>
                      </Select>
-                    <Select
-                      value={selectedStatus}
-                      onValueChange={setSelectedStatus}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={selectedSort} onValueChange={setSelectedSort}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                     <Select
+                       value={selectedStatus}
+                       onValueChange={setSelectedStatus}
+                     >
+                       <SelectTrigger className="w-32">
+                         <SelectValue placeholder="Status" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {statuses.map((status) => (
+                           <SelectItem key={status} value={status}>
+                             {status}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                     <Select value={selectedSort} onValueChange={setSelectedSort}>
+                       <SelectTrigger className="w-40">
+                         <SelectValue placeholder="Sort by" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {sortOptions.map((option) => (
+                           <SelectItem key={option.value} value={option.value}>
+                             {option.label}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
                   </div>
                 </div>
               </CardContent>
@@ -448,33 +485,44 @@ export default function DoctorsPage() {
             {/* Doctors Table */}
             <Card className="card-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Specialist Doctors ({filteredDoctors.length})
-                </CardTitle>
-                <CardDescription>
-                  Comprehensive list of specialist healthcare professionals
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Users className="h-5 w-5 mr-2" />
+                      Specialist Doctors ({filteredDoctors.length})
+                    </CardTitle>
+                    <CardDescription className="mt-2">
+                      Comprehensive list of specialist healthcare professionals
+                    </CardDescription>
+                  </div>
+                  <PrintView
+                    title="Specialist Doctors Report"
+                    subtitle="Comprehensive list of specialist healthcare professionals"
+                    data={sortedDoctors}
+                    columns={printColumns}
+                    filters={printFilters}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
                   <Table>
-                                         <TableHeader>
-                       <TableRow>
-                         <TableHead>Full Name</TableHead>
-                         <TableHead>Contact Number</TableHead>
-                         <TableHead>Email</TableHead>
-                         <TableHead>Specialty</TableHead>
-                         {/* <TableHead>Professional Fee</TableHead> */}
-                         <TableHead>Clinics</TableHead>
-                         <TableHead>Status</TableHead>
-                         <TableHead className="w-[50px]">Actions</TableHead>
-                       </TableRow>
-                     </TableHeader>
-                                         <TableBody>
-                       {sortedDoctors.length === 0 ? (
-                                                   <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Full Name</TableHead>
+                        <TableHead>Contact Number</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Specialty</TableHead>
+                        {/* <TableHead>Professional Fee</TableHead> */}
+                        <TableHead>Clinics</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[50px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedDoctors.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
                              <div className="flex flex-col items-center space-y-2">
                                <div className="text-muted-foreground text-lg">👨‍⚕️</div>
                                <p className="text-muted-foreground font-medium">No specialists found</p>
@@ -485,7 +533,7 @@ export default function DoctorsPage() {
                            </TableCell>
                          </TableRow>
                        ) : (
-                         sortedDoctors.map((doctor) => (
+                         paginatedDoctors.map((doctor) => (
                           <TableRow key={doctor.id} className="table-row-hover">
                                                      <TableCell>
                              <div className="flex items-center space-x-3">
@@ -581,6 +629,18 @@ export default function DoctorsPage() {
                     </TableBody>
                   </Table>
                 </div>
+                
+                {/* Pagination */}
+                {sortedDoctors.length > 0 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={sortedDoctors.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                  />
+                )}
               </CardContent>
             </Card>
           </>

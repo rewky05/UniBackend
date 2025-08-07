@@ -29,6 +29,11 @@ const navigationItems = [
     icon: BarChart3,
   },
   {
+    title: "Appointments Monitoring",
+    href: "/appointments",
+    icon: Calendar,
+  },
+  {
     title: "Specialist Management",
     href: "/doctors",
     icon: Users,
@@ -106,7 +111,7 @@ export function Sidebar() {
       <div
         className={cn(
           "fixed left-0 top-0 z-50 h-full sidebar-gradient border-r border-border/20 transition-all duration-300 lg:relative lg:z-auto",
-          isCollapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "w-64"
+          isCollapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "w-63"
         )}
       >
         {/* Header */}

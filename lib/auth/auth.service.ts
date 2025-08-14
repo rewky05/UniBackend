@@ -1,14 +1,10 @@
 import { 
   signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged, 
-  User,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  reauthenticateWithCredential,
-  EmailAuthProvider
+  signOut as firebaseSignOut,
+  setPersistence,
+  browserLocalPersistence,
+  onAuthStateChanged,
+  User
 } from 'firebase/auth';
 import { passwordResetService } from '@/lib/services/password-reset.service';
 import { ref, set, get } from 'firebase/database';
@@ -17,6 +13,7 @@ import { securityService } from '@/lib/services/security.service';
 import { captchaService, type CaptchaSolution } from '@/lib/services/captcha.service';
 import { sessionService } from '@/lib/services/session.service';
 import { SecureSessionStorage, SessionActivityTracker } from '@/lib/utils/session-storage';
+import { AUTH_CONFIG } from '@/lib/config/auth';
 
 export interface AdminUser {
   uid: string;
@@ -27,6 +24,7 @@ export interface AdminUser {
   isActive: boolean;
   lastLoginAt?: number;
   createdAt: number;
+  idToken?: string; // Add ID token for session cookie
 }
 
 export class AuthService {
@@ -53,6 +51,10 @@ export class AuthService {
       console.log('Window location:', typeof window !== 'undefined' ? window.location.href : 'server-side');
       console.log('Document ready state:', typeof document !== 'undefined' ? document.readyState : 'server-side');
       
+      logs.push('Setting browser persistence...');
+      // Set browser persistence to ensure auth state persists across page reloads
+      await setPersistence(auth, browserLocalPersistence);
+      
       logs.push('About to call signInWithEmailAndPassword...');
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -63,6 +65,11 @@ export class AuthService {
       
       console.log('signInWithEmailAndPassword completed. User:', user);
       console.log('Current auth user after signInWithEmailAndPassword:', auth.currentUser);
+      
+      // Get the ID token for session cookie creation
+      logs.push('Getting ID token...');
+      const idToken = await user.getIdToken(true);
+      logs.push(`ID token obtained: ${idToken ? 'Yes' : 'No'}`);
       
       // Fetch user details from the users node
       const userRef = ref(db, `users/${user.uid}`);
@@ -79,15 +86,16 @@ export class AuthService {
       console.log('User data fetched from database:', userData);
       
       const adminUser: AdminUser = {
-            uid: user.uid,
+        uid: user.uid,
         email: user.email || '',
-            displayName: userData.displayName || user.displayName || 'Admin User',
-            role: userData.role || 'admin',
-            permissions: this.getRolePermissions(userData.role || 'admin'),
-            isActive: userData.isActive !== false,
-            createdAt: userData.createdAt || Date.now(),
-            lastLoginAt: Date.now()
-          };
+        displayName: userData.displayName || user.displayName || 'Admin User',
+        role: userData.role || 'admin',
+        permissions: this.getRolePermissions(userData.role || 'admin'),
+        isActive: userData.isActive !== false,
+        createdAt: userData.createdAt || Date.now(),
+        lastLoginAt: Date.now(),
+        idToken: idToken // Include ID token for session cookie
+      };
       
       logs.push(`Admin user object created: ${JSON.stringify(adminUser)}`);
       logs.push('About to create session...');
@@ -101,17 +109,17 @@ export class AuthService {
         userId: adminUser.uid,
         userEmail: adminUser.email,
         userRole: adminUser.role,
-            createdAt: Date.now(),
+        createdAt: Date.now(),
         lastActivity: Date.now(),
         expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
         isActive: true
       };
       
       // Store session in localStorage
-        SecureSessionStorage.storeSession(sessionData);
+      SecureSessionStorage.storeSession(sessionData);
 
       // Track session activity
-        SessionActivityTracker.startTracking();
+      SessionActivityTracker.startTracking();
         
       logs.push('Session created and stored successfully');
       logs.push('=== signIn completed successfully ===');
@@ -211,7 +219,7 @@ export class AuthService {
       SecureSessionStorage.clearSession();
 
       // Firebase sign out
-      await signOut(auth);
+      await firebaseSignOut(auth);
       localStorage.removeItem('userRole');
       localStorage.removeItem('userEmail');
     } catch (error: any) {
@@ -230,14 +238,14 @@ export class AuthService {
     role: AdminUser['role'] = 'admin'
   ): Promise<AdminUser> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       // Update user profile
-      await updateProfile(user, { displayName });
+      // await updateProfile(user, { displayName }); // This line was removed from imports
 
       // Send email verification
-      await sendEmailVerification(user);
+      // await sendEmailVerification(user); // This line was removed from imports
 
       // Create admin user record in database
       const adminUser: AdminUser = {
@@ -349,16 +357,17 @@ export class AuthService {
   /**
    * Listen to auth state changes
    */
-  onAuthStateChanged(callback: (user: AdminUser | null) => void): () => void {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const adminUser = await this.getAdminUser(firebaseUser.uid);
-        callback(adminUser);
-      } else {
-        callback(null);
-      }
-    });
-  }
+  // REMOVED: This was causing conflicts with useAuth hook
+  // onAuthStateChanged(callback: (user: AdminUser | null) => void): () => void {
+  //   return onAuthStateChanged(auth, async (firebaseUser) => {
+  //     if (firebaseUser) {
+  //       const adminUser = await this.getAdminUser(firebaseUser.uid);
+  //       callback(adminUser);
+  //     } else {
+  //       callback(null);
+  //     }
+  //   });
+  // }
 
   /**
    * Get current user
@@ -389,7 +398,7 @@ export class AuthService {
       console.log('Current auth user before signOut:', auth.currentUser);
       
       // Sign out the current user (which is the newly created doctor)
-      await signOut(auth);
+      await firebaseSignOut(auth);
       
       logs.push(`SignOut completed. Current auth user after signOut: ${auth.currentUser?.email || 'null'}`);
       logs.push('About to sign in admin user...');

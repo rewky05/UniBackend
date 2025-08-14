@@ -11,13 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -26,13 +19,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 import {
   MessageSquare,
   Search,
@@ -41,7 +40,6 @@ import {
   User,
   Eye,
   TrendingUp,
-  TrendingDown,
   Filter,
   Building2
 } from 'lucide-react';
@@ -190,46 +188,46 @@ export default function FeedbackPage() {
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="stat-card">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100/70 hover:to-indigo-100/70 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Total Feedback
               </CardTitle>
-              <MessageSquare className="h-4 w-4 text-blue-600" />
+              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalFeedback}</div>
-              <div className="text-xs text-green-600 flex items-center mt-1">
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{totalFeedback}</div>
+              <div className="text-xs text-green-600 dark:text-green-400 flex items-center mt-1">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 +12% from last month
               </div>
             </CardContent>
           </Card>
 
-          <Card className="stat-card">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100/70 hover:to-indigo-100/70 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Average Rating
               </CardTitle>
-              <Star className="h-4 w-4 text-yellow-500" />
+              <Star className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{averageRating.toFixed(1)}</div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{averageRating.toFixed(1)}</div>
               <div className="flex items-center mt-1">
                 {renderStars(Math.round(averageRating))}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="stat-card">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100/70 hover:to-indigo-100/70 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Highest Rating
               </CardTitle>
-              <Star className="h-4 w-4 text-yellow-500" />
+              <Star className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                 {clinicsWithRatings.length > 0 
                   ? Math.max(...clinicsWithRatings.map(c => c.averageRating)).toFixed(1)
                   : '0.0'
@@ -246,16 +244,16 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          <Card className="stat-card">
+          <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100/70 hover:to-indigo-100/70 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Flagged Reviews
               </CardTitle>
-              <Eye className="h-4 w-4 text-red-600" />
+              <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{flaggedReviews}</div>
-              <div className="text-xs text-red-600 flex items-center mt-1">
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{flaggedReviews}</div>
+              <div className="text-xs text-red-600 dark:text-red-400 flex items-center mt-1">
                 Need immediate review
               </div>
             </CardContent>
@@ -265,7 +263,7 @@ export default function FeedbackPage() {
 
 
         {/* Filters */}
-        <Card id="review-feedback" className="card-shadow">
+        <Card className="bg-card border-border/50 dark:border-border/30 card-shadow">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="flex-1">
@@ -293,6 +291,7 @@ export default function FeedbackPage() {
                      ))}
                    </SelectContent>
                 </Select>
+                
                                  <Select value={selectedRating} onValueChange={setSelectedRating}>
                    <SelectTrigger className="w-32">
                      <SelectValue placeholder="Rating" />
@@ -305,6 +304,7 @@ export default function FeedbackPage() {
                      ))}
                    </SelectContent>
                  </Select>
+                
                  <Select value={selectedSort} onValueChange={setSelectedSort}>
                    <SelectTrigger className="w-40">
                      <SelectValue placeholder="Sort by" />
@@ -317,26 +317,14 @@ export default function FeedbackPage() {
                      ))}
                    </SelectContent>
                  </Select>
-                {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select> */}
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Feedback Table */}
-        <Card className="card-shadow">
-          <CardHeader>
+        <Card className="bg-card border-border/50 dark:border-border/30 card-shadow">
+          <CardHeader className="border-b border-border/20 dark:border-border/10">
             <CardTitle className="flex items-center">
               <MessageSquare className="h-5 w-5 mr-2" />
               Patient Reviews ({filteredFeedback.length})
@@ -346,24 +334,22 @@ export default function FeedbackPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border border-border/50 dark:border-border/30">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Clinic</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Comment</TableHead>
-                    <TableHead>Date</TableHead>
-                    {/* <TableHead>Status</TableHead> */}
-                    <TableHead className="w-[50px]">Actions</TableHead>
+                  <TableRow className="bg-muted/30 dark:bg-muted/20">
+                    <TableHead className="text-foreground font-medium w-[200px]">Patient</TableHead>
+                    <TableHead className="text-foreground font-medium w-[200px]">Doctor</TableHead>
+                    <TableHead className="text-foreground font-medium w-[150px]">Clinic</TableHead>
+                    <TableHead className="text-foreground font-medium w-[120px]">Rating</TableHead>
+                    <TableHead className="text-foreground font-medium w-[150px]">Date</TableHead>
+                    <TableHead className="w-[80px] text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                                  <TableBody>
                    {sortedFeedback.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={7} className="text-center py-8">
+                       <TableCell colSpan={6} className="text-center py-8">
                          <div className="flex flex-col items-center space-y-2">
                            <div className="text-muted-foreground text-lg">📭</div>
                            <p className="text-muted-foreground font-medium">No feedback found</p>
@@ -375,8 +361,8 @@ export default function FeedbackPage() {
                      </TableRow>
                    ) : (
                      sortedFeedback.map((item) => (
-                      <TableRow key={item.id} className="table-row-hover">
-                      <TableCell>
+                      <TableRow key={item.id} className="hover:bg-muted/30 dark:hover:bg-muted/20 transition-colors">
+                      <TableCell className="py-4">
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback className="text-xs">
@@ -386,14 +372,14 @@ export default function FeedbackPage() {
                           <span className="font-medium">{item.patientName}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div>
                           <div className="font-medium">{item.doctorName}</div>
                           <div className="text-sm text-muted-foreground">{item.doctorSpecialty}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{item.clinic || 'N/A'}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-4 text-sm">{item.clinic || 'N/A'}</TableCell>
+                      <TableCell className="py-4">
                         <div className="flex items-center space-x-1">
                           <span className={`font-medium ${getRatingColor(item.rating || 0)}`}>
                             {item.rating || 0}
@@ -403,110 +389,128 @@ export default function FeedbackPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-xs">
-                        <p className="text-sm truncate">{item.comment || 'No comment'}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {(item.tags || []).slice(0, 2).map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {(item.tags || []).length > 2 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{(item.tags || []).length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="py-4">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span>{formatDateToText(item.date || item.createdAt || Date.now())}</span>
+                          <span className="text-sm">{formatDateToText(item.date || item.createdAt || Date.now())}</span>
                         </div>
                       </TableCell>
-                      {/* <TableCell>
-                        <Badge className={getStatusColor(item.status || 'pending')}>
-                          {item.status || 'pending'}
-                        </Badge>
-                      </TableCell> */}
-                      <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
+                      <TableCell className="py-4 text-center">
                             <Button 
                               variant="ghost" 
                               size="icon"
                               onClick={() => setSelectedFeedback(item)}
+                          className="h-8 w-8"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Patient Feedback Details</DialogTitle>
-                              <DialogDescription>
-                                Complete review from {item.patientName}
-                              </DialogDescription>
-                            </DialogHeader>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Feedback Details Sheet */}
                             {selectedFeedback && (
-                              <div className="space-y-6">
-                                <div className="grid gap-4 md:grid-cols-2">
+          <Sheet open={!!selectedFeedback} onOpenChange={() => setSelectedFeedback(null)}>
+            <SheetContent side="right" className="w-full max-w-md sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl backdrop-blur-md overflow-y-auto">
+              <div className="p-6">
+                <SheetHeader>
+                  <SheetTitle>Patient Feedback Details</SheetTitle>
+                  <SheetDescription>Complete review from {selectedFeedback.patientName}</SheetDescription>
+                </SheetHeader>
+                
+                <div className="mt-8 space-y-6">
+                  {/* Patient Information */}
                                   <div>
-                                    <h4 className="font-medium mb-2">Patient Information</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <div className="flex items-center space-x-2">
-                                        <User className="h-4 w-4 text-muted-foreground" />
-                                        <span>{selectedFeedback.patientName}</span>
+                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground">PATIENT INFORMATION</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Patient Name</span>
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedFeedback.patientName}
+                        </span>
                                       </div>
-                                      <div className="flex items-center space-x-2">
-                                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                                        <span>{formatDateToText(selectedFeedback.date)}</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Date Submitted</span>
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {formatDateToText(selectedFeedback.date || selectedFeedback.createdAt || Date.now())}
+                        </span>
                                       </div>
                                     </div>
                                   </div>
+
+                  {/* Healthcare Provider Information */}
                                   <div>
-                                    <h4 className="font-medium mb-2">Healthcare Provider</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <div>{selectedFeedback.doctorName}</div>
-                                      <div className="text-muted-foreground">{selectedFeedback.doctorSpecialty}</div>
-                                      <div className="text-muted-foreground">{selectedFeedback.clinic}</div>
+                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground">HEALTHCARE PROVIDER</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Doctor Name</span>
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedFeedback.doctorName}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Specialty</span>
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedFeedback.doctorSpecialty || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col md:col-span-2">
+                        <span className="text-xs text-muted-foreground">Clinic</span>
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedFeedback.clinic || 'N/A'}
+                        </span>
+                      </div>
                                       {selectedFeedback.clinicId && (
-                                        <div className="flex items-center space-x-2 mt-2">
-                                          <span className="text-xs text-muted-foreground">Clinic Rating:</span>
+                        <div className="flex flex-col md:col-span-2">
+                          <span className="text-xs text-muted-foreground">Clinic Rating</span>
+                          <div className="flex items-center space-x-2 border rounded px-3 py-2 bg-muted/30">
                                           <div className="flex">
                                             {renderStars(Math.round(
                                               clinicsWithRatings.find(c => c.clinicId === selectedFeedback.clinicId)?.averageRating || 0
                                             ))}
                                           </div>
-                                          <span className="text-xs font-medium">
+                            <span className="font-medium text-base">
                                             {clinicsWithRatings.find(c => c.clinicId === selectedFeedback.clinicId)?.averageRating.toFixed(1) || '0.0'}
                                           </span>
+                          </div>
                                         </div>
                                       )}
-                                    </div>
                                   </div>
                                 </div>
                                 
+                  {/* Rating */}
                                 <div>
-                                  <h4 className="font-medium mb-2">Rating</h4>
-                                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground">RATING</h3>
+                    <div className="flex items-center space-x-3 border rounded px-3 py-2 bg-muted/30">
                                     <div className="flex">
-                                      {renderStars(selectedFeedback.rating)}
+                        {renderStars(selectedFeedback.rating || 0)}
                                     </div>
-                                    <span className={`font-medium ${getRatingColor(selectedFeedback.rating)}`}>
-                                      {selectedFeedback.rating} out of 5
+                      <span className={`font-medium text-lg ${getRatingColor(selectedFeedback.rating || 0)}`}>
+                        {selectedFeedback.rating || 0} out of 5
                                     </span>
                                   </div>
                                 </div>
 
+                  {/* Patient Comment */}
                                 <div>
-                                  <h4 className="font-medium mb-2">Patient Comment</h4>
-                                  <p className="text-sm bg-muted p-4 rounded-lg">
-                                    {selectedFeedback.comment}
-                                  </p>
+                    <h3 className="text-sm font-semibold mb-3 text-muted-foreground">PATIENT COMMENT</h3>
+                    <div className="border rounded px-3 py-2 bg-muted/30">
+                      <p className="text-sm leading-relaxed">
+                        {selectedFeedback.comment || 'No comment provided'}
+                      </p>
+                    </div>
                                 </div>
 
+                  {/* Tags */}
+                  {selectedFeedback.tags && selectedFeedback.tags.length > 0 && (
                                 <div>
-                                  <h4 className="font-medium mb-2">Tags</h4>
+                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground">TAGS</h3>
                                   <div className="flex flex-wrap gap-2">
                                     {selectedFeedback.tags.map((tag, index) => (
                                       <Badge key={index} variant="secondary">
@@ -515,11 +519,10 @@ export default function FeedbackPage() {
                                     ))}
                                   </div>
                                 </div>
+                  )}
 
+                  {/* Actions */}
                                 <div className="flex justify-between items-center pt-4 border-t">
-                                  <Badge className={getStatusColor(selectedFeedback.status)}>
-                                    {selectedFeedback.status}
-                                  </Badge>
                                   <div className="flex gap-2">
                                     <Button variant="outline" size="sm">
                                       Flag for Review
@@ -530,18 +533,10 @@ export default function FeedbackPage() {
                                   </div>
                                 </div>
                               </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </DashboardLayout>
   );

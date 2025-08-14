@@ -12,6 +12,8 @@ import { authService } from '@/lib/auth/auth.service';
 import { HealthcareCaptcha } from '@/components/ui/healthcare-captcha';
 import { LockoutTimer } from '@/components/ui/lockout-timer';
 import { securityService } from '@/lib/services/security.service';
+import { auth } from '@/lib/firebase/config';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,6 +26,19 @@ export default function LoginPage() {
   const [lockoutRecord, setLockoutRecord] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState('');
   const router = useRouter();
+  const { user, loading } = useAuth();
+
+  // Monitor authentication state changes
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('Login page: User authenticated, redirecting to dashboard');
+      setDebugInfo('User authenticated, redirecting...');
+      // Use a small delay to ensure the state is stable
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500);
+    }
+  }, [user, loading]);
 
   // Check for account lockout when email changes
   useEffect(() => {
@@ -72,17 +87,13 @@ export default function LoginPage() {
         // Only now proceed with Firebase authentication
         const adminUser = await authService.signIn(email, password);
         
-        setDebugInfo('Authentication successful, storing user info...');
-        // Store user info in localStorage for UI purposes
-        localStorage.setItem('userRole', adminUser.role);
-        localStorage.setItem('userEmail', adminUser.email);
-        localStorage.setItem('userDisplayName', adminUser.displayName);
+        setDebugInfo('Authentication successful, waiting for auth state...');
+        console.log('Authentication successful, waiting for auth state to update...');
         
-        setDebugInfo('Redirecting to dashboard...');
-        // Add a longer delay to ensure authentication state is properly set
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
+        // The redirect will be handled by the useEffect that monitors auth state
+        setDebugInfo('Authentication successful! Redirect will happen automatically.');
+        console.log('Authentication successful! Redirect will happen automatically.');
+        
       } catch (error: any) {
         console.error('Login error:', error);
         setError(error.message || 'Invalid email or password. Please try again.');
@@ -160,6 +171,23 @@ export default function LoginPage() {
                   </AlertDescription>
                 </Alert>
               )}
+              
+              {/* Debug Information */}
+              {/* {process.env.NODE_ENV === 'development' && (
+                <Alert>
+                  <AlertDescription className="text-xs font-mono">
+                    <div className="space-y-1">
+                      <div>Firebase User: {auth.currentUser?.email || 'null'}</div>
+                      <div>Local Role: {localStorage.getItem('userRole') || 'null'}</div>
+                      <div>Local Email: {localStorage.getItem('userEmail') || 'null'}</div>
+                      <div>Current Path: {typeof window !== 'undefined' ? window.location.pathname : 'server'}</div>
+                      <div>Auth Hook User: {user?.email || 'null'}</div>
+                      <div>Auth Hook Loading: {loading ? 'true' : 'false'}</div>
+                      <div>Auth Hook Authenticated: {user?.isAuthenticated ? 'true' : 'false'}</div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )} */}
               
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>

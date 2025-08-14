@@ -36,7 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedRole = localStorage.getItem('userRole');
     const storedEmail = localStorage.getItem('userEmail');
     
+    // Only return superadmin user if both role and email are present
     if (storedRole === AUTH_CONFIG.ROLES.SUPERADMIN && storedEmail) {
+      console.log('Superadmin auth check: Found stored credentials');
       return {
         email: storedEmail,
         role: 'superadmin' as const,
@@ -57,48 +59,103 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('useAuth: Setting up Firebase auth state listener');
+    
+    // Ensure Firebase persistence is set to local
+    const setupPersistence = async () => {
+      try {
+        const { setPersistence, browserLocalPersistence } = await import('firebase/auth');
+        await setPersistence(auth, browserLocalPersistence);
+        console.log('Firebase persistence set to local');
+      } catch (error) {
+        console.error('Error setting Firebase persistence:', error);
+      }
+    };
+    
+    // Test database connection
+    const testDatabaseConnection = async () => {
+      try {
+        const testRef = ref(db, 'test-connection');
+        await get(testRef);
+        console.log('Firebase database connection test successful');
+      } catch (error) {
+        console.error('Firebase database connection test failed:', error);
+      }
+    };
+    
+    setupPersistence();
+    testDatabaseConnection();
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         console.log('Firebase auth state changed:', firebaseUser?.email);
         
         if (firebaseUser) {
           // Firebase user authenticated - fetch additional user details
-          const userRef = ref(db, `users/${firebaseUser.uid}`);
-          const snapshot = await get(userRef);
-          
-          let userDetails = {
-            email: firebaseUser.email || '',
-            role: 'admin' as const,
-            isAuthenticated: true,
-            firstName: '',
-            lastName: '',
-            displayName: firebaseUser.displayName || '',
-          };
-
-          if (snapshot.exists()) {
-            const userData = snapshot.val();
-            userDetails = {
-              ...userDetails,
-              firstName: userData.firstName || '',
-              lastName: userData.lastName || '',
-              role: userData.role || 'admin',
+          try {
+            console.log('Fetching user data from database for UID:', firebaseUser.uid);
+            const userRef = ref(db, `users/${firebaseUser.uid}`);
+            console.log('Database reference path:', `users/${firebaseUser.uid}`);
+            
+            const snapshot = await get(userRef);
+            console.log('Database snapshot exists:', snapshot.exists());
+            console.log('Database snapshot value:', snapshot.val());
+            
+            let userDetails = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              role: 'admin' as const,
+              isAuthenticated: true,
+              firstName: '',
+              lastName: '',
+              displayName: firebaseUser.displayName || '',
             };
-          }
 
-          console.log('Setting user details:', userDetails);
-          setUser(userDetails);
-          setLoading(false);
+            if (snapshot.exists()) {
+              const userData = snapshot.val();
+              console.log('User data from database:', userData);
+              userDetails = {
+                ...userDetails,
+                firstName: userData.firstName || '',
+                lastName: userData.lastName || '',
+                role: userData.role || 'admin',
+              };
+            } else {
+              console.log('No user data found in database, using Firebase defaults');
+            }
+
+            console.log('Final user details:', userDetails);
+            setUser(userDetails);
+            setLoading(false);
+          } catch (dbError) {
+            console.error('Error fetching user data from database:', dbError);
+            // Still set the user with basic info from Firebase
+            const userDetails = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              role: 'admin' as const,
+              isAuthenticated: true,
+              firstName: '',
+              lastName: '',
+              displayName: firebaseUser.displayName || '',
+            };
+            console.log('Setting user details (fallback):', userDetails);
+            setUser(userDetails);
+            setLoading(false);
+          }
         } else {
-          // No Firebase user - check for superadmin
+          // No Firebase user - check for superadmin (but only if no Firebase user exists)
+          console.log('No Firebase user found, checking for superadmin');
           const superadminUser = checkSuperadminAuth();
           if (superadminUser) {
             console.log('Setting superadmin user:', superadminUser);
             setUser(superadminUser);
+            setLoading(false);
           } else {
             console.log('No user found, setting null');
             setUser(null);
+            setLoading(false);
           }
-          setLoading(false);
         }
       } catch (error) {
         console.error('Error in auth state change:', error);
@@ -107,21 +164,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => unsubscribe();
-  }, []);
+    // Don't check for superadmin on initial load if we're waiting for Firebase
+    // This prevents conflicts between Firebase and superadmin auth
+    setLoading(true);
 
-  // Listen for localStorage changes (for superadmin login)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const superadminUser = checkSuperadminAuth();
-      if (superadminUser) {
-        setUser(superadminUser);
-      }
+    return () => {
+      console.log('useAuth: Cleaning up Firebase auth state listener');
+      unsubscribe();
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // Monitor user state changes for debugging
+  useEffect(() => {
+    console.log('useAuth: User state changed:', user);
+    console.log('useAuth: Loading state:', loading);
+  }, [user, loading]);
 
   // Listen for session destruction events (real-time logout)
   useEffect(() => {
@@ -156,6 +213,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Clear session storage
       SecureSessionStorage.clearSession();
+      
+      // Clear the server session cookie
+      try {
+        await fetch('/api/signout', { 
+          method: 'POST',
+          credentials: 'include' // Include cookies
+        });
+      } catch (cookieError) {
+        console.error('Failed to clear session cookie:', cookieError);
+      }
       
       // Firebase sign out
       await firebaseSignOut(auth);

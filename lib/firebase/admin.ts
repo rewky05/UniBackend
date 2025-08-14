@@ -1,24 +1,18 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import serviceAccount from './odyssey-test-db-firebase-adminsdk-fbsvc-e4f0ac88e9.json';
 
 // Initialize Firebase Admin if not already initialized
 export function initAdmin() {
   if (getApps().length === 0) {
-    // Use environment variables for service account credentials
-    const serviceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    };
-
-    // Validate required environment variables
-    if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-      throw new Error('Missing required Firebase environment variables. Please check your .env file.');
-    }
-
+    // Use the service account JSON file directly
     initializeApp({
-      credential: cert(serviceAccount),
-      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://odyssey-test-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+      credential: cert({
+        projectId: serviceAccount.project_id,
+        clientEmail: serviceAccount.client_email,
+        privateKey: serviceAccount.private_key,
+      }),
+      databaseURL: "https://odyssey-test-db-default-rtdb.asia-southeast1.firebasedatabase.app",
     });
   }
   return getAuth();

@@ -1,0 +1,6 @@
+warning: in the working copy of 'app/login/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/layout/protected-route.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'hooks/useAuth.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/firebase/admin.ts', LF will be replaced by CRLF the next time Git touches it
+FIREBASE_ENV_SETUP.md
+lib/firebase/admin.ts

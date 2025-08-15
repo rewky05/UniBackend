@@ -91,7 +91,7 @@ export function ScheduleCard({
     } else if (clinicId && clinicIdMapping[clinicId]) {
       return clinicIdMapping[clinicId];
     } else {
-      return `Clinic ID: ${clinicId}`;
+      return 'Unknown Clinic';
     }
   };
 

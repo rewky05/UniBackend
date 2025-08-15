@@ -1,5 +1,6 @@
 import { query, orderByChild, equalTo, get, onValue, off, limitToLast } from 'firebase/database';
 import { BaseFirebaseService } from './base.service';
+import { safeGetTimestamp } from '@/lib/utils';
 import type { 
   ActivityLog, 
   CreateActivityLogDto, 
@@ -166,8 +167,8 @@ export class ActivityLogsService extends BaseFirebaseService<ActivityLog> {
       }
 
       if (filters.dateRange) {
-        const startDate = new Date(filters.dateRange.start).getTime();
-        const endDate = new Date(filters.dateRange.end).getTime();
+        const startDate = safeGetTimestamp(filters.dateRange.start);
+        const endDate = safeGetTimestamp(filters.dateRange.end) || Date.now();
         logs = logs.filter(log => 
           log.createdAt >= startDate && log.createdAt <= endDate
         );

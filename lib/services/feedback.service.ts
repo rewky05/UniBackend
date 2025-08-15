@@ -1,5 +1,6 @@
 import { query, orderByChild, equalTo, get, onValue, off } from 'firebase/database';
 import { BaseFirebaseService } from './base.service';
+import { safeGetTimestamp } from '@/lib/utils';
 import type { 
   Feedback, 
   CreateFeedbackDto, 
@@ -242,8 +243,8 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
       }
 
       if (filters.dateRange) {
-        const startDate = new Date(filters.dateRange.start).getTime();
-        const endDate = new Date(filters.dateRange.end).getTime();
+        const startDate = safeGetTimestamp(filters.dateRange.start);
+        const endDate = safeGetTimestamp(filters.dateRange.end) || Date.now();
         feedback = feedback.filter(f => 
           f.createdAt >= startDate && f.createdAt <= endDate
         );

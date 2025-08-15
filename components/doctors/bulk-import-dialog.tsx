@@ -319,14 +319,14 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     // Date validation
     if (data['Date of Birth*']) {
       const date = new Date(String(data['Date of Birth*']));
-      if (isNaN(date.getTime())) {
+      if (!date || isNaN(date.getTime())) {
         errors.push(`Row ${row}: Invalid date format for Date of Birth`);
       }
     }
 
     if (data['PRC Expiry*']) {
       const date = new Date(String(data['PRC Expiry*']));
-      if (isNaN(date.getTime())) {
+      if (!date || isNaN(date.getTime())) {
         errors.push(`Row ${row}: Invalid date format for PRC Expiry`);
       }
     }
@@ -409,7 +409,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
     // Valid from date validation
     if (data['Valid From*']) {
       const date = new Date(String(data['Valid From*']));
-      if (isNaN(date.getTime())) {
+      if (!date || isNaN(date.getTime())) {
         errors.push(`Row ${row}: Invalid date format for Valid From`);
       }
     }

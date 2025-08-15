@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRealActivityLogs } from '@/hooks/useRealData';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { formatDateTimeToText } from '@/lib/utils';
+import { formatDateTimeToText, safeCreateDate } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,7 +139,11 @@ export default function ActivityLogsPage() {
   };
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
+    if (!timestamp) return 'No timestamp';
+    
+    const date = safeCreateDate(timestamp);
+    if (!date) return 'Invalid timestamp';
+    
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     

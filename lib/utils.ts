@@ -26,22 +26,14 @@ export function formatPhilippinePeso(amount: number | undefined | null): string 
  * @returns Formatted date string
  */
 export function formatDateToText(dateString: string | Date | number): string {
-  let date: Date;
+  const date = safeCreateDate(dateString);
   
-  if (typeof dateString === 'number') {
-    // Handle timestamp (milliseconds since epoch)
-    date = new Date(dateString);
-  } else if (typeof dateString === 'string') {
-    // Handle string dates
-    date = new Date(dateString);
-  } else {
-    // Handle Date object
-    date = dateString;
-  }
-  
-  // Check if date is valid
-  if (isNaN(date.getTime())) {
-    return 'Invalid date';
+  if (!date) {
+    // Try to provide a more helpful error message
+    if (typeof dateString === 'string' && dateString.trim()) {
+      return `Unable to parse date: "${dateString}"`;
+    }
+    return 'No date provided';
   }
   
   return date.toLocaleDateString('en-US', {
@@ -57,22 +49,14 @@ export function formatDateToText(dateString: string | Date | number): string {
  * @returns Formatted date and time string
  */
 export function formatDateTimeToText(dateString: string | Date | number): string {
-  let date: Date;
+  const date = safeCreateDate(dateString);
   
-  if (typeof dateString === 'number') {
-    // Handle timestamp (milliseconds since epoch)
-    date = new Date(dateString);
-  } else if (typeof dateString === 'string') {
-    // Handle string dates
-    date = new Date(dateString);
-  } else {
-    // Handle Date object
-    date = dateString;
-  }
-  
-  // Check if date is valid
-  if (isNaN(date.getTime())) {
-    return 'Invalid date';
+  if (!date) {
+    // Try to provide a more helpful error message
+    if (typeof dateString === 'string' && dateString.trim()) {
+      return `Unable to parse date: "${dateString}"`;
+    }
+    return 'No date provided';
   }
   
   return date.toLocaleDateString('en-US', {
@@ -192,4 +176,279 @@ export function clearAllFormData(userId?: string): void {
   } catch (error) {
     console.error('Error clearing all form data:', error);
   }
+}
+
+/**
+ * Safely get timestamp from a date value, handling undefined/null cases
+ * @param dateValue - The date value (string, Date, number, or undefined/null)
+ * @returns Timestamp in milliseconds, or 0 if invalid
+ */
+export function safeGetTimestamp(dateValue: string | Date | number | undefined | null): number {
+  if (!dateValue) return 0;
+  
+  try {
+    const date = safeCreateDate(dateValue);
+    return date ? date.getTime() : 0;
+  } catch (error) {
+    console.warn('Invalid date value:', dateValue, error);
+    return 0;
+  }
+}
+
+/**
+ * Safely create a Date object, handling undefined/null cases and multiple date formats
+ * @param dateValue - The date value (string, Date, number, or undefined/null)
+ * @returns Date object or null if invalid
+ */
+export function safeCreateDate(dateValue: string | Date | number | undefined | null): Date | null {
+  if (!dateValue) return null;
+  
+  try {
+    // If it's already a Date object, validate it
+    if (dateValue instanceof Date) {
+      return isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+    
+    // If it's a number (timestamp), create Date directly
+    if (typeof dateValue === 'number') {
+      const date = new Date(dateValue);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    
+    // If it's a string, try multiple parsing strategies
+    if (typeof dateValue === 'string') {
+      const trimmedValue = dateValue.trim();
+      if (!trimmedValue) return null;
+      
+      // Try direct Date constructor first
+      let date = new Date(trimmedValue);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+      
+      // Try parsing common date formats
+      const parsedDate = parseDateString(trimmedValue);
+      if (parsedDate) {
+        return parsedDate;
+      }
+      
+      // Try ISO string format variations
+      date = new Date(trimmedValue.replace(/[T\s]/g, ' '));
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+      
+      // Try timestamp as string
+      const timestamp = parseInt(trimmedValue, 10);
+      if (!isNaN(timestamp)) {
+        date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('Invalid date value:', dateValue, error);
+    return null;
+  }
+}
+
+/**
+ * Parse various date string formats
+ * @param dateString - The date string to parse
+ * @returns Date object or null if parsing fails
+ */
+function parseDateString(dateString: string): Date | null {
+  try {
+    // Remove extra spaces and normalize
+    const normalized = dateString.replace(/\s+/g, ' ').trim();
+    
+    // Common date patterns
+    const patterns = [
+      // MM/DD/YYYY or MM-DD-YYYY
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/,
+      // YYYY/MM/DD or YYYY-MM-DD
+      /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/,
+      // DD/MM/YYYY or DD-MM-YYYY
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/,
+      // MM/DD/YY or MM-DD-YY
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/,
+      // DD/MM/YY or DD-MM-YY
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/,
+      // Month name patterns
+      /^(\w+)\s+(\d{1,2}),?\s+(\d{4})$/,
+      /^(\d{1,2})\s+(\w+)\s+(\d{4})$/,
+      // ISO-like patterns without timezone
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
+      /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match) {
+        const date = parseMatchedDate(match, pattern);
+        if (date && !isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+    
+    // Try natural language parsing for common formats
+    const naturalDate = parseNaturalDate(normalized);
+    if (naturalDate) {
+      return naturalDate;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('Error parsing date string:', dateString, error);
+    return null;
+  }
+}
+
+/**
+ * Parse date from regex match
+ * @param match - Regex match result
+ * @param pattern - The pattern that matched
+ * @returns Date object or null
+ */
+function parseMatchedDate(match: RegExpMatchArray, pattern: RegExp): Date | null {
+  try {
+    const groups = match.slice(1);
+    
+    // Handle different pattern types
+    if (pattern.source.includes('\\w+')) {
+      // Month name pattern
+      return parseMonthNameDate(groups);
+    } else if (pattern.source.includes('T')) {
+      // ISO-like pattern
+      return parseISOLikeDate(groups);
+    } else {
+      // Numeric pattern
+      return parseNumericDate(groups);
+    }
+  } catch (error) {
+    console.warn('Error parsing matched date:', match, error);
+    return null;
+  }
+}
+
+/**
+ * Parse numeric date patterns
+ * @param groups - Regex groups
+ * @returns Date object or null
+ */
+function parseNumericDate(groups: string[]): Date | null {
+  const [first, second, third] = groups.map(g => parseInt(g, 10));
+  
+  // Determine format based on values
+  if (first > 31) {
+    // YYYY-MM-DD or YYYY/MM/DD
+    return new Date(first, second - 1, third);
+  } else if (third < 100) {
+    // MM-DD-YY or DD-MM-YY
+    const year = third < 50 ? 2000 + third : 1900 + third;
+    return new Date(year, first - 1, second);
+  } else {
+    // MM-DD-YYYY or DD-MM-YYYY (assume MM-DD-YYYY for US format)
+    return new Date(third, first - 1, second);
+  }
+}
+
+/**
+ * Parse month name date patterns
+ * @param groups - Regex groups
+ * @returns Date object or null
+ */
+function parseMonthNameDate(groups: string[]): Date | null {
+  const monthNames = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
+    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+  ];
+  
+  const [first, second, third] = groups;
+  let month: number;
+  let day: number;
+  let year: number;
+  
+  // Check if first group is month name
+  const firstLower = first.toLowerCase();
+  const monthIndex = monthNames.indexOf(firstLower);
+  
+  if (monthIndex !== -1) {
+    // Month Day, Year format
+    month = monthIndex % 12;
+    day = parseInt(second, 10);
+    year = parseInt(third, 10);
+  } else {
+    // Day Month Year format
+    day = parseInt(first, 10);
+    const secondLower = second.toLowerCase();
+    const monthIndex2 = monthNames.indexOf(secondLower);
+    if (monthIndex2 === -1) return null;
+    month = monthIndex2 % 12;
+    year = parseInt(third, 10);
+  }
+  
+  return new Date(year, month, day);
+}
+
+/**
+ * Parse ISO-like date patterns
+ * @param groups - Regex groups
+ * @returns Date object or null
+ */
+function parseISOLikeDate(groups: string[]): Date | null {
+  const [year, month, day, hour = 0, minute = 0, second = 0] = groups.map(g => parseInt(g, 10));
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+
+/**
+ * Parse natural language date expressions
+ * @param dateString - Date string to parse
+ * @returns Date object or null
+ */
+function parseNaturalDate(dateString: string): Date | null {
+  const lower = dateString.toLowerCase();
+  const now = new Date();
+  
+  // Handle relative dates
+  if (lower.includes('today')) {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  
+  if (lower.includes('yesterday')) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  }
+  
+  if (lower.includes('tomorrow')) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+  
+  // Handle "X days ago" or "X days from now"
+  const daysAgoMatch = lower.match(/(\d+)\s+days?\s+ago/);
+  if (daysAgoMatch) {
+    const days = parseInt(daysAgoMatch[1], 10);
+    const date = new Date(now);
+    date.setDate(date.getDate() - days);
+    return date;
+  }
+  
+  const daysFromNowMatch = lower.match(/(\d+)\s+days?\s+from\s+now/);
+  if (daysFromNowMatch) {
+    const days = parseInt(daysFromNowMatch[1], 10);
+    const date = new Date(now);
+    date.setDate(date.getDate() + days);
+    return date;
+  }
+  
+  return null;
 }

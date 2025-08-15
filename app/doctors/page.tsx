@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { formatPhilippinePeso, formatDateToText, formatDateTimeToText } from "@/lib/utils";
+import { formatPhilippinePeso, formatDateToText, formatDateTimeToText, safeGetTimestamp } from "@/lib/utils";
 import { useDoctorActions } from "@/hooks/useDoctors";
 import { useAuth } from "@/hooks/useAuth";
 import { useScheduleData } from "@/hooks/use-schedule-data";
@@ -278,9 +278,9 @@ export default function DoctorsPage() {
       case 'specialty-desc':
         return (b.specialty || '').localeCompare(a.specialty || '');
       case 'date-desc':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        return safeGetTimestamp(b.createdAt) - safeGetTimestamp(a.createdAt);
       case 'date-asc':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        return safeGetTimestamp(a.createdAt) - safeGetTimestamp(b.createdAt);
       case 'status-asc':
         return (a.status || '').localeCompare(b.status || '');
       case 'status-desc':

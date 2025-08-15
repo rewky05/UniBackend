@@ -1,6 +1,7 @@
 import { ref, get, onValue, query, orderByChild, equalTo, set, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase/config';
+import { safeGetTimestamp } from '@/lib/utils';
 import type { 
   Doctor, 
   Clinic, 
@@ -407,18 +408,94 @@ export class RealDataService {
   }
 
   /**
-   * Get all appointments from your database
+   * Get all appointments from your database with resolved patient, doctor, and clinic names
    */
   async getAppointments(): Promise<Appointment[]> {
     try {
-      const snapshot = await get(ref(db, 'appointments'));
-      if (!snapshot.exists()) return [];
-      
-      const appointments = snapshot.val();
-      return Object.keys(appointments).map(id => ({
-        id,
-        ...appointments[id]
-      }));
+      // Fetch appointments, patients, doctors, clinics, and users in parallel
+      const [appointmentsSnapshot, patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'appointments')),
+        get(ref(db, 'patients')),
+        get(ref(db, 'doctors')),
+        get(ref(db, 'clinics')),
+        get(ref(db, 'users'))
+      ]);
+
+      if (!appointmentsSnapshot.exists()) return [];
+
+      const appointments = appointmentsSnapshot.val();
+      const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+      const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+
+      return Object.keys(appointments).map(id => {
+        const appointment = appointments[id];
+        
+        // Resolve patient name
+        let patientFirstName = '';
+        let patientLastName = '';
+        
+        if (appointment.patientId) {
+          // First try to find in patients node
+          if (patients[appointment.patientId]) {
+            patientFirstName = patients[appointment.patientId].firstName || '';
+            patientLastName = patients[appointment.patientId].lastName || '';
+          } else {
+            // If not found in patients, try users node
+            const userEntries = Object.entries(users);
+            const patientUser = userEntries.find(([userId, userData]: [string, any]) => 
+              userData.patientId === appointment.patientId || userId === appointment.patientId
+            );
+            
+            if (patientUser) {
+              const [, userData] = patientUser;
+              patientFirstName = userData.firstName || '';
+              patientLastName = userData.lastName || '';
+            }
+          }
+        }
+
+        // Resolve doctor name
+        let doctorFirstName = '';
+        let doctorLastName = '';
+        
+        if (appointment.doctorId) {
+          // First try to find in doctors node
+          if (doctors[appointment.doctorId]) {
+            doctorFirstName = doctors[appointment.doctorId].firstName || '';
+            doctorLastName = doctors[appointment.doctorId].lastName || '';
+          } else {
+            // If not found in doctors, try users node
+            const userEntries = Object.entries(users);
+            const doctorUser = userEntries.find(([userId, userData]: [string, any]) => 
+              userData.doctorId === appointment.doctorId || userId === appointment.doctorId
+            );
+            
+            if (doctorUser) {
+              const [, userData] = doctorUser;
+              doctorFirstName = userData.firstName || '';
+              doctorLastName = userData.lastName || '';
+            }
+          }
+        }
+
+        // Resolve clinic name
+        let clinicName = appointment.clinicName || 'Unknown Clinic';
+        if (appointment.clinicId && clinics[appointment.clinicId]) {
+          clinicName = clinics[appointment.clinicId].name || 'Unknown Clinic';
+        }
+
+        return {
+          id,
+          ...appointment,
+          patientFirstName,
+          patientLastName,
+          doctorFirstName,
+          doctorLastName,
+          clinicName
+        };
+      });
     } catch (error) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -445,18 +522,127 @@ export class RealDataService {
   }
 
   /**
-   * Get all referrals from your database
+   * Get all referrals from your database with resolved names and clinic names
    */
   async getReferrals(): Promise<Referral[]> {
     try {
-      const snapshot = await get(ref(db, 'referrals'));
-      if (!snapshot.exists()) return [];
-      
-      const referrals = snapshot.val();
-      return Object.keys(referrals).map(id => ({
-        id,
-        ...referrals[id]
-      }));
+      // Fetch referrals, patients, doctors, clinics, and users in parallel
+      const [referralsSnapshot, patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'referrals')),
+        get(ref(db, 'patients')),
+        get(ref(db, 'doctors')),
+        get(ref(db, 'clinics')),
+        get(ref(db, 'users'))
+      ]);
+
+      if (!referralsSnapshot.exists()) return [];
+
+      const referrals = referralsSnapshot.val();
+      const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+      const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+
+      return Object.keys(referrals).map(id => {
+        const referral = referrals[id];
+        
+        // Resolve patient name
+        let patientFirstName = '';
+        let patientLastName = '';
+        
+        if (referral.patientId) {
+          // First try to find in patients node
+          if (patients[referral.patientId]) {
+            patientFirstName = patients[referral.patientId].firstName || '';
+            patientLastName = patients[referral.patientId].lastName || '';
+          } else {
+            // If not found in patients, try users node
+            const userEntries = Object.entries(users);
+            const patientUser = userEntries.find(([userId, userData]: [string, any]) => 
+              userData.patientId === referral.patientId || userId === referral.patientId
+            );
+            
+            if (patientUser) {
+              const [, userData] = patientUser;
+              patientFirstName = userData.firstName || '';
+              patientLastName = userData.lastName || '';
+            }
+          }
+        }
+
+        // Resolve referring generalist name
+        let referringGeneralistFirstName = '';
+        let referringGeneralistLastName = '';
+        
+        if (referral.referringGeneralistId) {
+          // First try to find in doctors node
+          if (doctors[referral.referringGeneralistId]) {
+            referringGeneralistFirstName = doctors[referral.referringGeneralistId].firstName || '';
+            referringGeneralistLastName = doctors[referral.referringGeneralistId].lastName || '';
+          } else {
+            // If not found in doctors, try users node
+            const userEntries = Object.entries(users);
+            const generalistUser = userEntries.find(([userId, userData]: [string, any]) => 
+              userData.doctorId === referral.referringGeneralistId || userId === referral.referringGeneralistId
+            );
+            
+            if (generalistUser) {
+              const [, userData] = generalistUser;
+              referringGeneralistFirstName = userData.firstName || '';
+              referringGeneralistLastName = userData.lastName || '';
+            }
+          }
+        }
+
+        // Resolve assigned specialist name
+        let assignedSpecialistFirstName = '';
+        let assignedSpecialistLastName = '';
+        
+        if (referral.assignedSpecialistId) {
+          // First try to find in doctors node
+          if (doctors[referral.assignedSpecialistId]) {
+            assignedSpecialistFirstName = doctors[referral.assignedSpecialistId].firstName || '';
+            assignedSpecialistLastName = doctors[referral.assignedSpecialistId].lastName || '';
+          } else {
+            // If not found in doctors, try users node
+            const userEntries = Object.entries(users);
+            const specialistUser = userEntries.find(([userId, userData]: [string, any]) => 
+              userData.doctorId === referral.assignedSpecialistId || userId === referral.assignedSpecialistId
+            );
+            
+            if (specialistUser) {
+              const [, userData] = specialistUser;
+              assignedSpecialistFirstName = userData.firstName || '';
+              assignedSpecialistLastName = userData.lastName || '';
+            }
+          }
+        }
+
+        // Resolve referring clinic name
+        let referringClinicName = referral.referringClinicName || 'Unknown Clinic';
+        if (referral.referringClinicId && clinics[referral.referringClinicId]) {
+          referringClinicName = clinics[referral.referringClinicId].name || 'Unknown Clinic';
+        }
+
+        // Resolve specialist's clinic name from practiceLocation
+        let specialistClinicName = 'Unknown Clinic';
+        if (referral.practiceLocation?.clinicId && clinics[referral.practiceLocation.clinicId]) {
+          specialistClinicName = clinics[referral.practiceLocation.clinicId].name || 'Unknown Clinic';
+        }
+
+        return {
+          id,
+          ...referral,
+          patientFirstName,
+          patientLastName,
+          referringGeneralistFirstName,
+          referringGeneralistLastName,
+          assignedSpecialistFirstName,
+          assignedSpecialistLastName,
+          referringClinicName,
+          specialistClinicName
+        };
+      });
     } catch (error) {
       console.error('Error fetching referrals:', error);
       throw error;
@@ -607,7 +793,11 @@ export class RealDataService {
         
         // Sort by timestamp (newest first) and limit results
         return activityList
-          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .sort((a, b) => {
+            const aTime = safeGetTimestamp(a.timestamp);
+            const bTime = safeGetTimestamp(b.timestamp);
+            return bTime - aTime;
+          })
           .slice(0, limit);
       }
 
@@ -663,7 +853,11 @@ export class RealDataService {
 
       // Sort by timestamp (newest first) and limit
       return activities
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .sort((a, b) => {
+          const aTime = safeGetTimestamp(a.timestamp);
+          const bTime = safeGetTimestamp(b.timestamp);
+          return bTime - aTime;
+        })
         .slice(0, limit);
     } catch (error) {
       console.error('Error fetching recent activity:', error);

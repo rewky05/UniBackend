@@ -64,7 +64,7 @@ export function AffiliationsEducationForm({
     } else if (clinicId && clinicIdMapping[clinicId]) {
       return clinicIdMapping[clinicId];
     } else {
-      return `Clinic ID: ${clinicId}`;
+      return 'Unknown Clinic';
     }
   };
 

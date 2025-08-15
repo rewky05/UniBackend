@@ -179,6 +179,7 @@ export interface Referral {
   };
   referringClinicId: string;
   referringClinicName: string;
+  specialistClinicName?: string;
   sourceSystem: string;
   specialistScheduleId: string;
   scheduleSlotPath: string;

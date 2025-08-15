@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRealFeedback } from '@/hooks/useRealData';
 import { useClinicsWithRatings } from '@/hooks/useFeedback';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { formatDateToText } from '@/lib/utils';
+import { formatDateToText, safeGetTimestamp } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,9 +87,9 @@ export default function FeedbackPage() {
   const sortedFeedback = [...filteredFeedback].sort((a, b) => {
     switch (selectedSort) {
       case 'date-desc':
-        return new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime();
+        return safeGetTimestamp(b.date || b.createdAt) - safeGetTimestamp(a.date || a.createdAt);
       case 'date-asc':
-        return new Date(a.date || a.createdAt || 0).getTime() - new Date(b.date || b.createdAt || 0).getTime();
+        return safeGetTimestamp(a.date || a.createdAt) - safeGetTimestamp(b.date || b.createdAt);
       case 'rating-desc':
         return (b.rating || 0) - (a.rating || 0);
       case 'rating-asc':

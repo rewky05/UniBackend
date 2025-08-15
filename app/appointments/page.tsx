@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRealAppointments, useRealReferrals, useRealClinics, useRealDoctors } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { formatPhilippinePeso, formatDateToText, formatDateTimeToText } from "@/lib/utils";
+import { formatPhilippinePeso, formatDateToText, formatDateTimeToText, safeGetTimestamp } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
@@ -32,17 +32,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   Calendar,
   Search,
   Filter,
-  MoreHorizontal,
+
   Eye,
   Clock,
   User,
@@ -77,21 +72,20 @@ import { Pagination } from "@/components/ui/pagination";
 // Status configurations
 const appointmentStatuses = [
   "All Statuses",
-  "scheduled",
-  "confirmed", 
-  "completed",
-  "cancelled",
-  "pending",
+  "Confirmed", 
   "Completed",
-  "Pending"
+  "Cancelled",
+  "Pending",
+  "Ongoing",
 ];
 
 const referralStatuses = [
   "All Statuses",
-  "pending_acceptance",
-  "confirmed",
-  "completed",
-  "cancelled"
+  "Pending",
+  "Confirmed",
+  "Completed",
+  "Ongoing",
+  "Cancelled"
 ];
 
 export default function AppointmentsPage() {
@@ -104,6 +98,12 @@ export default function AppointmentsPage() {
   const { referrals, loading: referralsLoading } = useRealReferrals();
   const { clinics } = useRealClinics();
   const { doctors } = useRealDoctors();
+
+  // Get unique clinics for filtering
+  const uniqueClinics = Array.from(new Set([
+    ...appointments.map(a => a.clinicName).filter(Boolean),
+    ...referrals.map(r => r.specialistClinicName).filter(Boolean)
+  ]));
 
   // State management
   const [selectedTab, setSelectedTab] = useState("appointments");
@@ -120,14 +120,43 @@ export default function AppointmentsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Helper functions
-  const getClinicName = (clinicId: string) => {
-    const clinic = clinics.find(c => c.id === clinicId);
-    return clinic?.name || clinicId;
-  };
 
   const getDoctorName = (doctorId: string) => {
     const doctor = doctors.find(d => d.id === doctorId);
     return doctor ? `${doctor.firstName} ${doctor.lastName}` : "Unknown Doctor";
+  };
+
+  const getPatientName = (appointment: any) => {
+    const firstName = appointment.patientFirstName || 'Unknown';
+    const lastName = appointment.patientLastName || 'Patient';
+    return `${firstName} ${lastName}`;
+  };
+
+  const getReferralPatientName = (referral: any) => {
+    const firstName = referral.patientFirstName || 'Unknown';
+    const lastName = referral.patientLastName || 'Patient';
+    return `${firstName} ${lastName}`;
+  };
+
+  const getDoctorDisplayName = (appointment: any) => {
+    if (appointment.doctorFirstName && appointment.doctorLastName) {
+      return `Dr. ${appointment.doctorFirstName} ${appointment.doctorLastName}`;
+    }
+    if (appointment.doctorId) {
+      return getDoctorName(appointment.doctorId);
+    }
+    return "Not assigned";
+  };
+
+  const getDoctorSpecialty = (appointment: any) => {
+    if (appointment.specialty) {
+      return appointment.specialty;
+    }
+    if (appointment.doctorId) {
+      const doctor = doctors.find(d => d.id === appointment.doctorId);
+      return doctor?.specialty || "General Practice";
+    }
+    return "General Practice";
   };
 
   const getStatusColor = (status: string) => {
@@ -177,7 +206,7 @@ export default function AppointmentsPage() {
       appointment.status?.toLowerCase() === statusFilter.toLowerCase();
     
     const matchesClinic = clinicFilter === "All Clinics" || 
-      appointment.clinicId === clinicFilter;
+      appointment.clinicName === clinicFilter;
 
     return matchesSearch && matchesStatus && matchesClinic;
   });
@@ -188,13 +217,13 @@ export default function AppointmentsPage() {
       referral.patientLastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       referral.assignedSpecialistFirstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       referral.assignedSpecialistLastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      referral.referringClinicName?.toLowerCase().includes(searchTerm.toLowerCase());
+      referral.specialistClinicName?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "All Statuses" || 
       referral.status?.toLowerCase() === statusFilter.toLowerCase();
     
     const matchesClinic = clinicFilter === "All Clinics" || 
-      referral.referringClinicId === clinicFilter;
+      referral.specialistClinicName === clinicFilter;
 
     return matchesSearch && matchesStatus && matchesClinic;
   });
@@ -226,7 +255,7 @@ export default function AppointmentsPage() {
     { key: 'patient', label: 'Patient', render: (referral: any) => `${referral.patientFirstName} ${referral.patientLastName}` },
     { key: 'referringDoctor', label: 'Referring Doctor', render: (referral: any) => `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}` },
     { key: 'assignedSpecialist', label: 'Assigned Specialist', render: (referral: any) => `Dr. ${referral.assignedSpecialistFirstName} ${referral.assignedSpecialistLastName}` },
-    { key: 'referringClinicName', label: 'Clinic' },
+    { key: 'specialistClinicName', label: 'Specialist Clinic' },
     { key: 'appointmentDate', label: 'Date' },
     { key: 'appointmentTime', label: 'Time' },
     { key: 'status', label: 'Status', render: (referral: any) => referral.status?.replace('_', ' ').charAt(0).toUpperCase() + referral.status?.replace('_', ' ').slice(1) },
@@ -264,7 +293,7 @@ export default function AppointmentsPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Appointments Tab */}
+                      {/* Appointments Tab */}
           <TabsContent value="appointments" className="space-y-4">
             {/* Filters */}
             <Card>
@@ -311,9 +340,9 @@ export default function AppointmentsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="All Clinics">All Clinics</SelectItem>
-                        {clinics.map((clinic) => (
-                          <SelectItem key={clinic.id} value={clinic.id || ""}>
-                            {clinic.name}
+                        {uniqueClinics.map((clinicName) => (
+                          <SelectItem key={clinicName} value={clinicName}>
+                            {clinicName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -397,26 +426,19 @@ export default function AppointmentsPage() {
                                   <div className="font-medium">
                                     {appointment.patientFirstName} {appointment.patientLastName}
                                   </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {appointment.patientId}
-                                  </div>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              {appointment.doctorFirstName && appointment.doctorLastName ? (
-                                <div>
-                                  <div className="font-medium">
-                                    Dr. {appointment.doctorFirstName} {appointment.doctorLastName}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {appointment.specialty || "General Practice"}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">Not assigned</span>
-                              )}
-                            </TableCell>
+                                                         <TableCell>
+                               <div>
+                                 <div className="font-medium">
+                                   {getDoctorDisplayName(appointment)}
+                                 </div>
+                                 <div className="text-sm text-muted-foreground">
+                                   {getDoctorSpecialty(appointment)}
+                                 </div>
+                               </div>
+                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -426,7 +448,7 @@ export default function AppointmentsPage() {
                             <TableCell>
                               <div>
                                 <div className="font-medium">
-                                  {appointment.appointmentDate}
+                                  {formatDateToText(appointment.appointmentDate)}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   {appointment.appointmentTime}
@@ -447,24 +469,16 @@ export default function AppointmentsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedAppointment(appointment);
-                                      setIsAppointmentSheetOpen(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAppointment(appointment);
+                                  setIsAppointmentSheetOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -488,7 +502,7 @@ export default function AppointmentsPage() {
             </Card>
           </TabsContent>
 
-          {/* Referrals Tab */}
+                      {/* Referrals Tab */}
           <TabsContent value="referrals" className="space-y-4">
             {/* Filters */}
             <Card>
@@ -535,9 +549,9 @@ export default function AppointmentsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="All Clinics">All Clinics</SelectItem>
-                        {clinics.map((clinic) => (
-                          <SelectItem key={clinic.id} value={clinic.id || ""}>
-                            {clinic.name}
+                        {uniqueClinics.map((clinicName) => (
+                          <SelectItem key={clinicName} value={clinicName}>
+                            {clinicName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -621,9 +635,9 @@ export default function AppointmentsPage() {
                                   <div className="font-medium">
                                     {referral.patientFirstName} {referral.patientLastName}
                                   </div>
-                                  <div className="text-sm text-muted-foreground">
+                                  {/* <div className="text-sm text-muted-foreground">
                                     {referral.patientId}
-                                  </div>
+                                  </div> */}
                                 </div>
                               </div>
                             </TableCell>
@@ -650,13 +664,13 @@ export default function AppointmentsPage() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                                {referral.referringClinicName}
+                                {referral.specialistClinicName || 'Unknown Clinic'}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div>
                                 <div className="font-medium">
-                                  {referral.appointmentDate}
+                                  {formatDateToText(referral.appointmentDate)}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   {referral.appointmentTime}
@@ -672,24 +686,16 @@ export default function AppointmentsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedReferral(referral);
-                                      setIsReferralSheetOpen(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedReferral(referral);
+                                  setIsReferralSheetOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -750,12 +756,12 @@ export default function AppointmentsPage() {
                                   {selectedAppointment.patientFirstName} {selectedAppointment.patientLastName}
                                 </span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground mb-1">Patient ID</span>
-                                <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                  {selectedAppointment.patientId}
-                                </span>
-                              </div>
+                                                             <div className="flex flex-col">
+                                 <span className="text-xs text-muted-foreground mb-1">Source System</span>
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedAppointment.sourceSystem || 'Not specified'}
+                                 </span>
+                               </div>
                             </div>
                           </div>
 
@@ -766,7 +772,7 @@ export default function AppointmentsPage() {
                               <div className="flex flex-col">
                                 <span className="text-xs text-muted-foreground mb-1">Date</span>
                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                  {selectedAppointment.appointmentDate}
+                                  {formatDateToText(selectedAppointment.appointmentDate)}
                                 </span>
                               </div>
                               <div className="flex flex-col">
@@ -795,18 +801,18 @@ export default function AppointmentsPage() {
                             <div>
                               <h3 className="text-base font-semibold mb-4 text-foreground">Doctor Information</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground mb-1">Doctor Name</span>
-                                  <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                    Dr. {selectedAppointment.doctorFirstName} {selectedAppointment.doctorLastName}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground mb-1">Specialty</span>
-                                  <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                    {selectedAppointment.specialty || "General Practice"}
-                                  </span>
-                                </div>
+                                                                 <div className="flex flex-col">
+                                   <span className="text-xs text-muted-foreground mb-1">Doctor Name</span>
+                                   <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                     {getDoctorDisplayName(selectedAppointment)}
+                                   </span>
+                                 </div>
+                                                                 <div className="flex flex-col">
+                                   <span className="text-xs text-muted-foreground mb-1">Specialty</span>
+                                   <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                     {getDoctorSpecialty(selectedAppointment)}
+                                   </span>
+                                 </div>
                               </div>
                             </div>
                           )}
@@ -821,12 +827,12 @@ export default function AppointmentsPage() {
                                   {selectedAppointment.clinicName}
                                 </span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground mb-1">Clinic ID</span>
-                                <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                  {selectedAppointment.clinicId}
-                                </span>
-                              </div>
+                                                             <div className="flex flex-col">
+                                 {/* <span className="text-xs text-muted-foreground mb-1">Booked By</span>
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedAppointment.bookedByUserFirstName} {selectedAppointment.bookedByUserLastName}
+                                 </span> */}
+                               </div>
                             </div>
                           </div>
 
@@ -904,12 +910,12 @@ export default function AppointmentsPage() {
                                   {selectedReferral.patientFirstName} {selectedReferral.patientLastName}
                                 </span>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground mb-1">Patient ID</span>
-                                <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                  {selectedReferral.patientId}
-                                </span>
-                              </div>
+                                                             <div className="flex flex-col">
+                                 <span className="text-xs text-muted-foreground mb-1">Source System</span>
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedReferral.sourceSystem || 'Not specified'}
+                                 </span>
+                               </div>
                             </div>
                           </div>
 
@@ -920,7 +926,7 @@ export default function AppointmentsPage() {
                               <div className="flex flex-col">
                                 <span className="text-xs text-muted-foreground mb-1">Appointment Date</span>
                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                  {selectedReferral.appointmentDate}
+                                  {formatDateToText(selectedReferral.appointmentDate)}
                                 </span>
                               </div>
                               <div className="flex flex-col">
@@ -971,6 +977,12 @@ export default function AppointmentsPage() {
                                 <span className="text-xs text-muted-foreground mb-1">Referring Clinic</span>
                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
                                   {selectedReferral.referringClinicName}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-xs text-muted-foreground mb-1">Specialist Clinic</span>
+                                <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                  {selectedReferral.specialistClinicName}
                                 </span>
                               </div>
                               <div className="flex flex-col">

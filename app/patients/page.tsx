@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { formatDateToText } from "@/lib/utils";
+import { formatDateToText, safeGetTimestamp } from "@/lib/utils";
 import { RealDataService } from "@/lib/services/real-data.service";
 import {
   Card,
@@ -181,9 +181,9 @@ export default function PatientsPage() {
       case 'name-desc':
         return `${b.firstName} ${b.lastName}`.localeCompare(`${a.firstName} ${a.lastName}`);
       case 'date-desc':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        return safeGetTimestamp(b.createdAt) - safeGetTimestamp(a.createdAt);
       case 'date-asc':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        return safeGetTimestamp(a.createdAt) - safeGetTimestamp(b.createdAt);
       default:
         return 0;
     }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
-import { useRealAppointments, useRealReferrals } from "@/hooks/useRealData";
+import { useRealAppointments, useRealReferrals, useRealFeedback } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatDateToText } from "@/lib/utils";
 import { LoadingSpinner, ErrorState } from "@/components/ui/loading-states";
@@ -45,6 +45,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppointmentTrendsChart } from '@/components/ui/appointment-trends-chart';
+import { PatientVolumeChart } from '@/components/ui/patient-volume-chart';
+import type { Appointment } from '@/lib/types/database';
 
 
 
@@ -70,8 +72,450 @@ export default function DashboardPage() {
   } = useActivityLogs();
 
   // Appointments data
-  const { appointments, loading: appointmentsLoading } = useRealAppointments();
+  const { appointments: realAppointments, loading: appointmentsLoading } = useRealAppointments();
   const { referrals, loading: referralsLoading } = useRealReferrals();
+  const { feedback, loading: feedbackLoading } = useRealFeedback();
+
+  // TEMPORARY SAMPLE DATA - Remove when user says "remove"
+  const sampleAppointments: Appointment[] = [
+    // Last 30 days of sample data
+    {
+      id: '1',
+      patientId: 'P001',
+      patientFirstName: 'Maria',
+      patientLastName: 'Santos',
+      doctorId: 'D001',
+      doctorFirstName: 'Dr. Juan',
+      doctorLastName: 'Cruz',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '09:00',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Cardiology',
+      notes: 'Regular checkup',
+      patientComplaint: ['Chest pain'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '2',
+      patientId: 'P002',
+      patientFirstName: 'Pedro',
+      patientLastName: 'Garcia',
+      doctorId: 'D002',
+      doctorFirstName: 'Dr. Ana',
+      doctorLastName: 'Martinez',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '10:30',
+      type: 'emergency_assessment',
+      status: 'completed',
+      specialty: 'Emergency Medicine',
+      notes: 'Emergency consultation',
+      patientComplaint: ['Fever', 'Cough'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '3',
+      patientId: 'P003',
+      patientFirstName: 'Luz',
+      patientLastName: 'Reyes',
+      doctorId: 'D003',
+      doctorFirstName: 'Dr. Carlos',
+      doctorLastName: 'Lopez',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '14:00',
+      type: 'general_consultation',
+      status: 'cancelled',
+      specialty: 'Dermatology',
+      notes: 'Skin consultation',
+      patientComplaint: ['Rash'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '4',
+      patientId: 'P004',
+      patientFirstName: 'Jose',
+      patientLastName: 'Torres',
+      doctorId: 'D004',
+      doctorFirstName: 'Dr. Sofia',
+      doctorLastName: 'Gonzalez',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '11:00',
+      type: 'lab_booking',
+      status: 'completed',
+      specialty: 'Laboratory',
+      notes: 'Blood test',
+      patientComplaint: ['Fatigue'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '5',
+      patientId: 'P005',
+      patientFirstName: 'Carmen',
+      patientLastName: 'Flores',
+      doctorId: 'D005',
+      doctorFirstName: 'Dr. Miguel',
+      doctorLastName: 'Ramos',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '15:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Pediatrics',
+      notes: 'Child checkup',
+      patientComplaint: ['Fever'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '6',
+      patientId: 'P006',
+      patientFirstName: 'Roberto',
+      patientLastName: 'Mendoza',
+      doctorId: 'D001',
+      doctorFirstName: 'Dr. Juan',
+      doctorLastName: 'Cruz',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '08:00',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Cardiology',
+      notes: 'Follow-up',
+      patientComplaint: ['Heart palpitations'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '7',
+      patientId: 'P007',
+      patientFirstName: 'Elena',
+      patientLastName: 'Cruz',
+      doctorId: 'D006',
+      doctorFirstName: 'Dr. Patricia',
+      doctorLastName: 'Santos',
+      clinicId: 'C003',
+      clinicName: 'Private Medical Clinic',
+      appointmentDate: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '13:00',
+      type: 'general_consultation',
+      status: 'cancelled',
+      specialty: 'Orthopedics',
+      notes: 'Joint pain consultation',
+      patientComplaint: ['Knee pain'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '8',
+      patientId: 'P008',
+      patientFirstName: 'Antonio',
+      patientLastName: 'Villanueva',
+      doctorId: 'D007',
+      doctorFirstName: 'Dr. Roberto',
+      doctorLastName: 'Diaz',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '16:00',
+      type: 'emergency_assessment',
+      status: 'completed',
+      specialty: 'Emergency Medicine',
+      notes: 'Accident assessment',
+      patientComplaint: ['Back pain'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '9',
+      patientId: 'P009',
+      patientFirstName: 'Isabel',
+      patientLastName: 'Morales',
+      doctorId: 'D008',
+      doctorFirstName: 'Dr. Elena',
+      doctorLastName: 'Vargas',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '09:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Gynecology',
+      notes: 'Regular checkup',
+      patientComplaint: ['Menstrual issues'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '10',
+      patientId: 'P010',
+      patientFirstName: 'Manuel',
+      patientLastName: 'Aquino',
+      doctorId: 'D009',
+      doctorFirstName: 'Dr. Francisco',
+      doctorLastName: 'Reyes',
+      clinicId: 'C003',
+      clinicName: 'Private Medical Clinic',
+      appointmentDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '10:00',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Neurology',
+      notes: 'Headache consultation',
+      patientComplaint: ['Migraine'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    // More recent appointments for better visualization
+    {
+      id: '11',
+      patientId: 'P011',
+      patientFirstName: 'Rosa',
+      patientLastName: 'Bautista',
+      doctorId: 'D010',
+      doctorFirstName: 'Dr. Isabel',
+      doctorLastName: 'Castro',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '14:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Dermatology',
+      notes: 'Skin condition',
+      patientComplaint: ['Acne'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '12',
+      patientId: 'P012',
+      patientFirstName: 'Fernando',
+      patientLastName: 'Cortez',
+      doctorId: 'D011',
+      doctorFirstName: 'Dr. Manuel',
+      doctorLastName: 'Ortega',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '11:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Cardiology',
+      notes: 'Heart checkup',
+      patientComplaint: ['Chest discomfort'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '13',
+      patientId: 'P013',
+      patientFirstName: 'Dolores',
+      patientLastName: 'Herrera',
+      doctorId: 'D012',
+      doctorFirstName: 'Dr. Ricardo',
+      doctorLastName: 'Mendoza',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '16:30',
+      type: 'general_consultation',
+      status: 'cancelled',
+      specialty: 'Orthopedics',
+      notes: 'Joint consultation',
+      patientComplaint: ['Shoulder pain'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '14',
+      patientId: 'P014',
+      patientFirstName: 'Alberto',
+      patientLastName: 'Perez',
+      doctorId: 'D013',
+      doctorFirstName: 'Dr. Carmen',
+      doctorLastName: 'Flores',
+      clinicId: 'C003',
+      clinicName: 'Private Medical Clinic',
+      appointmentDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '09:00',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Pediatrics',
+      notes: 'Child wellness check',
+      patientComplaint: ['Growth concerns'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '15',
+      patientId: 'P015',
+      patientFirstName: 'Gloria',
+      patientLastName: 'Silva',
+      doctorId: 'D014',
+      doctorFirstName: 'Dr. Alberto',
+      doctorLastName: 'Torres',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '13:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Gynecology',
+      notes: 'Prenatal care',
+      patientComplaint: ['Pregnancy symptoms'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '16',
+      patientId: 'P016',
+      patientFirstName: 'Ramon',
+      patientLastName: 'Guzman',
+      doctorId: 'D015',
+      doctorFirstName: 'Dr. Gloria',
+      doctorLastName: 'Ramos',
+      clinicId: 'C001',
+      clinicName: 'Metro Medical Center',
+      appointmentDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '10:30',
+      type: 'emergency_assessment',
+      status: 'completed',
+      specialty: 'Emergency Medicine',
+      notes: 'Injury assessment',
+      patientComplaint: ['Ankle sprain'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '17',
+      patientId: 'P017',
+      patientFirstName: 'Teresa',
+      patientLastName: 'Navarro',
+      doctorId: 'D016',
+      doctorFirstName: 'Dr. Ramon',
+      doctorLastName: 'Cruz',
+      clinicId: 'C003',
+      clinicName: 'Private Medical Clinic',
+      appointmentDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '15:00',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Neurology',
+      notes: 'Memory assessment',
+      patientComplaint: ['Memory loss'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    },
+    {
+      id: '18',
+      patientId: 'P018',
+      patientFirstName: 'Victor',
+      patientLastName: 'Moreno',
+      doctorId: 'D017',
+      doctorFirstName: 'Dr. Teresa',
+      doctorLastName: 'Lopez',
+      clinicId: 'C002',
+      clinicName: 'Community Health Clinic',
+      appointmentDate: new Date().toISOString().split('T')[0],
+      appointmentTime: '08:30',
+      type: 'general_consultation',
+      status: 'completed',
+      specialty: 'Laboratory',
+      notes: 'Blood work',
+      patientComplaint: ['Fatigue'],
+      bookedByUserId: 'U001',
+      bookedByUserFirstName: 'Admin',
+      bookedByUserLastName: 'User',
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      sourceSystem: 'dashboard'
+    }
+  ];
+
+  // Use sample data for now (replace with realAppointments when removing sample data)
+  const appointments = sampleAppointments;
 
   // Show loading state
   if (dashboardLoading || specialistsLoading) {
@@ -198,11 +642,18 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Interactive Area Chart */}
-        <AppointmentTrendsChart 
-          appointments={appointments} 
-          className="w-full"
-        />
+        {/* Charts Section */}
+        <div className="flex gap-6">
+          <AppointmentTrendsChart 
+            appointments={appointments} 
+            className="w-3/5"
+          />
+          <PatientVolumeChart 
+            feedback={feedback || []}
+            appointments={appointments} 
+            className="w-2/5"
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

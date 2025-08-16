@@ -587,7 +587,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mt-2">
               Welcome back! Here's what's happening with your specialists and appointments.
             </p>
           </div>

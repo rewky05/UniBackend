@@ -15,6 +15,7 @@ import {
   Pie,
   Cell,
   Label,
+  Sector,
 } from 'recharts';
 import type { Feedback, Appointment } from '@/lib/types/database';
 
@@ -113,6 +114,26 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
     return cfg;
   }, [ratingDistribution]);
 
+  // UI-only: active slice "pull-out" rendering
+  const activeSliceShape = (props: any) => {
+    const RAD = Math.PI / 180;
+    const pull = 10; // how far to pull the slice outward
+    const {
+      midAngle = 0,
+      outerRadius = 0,
+    } = props || {};
+    const sin = Math.sin(-midAngle * RAD);
+    const cos = Math.cos(-midAngle * RAD);
+    const dx = cos * pull;
+    const dy = sin * pull;
+
+    return (
+      <g transform={`translate(${dx}, ${dy})`} style={{ transition: 'transform 200ms ease' }}>
+        <Sector {...props} outerRadius={outerRadius + 8} />
+      </g>
+    );
+  };
+
   return (
     <div className={className}>
       <Card className="bg-card border-border/50 dark:border-border/30 shadow-sm transition-all duration-200">
@@ -189,6 +210,8 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
                     paddingAngle={2}
                     stroke="#ffffff"
                     strokeWidth={2}
+                    activeIndex={typeof activeIndex === 'number' ? activeIndex : undefined}
+                    activeShape={activeSliceShape}
                     onMouseEnter={(_, index) => setActiveIndex(index)}
                     onMouseLeave={() => setActiveIndex(null)}
                   >

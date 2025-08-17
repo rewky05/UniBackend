@@ -30,11 +30,11 @@ type GroupBy = 'day' | 'week' | 'month';
 const chartConfig = {
   completed: {
     label: 'Completed',
-    color: '#1e3a8a', // Darker navy blue
+    color: '#60a5fa', // Subtle sky blue
   },
   cancelled: {
     label: 'Cancelled',
-    color: '#60a5fa', // Lighter sky blue
+    color: '#fca5a5', // Subtle red
   },
 };
 
@@ -247,12 +247,12 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
                 <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -40, bottom: 5 }}>
                   <defs>
                     <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0.3}/>
-                    </linearGradient>
-                    <linearGradient id="cancelledGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.3}/>
+                    </linearGradient>
+                    <linearGradient id="cancelledGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fca5a5" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#fca5a5" stopOpacity={0.3}/>
                     </linearGradient>
                   </defs>
                   
@@ -280,6 +280,8 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
                   <YAxis 
                     className="text-xs dark:text-gray-400"
                     tick={{ fontSize: 10, fill: '#6b7280' }}
+                    domain={groupBy === 'day' ? [0, 'dataMax + 1'] as any : undefined}
+                    allowDecimals={false}
                   />
                   
                   <Tooltip
@@ -329,14 +331,14 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
                   <Area
                     type="monotone"
                     dataKey="completed"
-                    stroke="#1e3a8a"
+                    stroke="#60a5fa"
                     fill="url(#completedGradient)"
                     strokeWidth={1.5}
                   />
                   <Area
                     type="monotone"
                     dataKey="cancelled"
-                    stroke="#60a5fa"
+                    stroke="#fca5a5"
                     fill="url(#cancelledGradient)"
                     strokeWidth={1.5}
                   />

@@ -266,7 +266,10 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
           {/* Removed static legend to show data only on hover */}
           <div className="mt-4 text-center">
             <div className="flex items-center justify-center gap-2 font-semibold text-sm text-foreground">
-              Patient satisfaction {satisfactionRate.toFixed(1)}%
+              <span>Patient satisfaction</span>
+              <span className={`${satisfactionRate > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {satisfactionRate.toFixed(1)}%
+              </span>
             </div>
             <div className="text-sm text-muted-foreground mt-2">
               Showing total reviews for {timeRangeLabel}

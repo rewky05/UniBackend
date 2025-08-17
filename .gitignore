@@ -40,6 +40,3 @@ lib/firebase/*.json
 firebase-adminsdk-*.json
 firebase-credentials.json
 firebase-config.json
-
-
-.mailmap

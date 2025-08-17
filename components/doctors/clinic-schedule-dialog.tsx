@@ -17,6 +17,7 @@ import type { SpecialistSchedule } from '@/app/doctors/add/page';
 import { useRealClinics } from '@/hooks/useRealData';
 import { ClinicsService } from '@/lib/services/schedules.service';
 import { toast } from '@/hooks/use-toast';
+import { useSettings } from '@/hooks/useSettings';
 
 interface ClinicScheduleDialogProps {
   open: boolean;
@@ -51,6 +52,9 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   // Get real clinic data from Firebase
   const { clinics, loading: clinicsLoading } = useRealClinics();
   
+  // Get default appointment duration from settings
+  const { getDefaultDurationMinutes, settings } = useSettings();
+  
   // Clinic creation form state
   const [clinicFormData, setClinicFormData] = useState({
     name: '',
@@ -77,14 +81,29 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   
   // Local state for managing schedule blocks during editing
   const [localSchedules, setLocalSchedules] = useState<SpecialistSchedule[]>([]);
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
   
+  // Generate duration options with default from settings
+  const getDurationOptions = () => {
+    const predefinedDurations = [15, 30, 45, 60];
+    const defaultDuration = getDefaultDurationMinutes();
+    
+    // If default duration is not in predefined list, add it
+    if (!predefinedDurations.includes(defaultDuration)) {
+      predefinedDurations.push(defaultDuration);
+      predefinedDurations.sort((a, b) => a - b); // Sort numerically
+    }
+    
+    return predefinedDurations;
+  };
+
   const [formData, setFormData] = useState({
     clinicId: '',
     roomOrUnit: '',
     dayOfWeek: [] as number[],
     startTime: '',
     endTime: '',
-    slotDurationMinutes: 30,
+    slotDurationMinutes: 30, // Fallback default, will be updated when settings load
     validFrom: '',
     isActive: true,
     newClinicDetails: {
@@ -135,6 +154,9 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   // Initialize local schedules when dialog opens
   useEffect(() => {
     if (open) {
+      // Reset form initialization flag when dialog opens
+      setIsFormInitialized(false);
+      
       if (isEditMode && editingSchedule) {
         // Edit mode: populate form with existing schedule data
         setLocalSchedules([editingSchedule]);
@@ -181,6 +203,22 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       testSlotTemplateGeneration();
     }
   }, [open, existingSchedules, isEditMode, editingSchedule, clinics]);
+
+  // Update form data when settings change - only update slot duration, not the entire form
+  useEffect(() => {
+    if (open && !isEditMode && settings && !isFormInitialized && formData.slotDurationMinutes === 30) {
+      // Only update if we're still using the fallback default (30) and form hasn't been initialized yet
+      // This prevents clearing other form data when settings load
+      const defaultDuration = getDefaultDurationMinutes();
+      if (defaultDuration !== 30) {
+        setFormData(prev => ({
+          ...prev,
+          slotDurationMinutes: defaultDuration
+        }));
+      }
+      setIsFormInitialized(true);
+    }
+  }, [settings, open, isEditMode, getDefaultDurationMinutes, formData.slotDurationMinutes, isFormInitialized]);
 
   // Helper function to convert 12-hour format to 24-hour format
   const convertTo24Hour = (time12h: string): string => {
@@ -276,7 +314,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       dayOfWeek: [],
       startTime: '',
       endTime: '',
-      slotDurationMinutes: 30,
+      slotDurationMinutes: getDefaultDurationMinutes(),
       validFrom: new Date().toISOString().split('T')[0],
       isActive: true,
       newClinicDetails: {
@@ -780,17 +818,18 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                   <div className="space-y-2">
                     <Label>Slot Duration (minutes)</Label>
                     <Select 
-                      value={formData.slotDurationMinutes?.toString() || '30'} 
+                      value={formData.slotDurationMinutes?.toString() || getDefaultDurationMinutes().toString()} 
                       onValueChange={(value) => setFormData(prev => ({ ...prev, slotDurationMinutes: parseInt(value) }))}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem value="30">30 minutes</SelectItem>
-                        <SelectItem value="45">45 minutes</SelectItem>
-                        <SelectItem value="60">60 minutes</SelectItem>
+                        {getDurationOptions().map((duration) => (
+                          <SelectItem key={duration} value={duration.toString()}>
+                            {duration} minutes{duration === getDefaultDurationMinutes() ? ' (default)' : ''}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

@@ -5,56 +5,69 @@ export interface BaseEntity {
   updatedAt: number;
 }
 
+// User types - only immutable fields
+export interface User {
+  id?: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  email: string;
+  role: 'admin' | 'generalist' | 'specialist' | 'clinic_staff' | 'lab_technician' | 'billing_clerk' | 'patient';
+  patientId?: string; // For patients
+  doctorId?: string; // For doctors
+  createdAt?: string;
+}
+
 // Doctor related types
 export interface Doctor extends BaseEntity {
+  userId: string;
   // Personal Information
   firstName: string;
   lastName: string;
   middleName?: string;
-  suffix?: string;
   email: string;
-  phone: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
-  civilStatus: 'single' | 'married' | 'divorced' | 'widowed';
+  contactNumber: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  civilStatus?: string;
   
   // Professional Information
-  prcId: string;
-  prcExpiry: string;
   specialty: string;
-  subSpecialty?: string;
-  yearsOfExperience: number;
+  isSpecialist: boolean;
+  isGeneralist: boolean;
+  professionalFee?: number;
+  prcId?: string;
+  prcExpiryDate?: string;
+  medicalLicenseNumber?: string;
+  clinicAffiliations?: string[];
   
   // Status and Verification
-  status: 'pending' | 'verified' | 'suspended' | 'rejected';
-  verificationDate?: number;
-  verifiedBy?: string;
-  
-  // Profile
-  avatar?: string;
-  bio?: string;
+  status: 'pending' | 'verified' | 'suspended';
+  profileImageUrl?: string;
   
   // System fields
-  lastLoginAt?: number;
-  isActive: boolean;
+  lastLogin?: string;
+  createdAt?: string;
+  lastUpdated?: string;
 }
 
 export interface CreateDoctorDto {
   firstName: string;
   lastName: string;
   middleName?: string;
-  suffix?: string;
   email: string;
   phone: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
-  civilStatus: 'single' | 'married' | 'divorced' | 'widowed';
-  prcId: string;
-  prcExpiry: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  civilStatus?: string;
   specialty: string;
-  subSpecialty?: string;
-  yearsOfExperience: number;
-  bio?: string;
+  medicalLicense?: string;
+  prcId?: string;
+  prcExpiry?: string;
+  professionalFee?: number;
+  schedules?: any[];
 }
 
 export interface UpdateDoctorDto extends Partial<CreateDoctorDto> {
@@ -178,13 +191,15 @@ export interface CreateActivityLogDto {
 
 // Patient types
 export interface Patient extends BaseEntity {
+  userId: string;
   firstName: string;
-  lastName: string;
   middleName?: string;
-  email: string;
-  phone: string;
+  lastName: string;
   dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
+  gender: string;
+  contactNumber: string;
+  highestEducationalAttainment?: string;
+  address?: string;
   bloodType?: string;
   allergies?: string[];
   medicalConditions?: string[];
@@ -193,7 +208,8 @@ export interface Patient extends BaseEntity {
     phone: string;
     relationship: string;
   };
-  address?: string;
+  createdAt: string;
+  lastUpdated: string;
 }
 
 export interface CreatePatientDto {
@@ -203,7 +219,8 @@ export interface CreatePatientDto {
   email: string;
   phone: string;
   dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
+  gender: string;
+  educationalAttainment?: string;
   bloodType?: string;
   allergies?: string[];
   medicalConditions?: string[];

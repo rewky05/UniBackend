@@ -5,23 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { settingsService } from '@/lib/services/settings.service';
+import { SystemSettings } from '@/lib/types/database';
+import { useAuth } from '@/hooks/useAuth';
 
 interface GeneralSettingsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
-}
-
-interface GeneralSettingsData {
-  systemName: string;
-  defaultTimezone: string;
-  defaultCurrency: string;
-  enablePatientFeedback: boolean;
-  defaultAppointmentDuration: number;
-  appointmentDurationUnit: string;
 }
 
 const TIMEZONES = [
@@ -46,38 +39,36 @@ const DURATION_UNITS = [
 
 export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
-  const [originalData, setOriginalData] = useState<GeneralSettingsData | null>(null);
+  const [originalData, setOriginalData] = useState<SystemSettings | null>(null);
   
   // Confirmation dialog state
   const [saveDialog, setSaveDialog] = useState(false);
-  const [formData, setFormData] = useState<GeneralSettingsData>({
-    systemName: 'UniHealth Philippines',
-    defaultTimezone: 'Asia/Manila',
-    defaultCurrency: 'PHP',
-    enablePatientFeedback: true,
+  const [formData, setFormData] = useState<SystemSettings>({
     defaultAppointmentDuration: 30,
     appointmentDurationUnit: 'minutes'
   });
 
   useEffect(() => {
-    // Load initial data (would be from Firebase in real implementation)
+    // Load initial data from Firebase
     const loadSettings = async () => {
-      // Simulate API call
-      const data = {
-        systemName: 'UniHealth Philippines',
-        defaultTimezone: 'Asia/Manila',
-        defaultCurrency: 'PHP',
-        enablePatientFeedback: true,
-        defaultAppointmentDuration: 30,
-        appointmentDurationUnit: 'minutes'
-      };
-      setFormData(data);
-      setOriginalData(data);
+      try {
+        const data = await settingsService.getSettings();
+        setFormData(data);
+        setOriginalData(data);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        toast({
+          title: "Error loading settings",
+          description: "Failed to load system settings. Using default values.",
+          variant: "destructive",
+        });
+      }
     };
 
     loadSettings();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (originalData) {
@@ -86,7 +77,7 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
     }
   }, [formData, originalData, onUnsavedChanges]);
 
-  const handleInputChange = (field: keyof GeneralSettingsData, value: any) => {
+  const handleInputChange = (field: keyof SystemSettings, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -101,15 +92,19 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
     setIsSaving(true);
     
     try {
-      // Simulate API call to Firebase
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const reviewerId = (user as any)?.uid || 'current-user';
+      
+      await settingsService.updateSettings({
+        defaultAppointmentDuration: formData.defaultAppointmentDuration,
+        appointmentDurationUnit: formData.appointmentDurationUnit
+      }, reviewerId);
       
       setOriginalData(formData);
       onUnsavedChanges(false);
       
       toast({
         title: "Settings saved",
-        description: "General system settings have been updated successfully.",
+        description: "Appointment duration settings have been updated successfully.",
         variant: "default",
       });
     } catch (error) {
@@ -144,23 +139,20 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* System Identity */}
+        {/* System Identity - Read Only */}
         <div className="space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
             System Identity
           </h4>
           <div className="space-y-2">
             <Label htmlFor="systemName">System Name</Label>
-            <Input
-              id="systemName"
-              placeholder="Enter system name"
-              value={formData.systemName}
-              onChange={(e) => handleInputChange('systemName', e.target.value)}
-            />
+            <div className="px-3 py-2 bg-background border border-input rounded-md text-sm">
+              UniHealth Philippines
+            </div>
           </div>
         </div>
 
-        {/* Regional Settings */}
+        {/* Regional Settings - Read Only */}
         <div className="space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
             Regional Settings
@@ -168,49 +160,25 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="timezone">Default Timezone</Label>
-              <Select
-                value={formData.defaultTimezone}
-                onValueChange={(value) => handleInputChange('defaultTimezone', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((timezone) => (
-                    <SelectItem key={timezone.value} value={timezone.value}>
-                      {timezone.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="px-3 py-2 bg-background border border-input rounded-md text-sm">
+                Asia/Manila (GMT+8)
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="currency">Default Currency</Label>
-              <Select
-                value={formData.defaultCurrency}
-                onValueChange={(value) => handleInputChange('defaultCurrency', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.value} value={currency.value}>
-                      {currency.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="px-3 py-2 bg-background border border-input rounded-md text-sm">
+                PHP (Philippine Peso)
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Feature Settings */}
+        {/* Feature Settings - Read Only */}
         <div className="space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
             Feature Settings
           </h4>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
             <div className="space-y-1">
               <Label htmlFor="patientFeedback" className="text-base font-medium">
                 Enable Patient Feedback
@@ -219,15 +187,14 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
                 Allow patients to submit feedback and ratings for doctors
               </p>
             </div>
-            <Switch
-              id="patientFeedback"
-              checked={formData.enablePatientFeedback}
-              onCheckedChange={(checked) => handleInputChange('enablePatientFeedback', checked)}
-            />
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-muted-foreground">Enabled</span>
+            </div>
           </div>
         </div>
 
-        {/* Appointment Settings */}
+        {/* Appointment Settings - Editable */}
         <div className="space-y-4">
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
             Appointment Settings
@@ -259,6 +226,9 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
                 </SelectContent>
               </Select>
             </div>
+            <p className="text-sm text-muted-foreground">
+              This duration will be used as the default when creating new schedule blocks.
+            </p>
           </div>
         </div>
 

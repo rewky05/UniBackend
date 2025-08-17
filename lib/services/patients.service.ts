@@ -9,34 +9,7 @@ import type {
   CreateActivityLogDto
 } from '@/lib/types';
 
-export interface CreatePatientDto {
-  firstName: string;
-  lastName: string;
-  middleName?: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
-  bloodType?: string;
-  allergies?: string[];
-  medicalConditions?: string[];
-  emergencyContact: {
-    name: string;
-    phone: string;
-    relationship: string;
-  };
-  address?: string;
-}
 
-export interface UpdatePatientDto extends Partial<CreatePatientDto> {
-  lastUpdated?: number;
-}
-
-export interface PatientFilters {
-  gender?: string;
-  bloodType?: string;
-  search?: string;
-}
 
 export class PatientsService extends BaseFirebaseService<Patient> {
   constructor() {

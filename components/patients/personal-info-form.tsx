@@ -8,30 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { User, Mail, Phone, Calendar, MapPin, Heart, AlertTriangle, GraduationCap } from 'lucide-react';
 
-interface PersonalInfoData {
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  address?: string;
-  educationalAttainment?: string;
-  dateOfBirth: string;
-  gender: string;
-}
-
 interface PersonalInfoFormProps {
   data?: any;
-  onChange?: (data: any) => void;
+  onUpdate?: (data: any) => void;
   disabled?: boolean;
 }
 
-export function PersonalInfoForm({ data, onChange, disabled }: PersonalInfoFormProps) {
+export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormProps) {
 
   const handleInputChange = (field: string, value: any) => {
-    console.log('🔧 PersonalInfoForm - Input change:', field, '=', value);
-    console.log('🔧 PersonalInfoForm - Current data:', data);
-    if (onChange) {
-      console.log('🔧 PersonalInfoForm - Calling onChange with:', { [field]: value });
-      onChange({ [field]: value });
+    if (onUpdate) {
+      onUpdate({ [field]: value });
     }
   };
 
@@ -155,9 +142,8 @@ export function PersonalInfoForm({ data, onChange, disabled }: PersonalInfoFormP
             id="address"
             value={data?.address || ''}
             onChange={(e) => handleInputChange('address', e.target.value)}
-            placeholder="Enter complete address"
+            placeholder="Enter complete address (e.g., 123 Main St, Cebu City, Cebu, 6000)"
             rows={3}
-            required
             disabled={disabled}
           />
         </div>

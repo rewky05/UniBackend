@@ -41,6 +41,8 @@ import {
   UserCheck,
   UserX,
   Loader2,
+  Save,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -61,6 +63,38 @@ import {
 } from "@/components/ui/sheet";
 import { PrintView } from "@/components/ui/print-view";
 import { Pagination } from "@/components/ui/pagination";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+
+// Utility function for flexible address resolution
+function getFlexibleAddress(patient: Patient): string {
+  // Priority 1: Use addressLine if available
+  if (patient.addressLine) {
+    return patient.addressLine;
+  }
+  
+  // Priority 2: Use address + separate fields if available
+  if (patient.address) {
+    const parts = [patient.address];
+    if (patient.city) parts.push(patient.city);
+    if (patient.province) parts.push(patient.province);
+    if (patient.zipCode) parts.push(patient.zipCode);
+    return parts.join(', ');
+  }
+  
+  // Priority 3: Use separate fields only
+  if (patient.city || patient.province || patient.zipCode) {
+    const parts = [];
+    if (patient.city) parts.push(patient.city);
+    if (patient.province) parts.push(patient.province);
+    if (patient.zipCode) parts.push(patient.zipCode);
+    return parts.join(', ');
+  }
+  
+  return "N/A";
+}
 
 const statuses = ["All Status"];
 const sortOptions = [
@@ -87,6 +121,10 @@ interface Patient {
     relationship: string;
   };
   address?: string;
+  addressLine?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
   bloodType?: string;
   allergies?: string[];
   medicalConditions?: string[];
@@ -96,6 +134,7 @@ interface Patient {
 }
 
 export default function PatientsPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedSort, setSelectedSort] = useState("date-desc");
@@ -109,7 +148,41 @@ export default function PatientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch patients from both Firebase nodes
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<{
+    contactNumber: string;
+    gender: string;
+    address: string;
+    educationalAttainment: string;
+    emergencyContact: {
+      name: string;
+      phone: string;
+      relationship: string;
+    };
+  }>({
+    contactNumber: '',
+    gender: '',
+    address: '',
+    educationalAttainment: '',
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relationship: ''
+    }
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+
+  // Debug effect to monitor editData changes
+  useEffect(() => {
+    console.log('=== EDIT DATA STATE CHANGE ===');
+    console.log('isEditing:', isEditing);
+    console.log('editData:', editData);
+    console.log('selectedPatient:', selectedPatient);
+  }, [editData, isEditing, selectedPatient]);
+
+  // Fetch patients directly from patients node with user data
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -117,43 +190,42 @@ export default function PatientsPage() {
         setError(null);
         const realDataService = new RealDataService();
         
-        // Fetch from both nodes
-        const [usersSnapshot, patientsSnapshot] = await Promise.all([
-          realDataService.getUsers(),
-          realDataService.getPatients()
-        ]);
-
-        // Filter only patient users
-        const patientUsers = usersSnapshot.filter(user => user.role === 'patient');
+        // Fetch patients with user data already included
+        const patientsData = await realDataService.getPatients();
         
-        // Combine data from both nodes
-        const combinedPatients: Patient[] = patientUsers.map(user => {
-          // Find corresponding patient data
-          const patientData = patientsSnapshot.find(p => p.id === user.id);
-          
-          return {
-            id: user.id || '',
-            firstName: user.firstName || '',
-            middleName: patientData?.middleName || '',
-            lastName: user.lastName || '',
-            gender: patientData?.gender || '',
-            dateOfBirth: patientData?.dateOfBirth || '',
-            contactNumber: user.contactNumber || '',
-            email: user.email || '',
-            isActive: patientData?.isActive || true, // Default to true for patients
-            profileImageUrl: '',
-            emergencyContact: patientData?.emergencyContact,
-            address: patientData?.address || '',
-            bloodType: patientData?.bloodType || '',
-            allergies: patientData?.allergies || [],
-            medicalConditions: patientData?.medicalConditions || [],
-            educationalAttainment: patientData?.educationalAttainment || '',
-            createdAt: user.createdAt || '',
-            lastUpdated: patientData?.lastUpdated || user.createdAt || ''
-          };
-        });
+        console.log('=== PATIENT FETCH DEBUG ===');
+        console.log('Raw patients data from database:', patientsData);
+        console.log('Sample patient raw data:', patientsData[0]);
         
-        setPatients(combinedPatients);
+        // Transform to match our Patient interface
+        const transformedPatients: Patient[] = patientsData.map(patient => ({
+          id: patient.id || '',
+          firstName: patient.firstName || '',
+          middleName: patient.middleName || '',
+          lastName: patient.lastName || '',
+          gender: patient.gender || '',
+          dateOfBirth: patient.dateOfBirth || '',
+          contactNumber: patient.contactNumber || '',
+          email: patient.email || '',
+          isActive: true, // Default to true for patients
+          profileImageUrl: patient.profileImageUrl || '',
+          emergencyContact: patient.emergencyContact,
+          address: patient.address || '',
+          addressLine: patient.addressLine || '',
+          city: patient.city || '',
+          province: patient.province || '',
+          zipCode: patient.zipCode || '',
+          bloodType: patient.bloodType || '',
+          allergies: patient.allergies || [],
+          medicalConditions: patient.medicalConditions || [],
+          educationalAttainment: patient.highestEducationalAttainment || '',
+          createdAt: patient.createdAt || '',
+          lastUpdated: patient.lastUpdated || ''
+        }));
+        
+        console.log('Transformed patients data:', transformedPatients);
+        console.log('Sample transformed patient:', transformedPatients[0]);
+        setPatients(transformedPatients);
       } catch (err) {
         console.error('Error fetching patients:', err);
         setError('Failed to load patients. Please try again.');
@@ -166,9 +238,15 @@ export default function PatientsPage() {
   }, []);
 
   const filteredPatients = patients.filter((patient) => {
+    const searchTerm = searchQuery.toLowerCase();
+    const fullName = `${patient.firstName} ${patient.lastName}`.toLowerCase();
+    const email = patient.email?.toLowerCase() || '';
+    const address = getFlexibleAddress(patient).toLowerCase();
+    
     const matchesSearch =
-      `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (patient.email && patient.email.toLowerCase().includes(searchQuery.toLowerCase()));
+      fullName.includes(searchTerm) ||
+      email.includes(searchTerm) ||
+      address.includes(searchTerm);
     const matchesStatus =
       selectedStatus === "All Status" || patient.isActive;
     return matchesSearch && matchesStatus;
@@ -205,6 +283,7 @@ export default function PatientsPage() {
     { key: 'name', label: 'Full Name', render: (patient: Patient) => `${patient.firstName} ${patient.lastName}` },
     { key: 'contactNumber', label: 'Contact Number' },
     { key: 'email', label: 'Email' },
+    { key: 'address', label: 'Address', render: (patient: Patient) => getFlexibleAddress(patient) },
     { key: 'dateOfBirth', label: 'Date of Birth', render: (patient: Patient) => formatDateToText(patient.dateOfBirth) },
     { key: 'gender', label: 'Gender', render: (patient: Patient) => capitalizeFirstLetter(patient.gender) },
     { key: 'isActive', label: 'Status', render: (patient: Patient) => patient.isActive ? 'Active' : 'Deactivated' },
@@ -237,13 +316,28 @@ export default function PatientsPage() {
       'vocational': 'Vocational',
       'associate-degree': 'Associate Degree',
       'bachelors-degree': 'Bachelor\'s Degree',
+      'bachelor\'s degree': 'Bachelor\'s Degree',
+      'bachelors degree': 'Bachelor\'s Degree',
       'masters-degree': 'Master\'s Degree',
+      'master\'s degree': 'Master\'s Degree',
+      'masters degree': 'Master\'s Degree',
       'doctorate': 'Doctorate',
       'post-graduate': 'Post Graduate',
+      'post graduate': 'Post Graduate',
       'other': 'Other'
     };
     
-    return formatMap[str] || str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    // First check the format map
+    const formatted = formatMap[str.toLowerCase()];
+    if (formatted) return formatted;
+    
+    // If not in map, apply proper capitalization
+    return str.split(' ').map(word => {
+      if (word.toLowerCase() === 'of' || word.toLowerCase() === 'and' || word.toLowerCase() === 'the') {
+        return word.toLowerCase();
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }).join(' ');
   };
 
   // Helper function to capitalize first letter
@@ -254,7 +348,152 @@ export default function PatientsPage() {
 
   const handleViewPatient = (patient: Patient) => {
     setSelectedPatient(patient);
+    setIsEditing(false);
     setIsSheetOpen(true);
+  };
+
+  const handleStartEdit = () => {
+    if (selectedPatient) {
+      // Consolidate any existing address data into a single address field
+      const consolidatedAddress = getFlexibleAddress(selectedPatient);
+      
+      console.log('=== PATIENT EDIT DEBUG ===');
+      console.log('Selected Patient Full Data:', selectedPatient);
+      console.log('Starting edit with patient data:', {
+        gender: selectedPatient.gender,
+        educationalAttainment: selectedPatient.educationalAttainment,
+        contactNumber: selectedPatient.contactNumber,
+        address: selectedPatient.address,
+        emergencyContact: selectedPatient.emergencyContact
+      });
+      
+      const newEditData = {
+        contactNumber: selectedPatient.contactNumber || '',
+        gender: selectedPatient.gender || '',
+        address: consolidatedAddress !== "N/A" ? consolidatedAddress : '',
+        educationalAttainment: selectedPatient.educationalAttainment || '',
+        emergencyContact: {
+          name: selectedPatient.emergencyContact?.name || '',
+          phone: selectedPatient.emergencyContact?.phone || '',
+          relationship: selectedPatient.emergencyContact?.relationship || ''
+        }
+      };
+      
+      console.log('Setting editData to:', newEditData);
+      setEditData(newEditData);
+      setIsEditing(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditData({
+      contactNumber: '',
+      gender: '',
+      address: '',
+      educationalAttainment: '',
+      emergencyContact: {
+        name: '',
+        phone: '',
+        relationship: ''
+      }
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedPatient) return;
+    
+    // Show confirmation dialog instead of saving immediately
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!selectedPatient) return;
+
+    setIsSaving(true);
+    try {
+      const realDataService = new RealDataService();
+      
+      // Prepare the update data with only the fields that can be edited
+      const updateData = {
+        contactNumber: editData.contactNumber,
+        gender: editData.gender,
+        address: editData.address,
+        // Clear old address fields to consolidate into single address field
+        addressLine: null,
+        city: null,
+        province: null,
+        zipCode: null,
+        highestEducationalAttainment: editData.educationalAttainment,
+        emergencyContact: editData.emergencyContact,
+      };
+
+      // Update the patient data
+      await realDataService.updatePatient(selectedPatient.id, updateData);
+
+      // Update the local state with the new data
+      const updatedPatient = {
+        ...selectedPatient,
+        contactNumber: editData.contactNumber,
+        gender: editData.gender,
+        address: editData.address,
+        educationalAttainment: editData.educationalAttainment,
+        emergencyContact: editData.emergencyContact,
+      };
+      setSelectedPatient(updatedPatient);
+      setPatients(prevPatients => 
+        prevPatients.map(p => 
+          p.id === selectedPatient.id ? updatedPatient : p
+        )
+      );
+      
+      setIsEditing(false);
+      setShowSaveConfirmation(false);
+      toast({
+        title: "Patient updated successfully",
+        description: "The patient information has been updated.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error updating patient:', error);
+      toast({
+        title: "Error updating patient",
+        description: "Failed to update patient information. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    console.log('=== INPUT CHANGE DEBUG ===');
+    console.log('Field:', field);
+    console.log('Value:', value);
+    console.log('Current editData before change:', editData);
+    
+    if (field === 'emergencyContact') {
+      setEditData(prev => {
+        const newData = {
+          ...prev,
+          emergencyContact: {
+            ...prev.emergencyContact,
+            ...value
+          }
+        };
+        console.log('New editData after emergency contact change:', newData);
+        return newData;
+      });
+    } else {
+      setEditData(prev => {
+        const newData = {
+          ...prev,
+          [field]: value
+        };
+        console.log('New editData after field change:', newData);
+        return newData;
+      });
+    }
   };
 
   if (loading) {
@@ -314,7 +553,7 @@ export default function PatientsPage() {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search patients by name or email..."
+                    placeholder="Search patients by name, email, or address..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8"
@@ -369,6 +608,7 @@ export default function PatientsPage() {
                     <TableHead>Full Name</TableHead>
                     <TableHead>Contact Number</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Address</TableHead>
                     <TableHead>Date of Birth</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
@@ -377,7 +617,7 @@ export default function PatientsPage() {
                 <TableBody>
                   {sortedPatients.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={7} className="text-center py-8">
                         <div className="flex flex-col items-center space-y-2">
                           <div className="text-muted-foreground text-lg">👥</div>
                           <p className="text-muted-foreground font-medium">No patients found</p>
@@ -427,6 +667,11 @@ export default function PatientsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <div className="text-sm text-muted-foreground max-w-[200px] truncate" title={getFlexibleAddress(patient)}>
+                            {getFlexibleAddress(patient)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <div className="text-sm text-muted-foreground">
                             {patient.dateOfBirth ? formatDateToText(patient.dateOfBirth) : 'Not specified'}
                           </div>
@@ -440,27 +685,15 @@ export default function PatientsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewPatient(patient)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleViewPatient(patient)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Deactivate Account
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              handleViewPatient(patient);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -485,12 +718,66 @@ export default function PatientsPage() {
 
         {/* Patient Details Sheet */}
         {selectedPatient && (
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <Sheet open={isSheetOpen} onOpenChange={(open) => {
+            setIsSheetOpen(open);
+            if (!open) {
+              // Reset edit state when sheet closes
+              setIsEditing(false);
+              setEditData({
+                contactNumber: '',
+                gender: '',
+                address: '',
+                educationalAttainment: '',
+                emergencyContact: {
+                  name: '',
+                  phone: '',
+                  relationship: ''
+                }
+              });
+            }
+          }}>
             <SheetContent side="right" className="w-full max-w-md sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl backdrop-blur-md overflow-y-auto">
               <div className="p-6">
                 <SheetHeader>
-                  <SheetTitle>{selectedPatient.firstName} {selectedPatient.lastName} - Patient Details</SheetTitle>
-                  <SheetDescription>Full profile and contact information</SheetDescription>
+                  <div className="flex items-center justify-between">
+                    <SheetTitle>{selectedPatient.firstName} {selectedPatient.lastName} - Patient Details</SheetTitle>
+                    <div className="flex gap-2">
+                      {!isEditing ? (
+                        <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                          <Edit className="h-4 w-4 mr-2" /> Edit Details
+                        </Button>
+                      ) : (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleCancelEdit}
+                            disabled={isSaving}
+                          >
+                            <X className="h-4 w-4 mr-2" /> Cancel
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={handleSaveEdit}
+                            disabled={isSaving}
+                          >
+                            {isSaving ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4 mr-2" />
+                            )}
+                            Save
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <SheetDescription>
+                    {isEditing 
+                      ? "Edit the patient's information. Only specific fields can be modified."
+                      : "Full profile and contact information"
+                    }
+                  </SheetDescription>
                 </SheetHeader>
                 <div className="flex flex-col items-center md:items-start gap-6 mt-6">
                   <Avatar className="h-20 w-20 mb-2">
@@ -522,7 +809,36 @@ export default function PatientsPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground">Gender</span>
-                      <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.gender ? capitalizeFirstLetter(selectedPatient.gender) : "N/A"}</span>
+                      {isEditing ? (
+                        <Select 
+                          value={editData.gender || ''} 
+                          onValueChange={(value) => handleInputChange('gender', value)}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              console.log('=== GENDER DROPDOWN DEBUG ===');
+                              console.log('editData.gender:', editData.gender);
+                              console.log('selectedPatient.gender:', selectedPatient?.gender);
+                              console.log('finalValue:', editData.gender || '');
+                              console.log('editData full:', editData);
+                              console.log('Available gender options:', ['Male', 'Female', 'Other', 'Prefer not to say']);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="font-medium text-base">
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                            <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedPatient.gender ? capitalizeFirstLetter(selectedPatient.gender) : "N/A"}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground">Date of Birth</span>
@@ -530,7 +846,18 @@ export default function PatientsPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground">Contact Number</span>
-                      <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.contactNumber}</span>
+                      {isEditing ? (
+                        <Input
+                          value={editData.contactNumber || ''}
+                          onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                          placeholder="Enter contact number"
+                          className="font-medium text-base"
+                        />
+                      ) : (
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedPatient.contactNumber || 'N/A'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col md:col-span-2">
                       <span className="text-xs text-muted-foreground">Email</span>
@@ -538,11 +865,57 @@ export default function PatientsPage() {
                     </div>
                     <div className="flex flex-col md:col-span-2">
                       <span className="text-xs text-muted-foreground">Address</span>
-                      <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.address || "N/A"}</span>
+                      {isEditing ? (
+                        <Textarea
+                          value={editData.address || ''}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          placeholder="Enter complete address"
+                          rows={3}
+                          className="font-medium text-base"
+                        />
+                      ) : (
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {getFlexibleAddress(selectedPatient)}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col md:col-span-2">
                       <span className="text-xs text-muted-foreground">Educational Attainment</span>
-                      <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedPatient.educationalAttainment ? formatEducationalAttainment(selectedPatient.educationalAttainment) : "N/A"}</span>
+                      {isEditing ? (
+                        <Select
+                          value={editData.educationalAttainment || ''}
+                          onValueChange={(value) => handleInputChange('educationalAttainment', value)}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              console.log('=== EDUCATIONAL DROPDOWN DEBUG ===');
+                              console.log('editData.educationalAttainment:', editData.educationalAttainment);
+                              console.log('selectedPatient.educationalAttainment:', selectedPatient?.educationalAttainment);
+                              console.log('finalValue:', editData.educationalAttainment || '');
+                              console.log('editData full:', editData);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="font-medium text-base">
+                            <SelectValue placeholder="Select educational attainment" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Elementary">Elementary</SelectItem>
+                            <SelectItem value="Junior High School">Junior High School</SelectItem>
+                            <SelectItem value="Senior High School">Senior High School</SelectItem>
+                            <SelectItem value="Vocational">Vocational</SelectItem>
+                            <SelectItem value="Associate Degree">Associate Degree</SelectItem>
+                            <SelectItem value="Bachelor's Degree">Bachelor's Degree</SelectItem>
+                            <SelectItem value="Master's Degree">Master's Degree</SelectItem>
+                            <SelectItem value="Doctorate">Doctorate</SelectItem>
+                            <SelectItem value="Post Graduate">Post Graduate</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                          {selectedPatient.educationalAttainment ? formatEducationalAttainment(selectedPatient.educationalAttainment) : "N/A"}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="mt-6">
@@ -550,33 +923,72 @@ export default function PatientsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">Name</span>
-                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                          {selectedPatient.emergencyContact?.name || "N/A"}
-                        </span>
+                        {isEditing ? (
+                          <Input
+                            value={editData.emergencyContact.name || ''}
+                            onChange={(e) => handleInputChange('emergencyContact', { name: e.target.value })}
+                            placeholder="Enter emergency contact name"
+                            className="font-medium text-base"
+                          />
+                        ) : (
+                          <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                            {selectedPatient.emergencyContact?.name || "N/A"}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">Relationship</span>
-                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                          {selectedPatient.emergencyContact?.relationship ? capitalizeFirstLetter(selectedPatient.emergencyContact.relationship) : "N/A"}
-                        </span>
+                        {isEditing ? (
+                          <Input
+                            value={editData.emergencyContact.relationship || ''}
+                            onChange={(e) => handleInputChange('emergencyContact', { relationship: e.target.value })}
+                            placeholder="Enter relationship"
+                            className="font-medium text-base"
+                          />
+                        ) : (
+                          <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                            {selectedPatient.emergencyContact?.relationship ? capitalizeFirstLetter(selectedPatient.emergencyContact.relationship) : "N/A"}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">Contact Number</span>
-                        <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                          {selectedPatient.emergencyContact?.phone || "N/A"}
-                        </span>
+                        {isEditing ? (
+                          <Input
+                            value={editData.emergencyContact.phone || ''}
+                            onChange={(e) => handleInputChange('emergencyContact', { phone: e.target.value })}
+                            placeholder="Enter emergency contact number"
+                            className="font-medium text-base"
+                          />
+                        ) : (
+                          <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                            {selectedPatient.emergencyContact?.phone || "N/A"}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-8">
-                  <Button variant="outline"><Edit className="h-4 w-4 mr-2" /> Edit Details</Button>
                   <Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" /> Deactivate Account</Button>
                 </div>
               </div>
             </SheetContent>
           </Sheet>
         )}
+
+        {/* Save Confirmation Dialog */}
+        <ConfirmationDialog
+          open={showSaveConfirmation}
+          onOpenChange={setShowSaveConfirmation}
+          title="Confirm Patient Update"
+          description={`Are you sure you want to save the changes for ${selectedPatient?.firstName} ${selectedPatient?.lastName}? This action cannot be undone.`}
+          confirmText="Save Changes"
+          cancelText="Cancel"
+          variant="default"
+          onConfirm={handleConfirmSave}
+          loading={isSaving}
+        />
       </div>
     </DashboardLayout>
   );

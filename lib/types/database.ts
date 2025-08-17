@@ -6,49 +6,50 @@ export interface BaseEntity {
   lastUpdated?: string;
 }
 
-// Doctors from your database
+// Doctors from your database - detailed information
 export interface Doctor {
   id?: string;
+  userId: string;
   firstName: string;
   middleName?: string;
   lastName: string;
   email: string;
   contactNumber: string;
-  specialty: string;
-  isSpecialist: boolean;
-  professionalFee?: number; // Professional fee in Philippine pesos
-  status: 'verified' | 'pending' | 'suspended';
-  profileImageUrl?: string;
   address?: string;
+  addressLine?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
   dateOfBirth?: string;
   gender?: string;
   civilStatus?: string;
+  specialty: string;
+  isSpecialist: boolean;
+  isGeneralist: boolean;
+  professionalFee?: number; // Professional fee in Philippine pesos
+  status: 'verified' | 'pending' | 'suspended';
+  profileImageUrl?: string;
   prcId?: string;
   prcExpiryDate?: string;
   medicalLicenseNumber?: string;
-  education?: {
-    degree: string;
-    university?: string;
-    institution?: string;
-    year: string;
-  }[];
-  boardCertifications?: string[];
-  fellowships?: string[];
-  accreditations?: string[];
   clinicAffiliations?: string[];
   lastLogin?: string;
-  lastUpdated?: string;
   createdAt?: string;
+  lastUpdated?: string;
+  // Computed fields added by the service
+  resolvedAddress?: string;
+  resolvedFullAddress?: string;
 }
 
 // Clinics from your database
 export interface Clinic {
   id?: string;
   name: string;
-  address: string;
-  city: string;
-  province: string;
-  zipCode: string;
+  address?: string;
+  addressLine?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
   email: string;
   phone: string;
   type: 'hospital' | 'multi_specialty_clinic' | 'community_clinic' | 'private_clinic';
@@ -56,48 +57,70 @@ export interface Clinic {
   createdAt?: number;
   updatedAt?: number;
   createdBy?: string;
+  // Computed fields added by the service
+  resolvedAddress?: string;
+  resolvedFullAddress?: string;
+  streetAddress?: string;
+  locationDetails?: string;
+  addressComponents?: {
+    address: string;
+    city: string;
+    province: string;
+    zipCode: string;
+    addressLine: string;
+  };
 }
 
 // Feedback from your database
 export interface Feedback {
   id?: string;
-  patientFirstName: string;
-  patientLastName: string;
-  patientId: string;
-  providerId: string;
-  providerFirstName: string;
-  providerLastName: string;
-  clinicId: string;
-  clinicName: string;
-  practiceLocationName: string;
-  rating: 1 | 2 | 3 | 4 | 5;
-  comments: string;
-  appointmentDate: string;
-  appointmentTime: string;
-  appointmentType: string;
-  clinicAppointmentId: string;
+  patientId?: string;
+  providerId?: string;
+  doctorId?: string;
+  clinicId?: string;
+  practiceLocationName?: string;
+  rating?: 1 | 2 | 3 | 4 | 5;
+  comments?: string;
+  comment?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
+  appointmentType?: string;
+  treatmentType?: string;
+  clinicAppointmentId?: string;
   referralId?: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
-  submittedBy: {
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  submittedBy?: {
     role: string;
     userId: string;
   };
-  timestamp: string;
+  timestamp?: string;
+  date?: string;
+  createdAt?: string;
+  isAnonymous?: boolean;
+  status?: string;
+  tags?: string[];
+  
+  // Resolved fields from enhanced service
+  patientName?: string;
+  patientEmail?: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+  doctorName?: string;
+  doctorFirstName?: string;
+  doctorLastName?: string;
+  clinicName?: string;
 }
 
-// Users from your database
+// Users from your database - only immutable fields
 export interface User {
   id?: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   email: string;
-  role: 'admin' | 'generalist' | 'specialist' | 'clinic_staff' | 'lab_technician' | 'billing_clerk' | 'patient';
-  clinicAffiliations?: string[];
-  department?: string;
-  contactNumber?: string;
-  specialty?: string;
-  patientId?: string;
-  address?: string;
+  role: 'admin' | 'generalist' | 'specialist' | 'patient';
+  patientId?: string; // For patients
+  doctorId?: string; // For doctors
   createdAt?: string;
 }
 
@@ -105,13 +128,8 @@ export interface User {
 export interface Appointment {
   id?: string;
   patientId: string;
-  patientFirstName: string;
-  patientLastName: string;
   doctorId?: string;
-  doctorFirstName?: string;
-  doctorLastName?: string;
   clinicId: string;
-  clinicName: string;
   appointmentDate: string;
   appointmentTime: string;
   type: 'general_consultation' | 'emergency_assessment' | 'lab_booking' | 'walk_in';
@@ -120,15 +138,21 @@ export interface Appointment {
   notes?: string;
   patientComplaint?: string[];
   bookedByUserId: string;
-  bookedByUserFirstName: string;
-  bookedByUserLastName: string;
   createdAt: string;
   lastUpdated: string;
   sourceSystem: string;
   relatedReferralId?: string;
+  // Computed fields added by the service
+  patientFirstName?: string;
+  patientLastName?: string;
+  doctorFirstName?: string;
+  doctorLastName?: string;
+  clinicName?: string;
+  bookedByUserFirstName?: string;
+  bookedByUserLastName?: string;
 }
 
-// Patients from your database
+// Patients from your database - detailed information
 export interface Patient {
   id?: string;
   userId: string;
@@ -137,11 +161,18 @@ export interface Patient {
   lastName: string;
   dateOfBirth: string;
   gender: string;
+  contactNumber: string;
+  email?: string; // Added from users node
+  profileImageUrl?: string; // Added from users node
+  highestEducationalAttainment?: string;
   address?: string;
+  addressLine?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
   bloodType?: string;
   allergies?: string[];
   medicalConditions?: string[];
-  educationalAttainment?: string;
   isActive?: boolean;
   emergencyContact: {
     name: string;
@@ -150,26 +181,32 @@ export interface Patient {
   };
   createdAt: string;
   lastUpdated: string;
+  // Computed fields added by the service
+  resolvedAddress?: string;
+  resolvedFullAddress?: string;
+  streetAddress?: string;
+  locationDetails?: string;
+  addressComponents?: {
+    address: string;
+    city: string;
+    province: string;
+    zipCode: string;
+    addressLine: string;
+  };
 }
 
 // Referrals from your database
 export interface Referral {
   id?: string;
   patientId: string;
-  patientFirstName: string;
-  patientLastName: string;
   referringGeneralistId: string;
-  referringGeneralistFirstName: string;
-  referringGeneralistLastName: string;
   assignedSpecialistId: string;
-  assignedSpecialistFirstName: string;
-  assignedSpecialistLastName: string;
   clinicAppointmentId: string;
   initialReasonForReferral: string;
   generalistNotes: string;
   appointmentDate: string;
   appointmentTime: string;
-  status: 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
   referralTimestamp: string;
   lastUpdated: string;
   patientArrivalConfirmed: boolean;
@@ -178,11 +215,18 @@ export interface Referral {
     roomOrUnit: string;
   };
   referringClinicId: string;
-  referringClinicName: string;
-  specialistClinicName?: string;
   sourceSystem: string;
   specialistScheduleId: string;
   scheduleSlotPath: string;
+  // Computed fields added by the service
+  specialistClinicName?: string;
+  referringClinicName?: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+  assignedSpecialistFirstName?: string;
+  assignedSpecialistLastName?: string;
+  referringGeneralistFirstName?: string;
+  referringGeneralistLastName?: string;
 }
 
 // Activity Logs - This will be created automatically by the system
@@ -287,4 +331,12 @@ export interface ConsultationType {
   id?: string;
   name: string;
   description: string;
+}
+
+// System Settings
+export interface SystemSettings {
+  defaultAppointmentDuration: number;
+  appointmentDurationUnit: 'minutes' | 'hours';
+  lastUpdated?: string;
+  updatedBy?: string;
 }

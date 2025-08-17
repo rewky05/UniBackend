@@ -6,33 +6,20 @@ export const doctorSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters").max(50, "First name must be less than 50 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters").max(50, "Last name must be less than 50 characters"),
   middleName: z.string().max(50, "Middle name must be less than 50 characters").optional(),
-  suffix: z.string().max(10, "Suffix must be less than 10 characters").optional(),
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().regex(/^\+63\s?\d{3}\s?\d{3}\s?\d{4}$/, "Please enter a valid Philippine phone number (+63 XXX XXX XXXX)"),
-  dateOfBirth: z.string().refine((date) => {
-    const birthDate = new Date(date);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-    return age >= 25 && age <= 80;
-  }, "Doctor must be between 25 and 80 years old"),
-  gender: z.enum(["male", "female", "other"], {
-    required_error: "Please select a gender",
-  }),
-  civilStatus: z.enum(["single", "married", "divorced", "widowed"], {
-    required_error: "Please select civil status",
-  }),
+  address: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.string().optional(),
+  civilStatus: z.string().optional(),
 
   // Professional Information
-  prcId: z.string().regex(/^PRC-\d{6}$/, "PRC ID must be in format PRC-XXXXXX"),
-  prcExpiry: z.string().refine((date) => {
-    const expiryDate = new Date(date);
-    const today = new Date();
-    return expiryDate > today;
-  }, "PRC license must not be expired"),
   specialty: z.string().min(2, "Please select a specialty"),
-  subSpecialty: z.string().optional(),
-  yearsOfExperience: z.number().min(0, "Years of experience cannot be negative").max(50, "Years of experience cannot exceed 50"),
-  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
+  medicalLicense: z.string().optional(),
+  prcId: z.string().optional(),
+  prcExpiry: z.string().optional(),
+  professionalFee: z.number().optional(),
+  schedules: z.array(z.any()).optional(),
 });
 
 // Create doctor schema (for new doctor registration)

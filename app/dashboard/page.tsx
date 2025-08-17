@@ -569,7 +569,7 @@ export default function DashboardPage() {
     },
     {
       title: "Active Referrals",
-      value: referrals.filter(r => r.status === 'pending_acceptance' || r.status === 'confirmed').length,
+      value: referrals.filter(r => r.status === 'pending' || r.status === 'pending_acceptance' || r.status === 'confirmed').length,
       change: "+5%",
       changeType: "positive" as const,
       icon: ArrowRight,

@@ -32,20 +32,20 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
   }
 
   /**
-   * Update feedback status with review notes
+   * Update feedback status
    */
   async updateFeedbackStatus(
     feedbackId: string,
     status: FeedbackStatus,
     reviewedBy?: string,
-    reviewNotes?: string
+    reviewedById?: string
   ): Promise<void> {
     try {
       const updates: UpdateFeedbackDto = {
         status,
         reviewedBy,
-        reviewedAt: Date.now(),
-        reviewNotes
+        reviewedById,
+        reviewedAt: new Date().toISOString()
       };
 
       await this.update(feedbackId, updates);
@@ -60,8 +60,7 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
           targetId: feedbackId,
           targetType: 'feedback',
           details: {
-            newStatus: status,
-            reviewNotes: reviewNotes || ''
+            newStatus: status
           }
         });
       }
@@ -519,11 +518,11 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
     feedbackIds: string[],
     status: FeedbackStatus,
     reviewedBy?: string,
-    reviewNotes?: string
+    reviewedById?: string
   ): Promise<void> {
     try {
       const updatePromises = feedbackIds.map(feedbackId => 
-        this.updateFeedbackStatus(feedbackId, status, reviewedBy, reviewNotes)
+        this.updateFeedbackStatus(feedbackId, status, reviewedBy, reviewedById)
       );
 
       await Promise.all(updatePromises);
@@ -538,8 +537,7 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
           details: {
             feedbackIds,
             newStatus: status,
-            count: feedbackIds.length,
-            reviewNotes: reviewNotes || ''
+            count: feedbackIds.length
           }
         });
       }

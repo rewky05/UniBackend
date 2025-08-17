@@ -113,7 +113,7 @@ export default function RealDataDemo() {
                 {clinics.map((clinic) => (
                   <div key={clinic.id} className="p-3 border rounded">
                     <div className="font-medium">{clinic.name}</div>
-                    <div className="text-sm text-muted-foreground">{clinic.addressLine}</div>
+                    <div className="text-sm text-muted-foreground">{clinic.resolvedAddress || clinic.addressLine || 'Address not available'}</div>
                     <div className="flex justify-between items-center mt-2">
                       <Badge variant="outline">{clinic.type}</Badge>
                       <Badge variant={clinic.isActive ? 'default' : 'secondary'}>

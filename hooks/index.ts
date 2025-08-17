@@ -4,3 +4,4 @@ export * from './useFeedback';
 export * from './useSchedules';
 export * from './useActivityLogs';
 export * from './useDashboard';
+export { useSettings } from './useSettings';

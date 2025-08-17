@@ -5,6 +5,8 @@ export * from './patients.service';
 export * from './feedback.service';
 export * from './activity-logs.service';
 export * from './schedules.service';
+export * from './activity-logger.service';
+export * from './settings.service';
 
 // Export service instances
 export { doctorsService } from './doctors.service';

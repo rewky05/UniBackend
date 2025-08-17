@@ -452,3 +452,150 @@ function parseNaturalDate(dateString: string): Date | null {
   
   return null;
 }
+
+/**
+ * Resolve address from either addressLine or separate address fields
+ * @param data Object containing address information
+ * @returns Formatted address string
+ */
+export function resolveAddress(data: {
+  addressLine?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+}): string {
+  // If addressLine exists, use it
+  if (data.addressLine) {
+    return data.addressLine;
+  }
+  
+  // Otherwise, build address from separate fields
+  const parts: string[] = [];
+  
+  if (data.address) {
+    parts.push(data.address);
+  }
+  
+  if (data.city) {
+    parts.push(data.city);
+  }
+  
+  if (data.province) {
+    parts.push(data.province);
+  }
+  
+  if (data.zipCode) {
+    parts.push(data.zipCode);
+  }
+  
+  return parts.length > 0 ? parts.join(', ') : 'Address not available';
+}
+
+/**
+ * Get individual address components
+ * @param data Object containing address information
+ * @returns Object with individual address components
+ */
+export function getAddressComponents(data: {
+  addressLine?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+}): {
+  address: string;
+  city: string;
+  province: string;
+  zipCode: string;
+  addressLine: string;
+} {
+  return {
+    address: data.address || '',
+    city: data.city || '',
+    province: data.province || '',
+    zipCode: data.zipCode || '',
+    addressLine: data.addressLine || ''
+  };
+}
+
+/**
+ * Get just the street address (without city, province, zip)
+ * @param data Object containing address information
+ * @returns Street address string
+ */
+export function getStreetAddress(data: {
+  addressLine?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+}): string {
+  // If addressLine exists, try to extract just the street part
+  if (data.addressLine) {
+    // Split by comma and take the first part (usually the street address)
+    const parts = data.addressLine.split(',');
+    return parts[0]?.trim() || data.addressLine;
+  }
+  
+  // Otherwise, return the address field
+  return data.address || 'Address not available';
+}
+
+/**
+ * Get location details (city, province, zip) without street address
+ * @param data Object containing address information
+ * @returns Location string
+ */
+export function getLocationDetails(data: {
+  addressLine?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+}): string {
+  // If we have separate fields, use them
+  if (data.city || data.province || data.zipCode) {
+    const parts: string[] = [];
+    if (data.city) parts.push(data.city);
+    if (data.province) parts.push(data.province);
+    if (data.zipCode) parts.push(data.zipCode);
+    return parts.join(', ');
+  }
+  
+  // If we have addressLine, try to extract location part
+  if (data.addressLine) {
+    const parts = data.addressLine.split(',');
+    if (parts.length > 1) {
+      // Remove the first part (street address) and join the rest
+      return parts.slice(1).join(',').trim();
+    }
+  }
+  
+  return 'Location not available';
+}
+
+/**
+ * Resolve full address with country (Philippines)
+ * @param data Object containing address information
+ * @returns Formatted address string with country
+ */
+export function resolveFullAddress(data: {
+  addressLine?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+}): string {
+  const baseAddress = resolveAddress(data);
+  
+  // If it's already a full address (contains Philippines), return as is
+  if (baseAddress.toLowerCase().includes('philippines')) {
+    return baseAddress;
+  }
+  
+  // Otherwise, append Philippines
+  return baseAddress !== 'Address not available' 
+    ? `${baseAddress}, Philippines`
+    : 'Address not available';
+}

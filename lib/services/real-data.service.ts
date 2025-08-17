@@ -1,7 +1,7 @@
-import { ref, get, onValue, query, orderByChild, equalTo, set, push } from 'firebase/database';
+import { ref, get, onValue, query, orderByChild, equalTo, set, push, update } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase/config';
-import { safeGetTimestamp } from '@/lib/utils';
+import { safeGetTimestamp, resolveAddress, resolveFullAddress, getAddressComponents, getStreetAddress, getLocationDetails } from '@/lib/utils';
 import type { 
   Doctor, 
   Clinic, 
@@ -76,35 +76,30 @@ export class RealDataService {
       const doctorId = userCredential.user.uid;
       
       const userData = {
-        contactNumber: doctorData.phone,
         createdAt: timestamp,
+        doctorId: doctorId,
         email: doctorData.email,
         firstName: doctorData.firstName,
+        middleName: doctorData.middleName || '',
         lastName: doctorData.lastName,
-        role: 'specialist',
-        specialty: doctorData.specialty
+        role: 'specialist'
       };
 
-      // 3. Create doctor entry
+      // 3. Create doctor entry (detailed information)
       const doctorEntry = {
-        accreditations: doctorData.accreditations || [],
         address: doctorData.address,
-        boardCertifications: doctorData.certifications?.map((cert: any) => cert.name) || [],
         civilStatus: doctorData.civilStatus,
         clinicAffiliations: doctorData.schedules?.map((schedule: any) => schedule.practiceLocation.clinicId) || [],
         contactNumber: doctorData.phone,
         createdAt: timestamp,
         dateOfBirth: doctorData.dateOfBirth,
-        education: doctorData.education || [],
         email: doctorData.email,
-        fellowships: doctorData.fellowships || [],
         firstName: doctorData.firstName,
         gender: doctorData.gender,
         isGeneralist: false,
         isSpecialist: true,
         lastLogin: timestamp,
         lastName: doctorData.lastName,
-        lastUpdated: timestamp,
         medicalLicenseNumber: doctorData.medicalLicense,
         prcExpiryDate: doctorData.prcExpiry,
         prcId: doctorData.prcId,
@@ -112,23 +107,16 @@ export class RealDataService {
         profileImageUrl: doctorData.profileImageUrl || '',
         specialty: doctorData.specialty,
         status: 'pending',
-        userId: doctorId,
-        verificationDate: null,
-        verificationNotes: '',
-        verifiedByAdminId: null,
-        yearsOfExperience: doctorData.yearsOfExperience || 0
+        userId: doctorId
       };
 
       // 4. Create specialist schedules
-      const schedulesData: any = {};
       if (doctorData.schedules && doctorData.schedules.length > 0) {
-        // Use Promise.all to create all schedules with push() for unique keys
-        const schedulePromises = doctorData.schedules.map(async (schedule: any) => {
-          const schedulesRef = ref(db, `specialistSchedules/${doctorId}`);
-          const newScheduleRef = push(schedulesRef);
-          const scheduleId = newScheduleRef.key!;
-          
-          const scheduleData = {
+        const scheduleData: any = {};
+        
+        doctorData.schedules.forEach((schedule: any, index: number) => {
+          const scheduleKey = `sched_${doctorId}_${index + 1}`;
+          scheduleData[scheduleKey] = {
             createdAt: timestamp,
             isActive: schedule.isActive,
             lastUpdated: timestamp,
@@ -139,12 +127,10 @@ export class RealDataService {
             specialistId: doctorId,
             validFrom: schedule.validFrom
           };
-          
-          return set(newScheduleRef, scheduleData);
         });
         
-        // Wait for all schedules to be created
-        await Promise.all(schedulePromises);
+        // Save schedules to Firebase
+        await set(ref(db, `specialistSchedules/${doctorId}`), scheduleData);
       }
 
       // Save to Firebase
@@ -162,23 +148,102 @@ export class RealDataService {
   }
 
   /**
-   * Get all specialist doctors from your database
+   * Get a single doctor by ID with user data
+   */
+  async getDoctorById(doctorId: string): Promise<Doctor | null> {
+    try {
+      // Fetch both specific doctor and users data
+      const [doctorSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, `doctors/${doctorId}`)),
+        get(ref(db, 'users'))
+      ]);
+      
+      if (!doctorSnapshot.exists()) return null;
+      
+      const doctor = doctorSnapshot.val();
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      const userId = doctor.userId;
+      const user = users[userId] || {};
+      
+      // Resolve addresses using the utility function
+      const resolvedAddress = resolveAddress(doctor);
+      const resolvedFullAddress = resolveFullAddress(doctor);
+      const streetAddress = getStreetAddress(doctor);
+      const locationDetails = getLocationDetails(doctor);
+      const addressComponents = getAddressComponents(doctor);
+      
+      return {
+        id: doctorId,
+        userId: userId,
+        // User data
+        firstName: user.firstName || doctor.firstName || '',
+        middleName: user.middleName || doctor.middleName || '',
+        lastName: user.lastName || doctor.lastName || '',
+        email: user.email || doctor.email || '',
+        // Doctor data
+        ...doctor,
+        // Resolved address data
+        resolvedAddress,
+        resolvedFullAddress,
+        streetAddress,
+        locationDetails,
+        addressComponents
+      };
+    } catch (error) {
+      console.error('Error fetching doctor by ID:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all specialist doctors from your database with user data
    */
   async getDoctors(): Promise<Doctor[]> {
     try {
-      const snapshot = await get(ref(db, 'doctors'));
-      if (!snapshot.exists()) return [];
+      // Fetch both doctors and users data
+      const [doctorsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'doctors')),
+        get(ref(db, 'users'))
+      ]);
       
-      const doctors = snapshot.val();
-      const allDoctors = Object.keys(doctors).map(id => ({
-        id,
-        ...doctors[id]
-      }));
+      if (!doctorsSnapshot.exists()) return [];
+      
+      const doctors = doctorsSnapshot.val();
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      
+      const allDoctors = Object.keys(doctors).map(doctorId => {
+        const doctor = doctors[doctorId];
+        const userId = doctor.userId;
+        const user = users[userId] || {};
+        
+        // Resolve addresses using the utility function
+        const resolvedAddress = resolveAddress(doctor);
+        const resolvedFullAddress = resolveFullAddress(doctor);
+        const streetAddress = getStreetAddress(doctor);
+        const locationDetails = getLocationDetails(doctor);
+        const addressComponents = getAddressComponents(doctor);
+        
+        return {
+          id: doctorId,
+          userId: userId,
+          // User data
+          firstName: user.firstName || doctor.firstName || '',
+          middleName: user.middleName || doctor.middleName || '',
+          lastName: user.lastName || doctor.lastName || '',
+          email: user.email || doctor.email || '',
+          // Doctor data
+          ...doctor,
+          // Resolved address data
+          resolvedAddress,
+          resolvedFullAddress,
+          streetAddress,
+          locationDetails,
+          addressComponents
+        };
+      });
       
       // Filter to show only specialists
       const specialists = allDoctors.filter(doctor => doctor.isSpecialist === true);
-      
-
       
       return specialists;
     } catch (error) {
@@ -192,20 +257,87 @@ export class RealDataService {
    */
   subscribeToDoctors(callback: (doctors: Doctor[]) => void): () => void {
     const doctorsRef = ref(db, 'doctors');
+    const usersRef = ref(db, 'users');
     
-    const unsubscribe = onValue(doctorsRef, (snapshot) => {
-      const doctors: Doctor[] = [];
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        Object.keys(data).forEach(id => {
-          const doctor = { id, ...data[id] };
-          // Only include specialists
-          if (doctor.isSpecialist === true) {
-            doctors.push(doctor);
-          }
-        });
+    const unsubscribe = onValue(doctorsRef, async (doctorsSnapshot) => {
+      try {
+        // Also fetch users data to get middleName and other user fields
+        const usersSnapshot = await get(usersRef);
+        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+        
+        const doctors: Doctor[] = [];
+        if (doctorsSnapshot.exists()) {
+          const data = doctorsSnapshot.val();
+          Object.keys(data).forEach(id => {
+            const doctorData = data[id];
+            const userId = doctorData.userId;
+            const user = users[userId] || {};
+            
+            // Resolve addresses using the utility function
+            const resolvedAddress = resolveAddress(doctorData);
+            const resolvedFullAddress = resolveFullAddress(doctorData);
+            const streetAddress = getStreetAddress(doctorData);
+            const locationDetails = getLocationDetails(doctorData);
+            const addressComponents = getAddressComponents(doctorData);
+            
+            const doctor = { 
+              id, 
+              userId: userId,
+              // User data (including middleName)
+              firstName: user.firstName || doctorData.firstName || '',
+              middleName: user.middleName || doctorData.middleName || '',
+              lastName: user.lastName || doctorData.lastName || '',
+              email: user.email || doctorData.email || '',
+              // Doctor data
+              ...doctorData,
+              resolvedAddress,
+              resolvedFullAddress,
+              streetAddress,
+              locationDetails,
+              addressComponents
+            };
+            
+            // Only include specialists
+            if (doctor.isSpecialist === true) {
+              doctors.push(doctor);
+            }
+          });
+        }
+        callback(doctors);
+      } catch (error) {
+        console.error('Error in subscribeToDoctors:', error);
+        // Fallback to original behavior if users fetch fails
+        const doctors: Doctor[] = [];
+        if (doctorsSnapshot.exists()) {
+          const data = doctorsSnapshot.val();
+          Object.keys(data).forEach(id => {
+            const doctorData = data[id];
+            
+            // Resolve addresses using the utility function
+            const resolvedAddress = resolveAddress(doctorData);
+            const resolvedFullAddress = resolveFullAddress(doctorData);
+            const streetAddress = getStreetAddress(doctorData);
+            const locationDetails = getLocationDetails(doctorData);
+            const addressComponents = getAddressComponents(doctorData);
+            
+            const doctor = { 
+              id, 
+              ...doctorData,
+              resolvedAddress,
+              resolvedFullAddress,
+              streetAddress,
+              locationDetails,
+              addressComponents
+            };
+            
+            // Only include specialists
+            if (doctor.isSpecialist === true) {
+              doctors.push(doctor);
+            }
+          });
+        }
+        callback(doctors);
       }
-      callback(doctors);
     });
 
     return unsubscribe;
@@ -220,10 +352,26 @@ export class RealDataService {
       if (!snapshot.exists()) return [];
       
       const clinics = snapshot.val();
-      return Object.keys(clinics).map(id => ({
-        id,
-        ...clinics[id]
-      }));
+      return Object.keys(clinics).map(id => {
+        const clinic = clinics[id];
+        
+        // Resolve addresses using the utility function
+        const resolvedAddress = resolveAddress(clinic);
+        const resolvedFullAddress = resolveFullAddress(clinic);
+        const streetAddress = getStreetAddress(clinic);
+        const locationDetails = getLocationDetails(clinic);
+        const addressComponents = getAddressComponents(clinic);
+        
+        return {
+          id,
+          ...clinic,
+          resolvedAddress,
+          resolvedFullAddress,
+          streetAddress,
+          locationDetails,
+          addressComponents
+        };
+      });
     } catch (error) {
       console.error('Error fetching clinics:', error);
       throw error;
@@ -241,7 +389,24 @@ export class RealDataService {
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(id => {
-          clinics.push({ id, ...data[id] });
+          const clinic = data[id];
+          
+          // Resolve addresses using the utility function
+          const resolvedAddress = resolveAddress(clinic);
+          const resolvedFullAddress = resolveFullAddress(clinic);
+          const streetAddress = getStreetAddress(clinic);
+          const locationDetails = getLocationDetails(clinic);
+          const addressComponents = getAddressComponents(clinic);
+          
+          clinics.push({ 
+            id, 
+            ...clinic,
+            resolvedAddress,
+            resolvedFullAddress,
+            streetAddress,
+            locationDetails,
+            addressComponents
+          });
         });
       }
       callback(clinics);
@@ -251,35 +416,99 @@ export class RealDataService {
   }
 
   /**
-   * Get all feedback from your database
+   * Get all feedback from your database with resolved patient, doctor, and clinic details
    */
   async getFeedback(): Promise<any[]> {
     try {
-      const snapshot = await get(ref(db, 'feedback'));
-      if (!snapshot.exists()) return [];
+      // Fetch all related data
+      const [feedbackSnapshot, patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'feedback')),
+        get(ref(db, 'patients')),
+        get(ref(db, 'doctors')),
+        get(ref(db, 'clinics')),
+        get(ref(db, 'users'))
+      ]);
       
-      const feedback = snapshot.val();
+      if (!feedbackSnapshot.exists()) return [];
+      
+      const feedback = feedbackSnapshot.val();
+      const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+      const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      
       return Object.keys(feedback).map(id => {
         const rawFeedback = feedback[id];
+        
+        // Resolve patient details - try both id and patientId
+        let patientDetails = null;
+        const patientId = rawFeedback.patientId || rawFeedback.id;
+        
+        if (patientId) {
+          // First try to find patient by patientId
+          if (patients[patientId]) {
+            patientDetails = patients[patientId];
+          } else {
+            // If not found, search through all patients to find by userId
+            const foundPatient = Object.values(patients).find((p: any) => p.userId === patientId);
+            if (foundPatient) {
+              patientDetails = foundPatient;
+            }
+          }
+        }
+        
+        // Resolve doctor details
+        let doctorDetails = null;
+        const doctorId = rawFeedback.doctorId || rawFeedback.providerId;
+        if (doctorId && doctors[doctorId]) {
+          doctorDetails = doctors[doctorId];
+        }
+        
+        // Resolve clinic details
+        let clinicDetails = null;
+        const clinicId = rawFeedback.clinicId;
+        if (clinicId && clinics[clinicId]) {
+          clinicDetails = clinics[clinicId];
+        }
+        
+        // Resolve user details for patient and doctor
+        let patientUserDetails = null;
+        let doctorUserDetails = null;
+        
+        if (patientDetails?.userId && users[patientDetails.userId]) {
+          patientUserDetails = users[patientDetails.userId];
+        }
+        
+        if (doctorDetails?.userId && users[doctorDetails.userId]) {
+          doctorUserDetails = users[doctorDetails.userId];
+        }
         
         // Transform the data to match UI expectations
         return {
           id,
-          // Patient info - handle both old and new structures
-          patientName: rawFeedback.patientName || `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
-          patientInitials: rawFeedback.patientName ? 
-            rawFeedback.patientName.split(' ').map(n => n.charAt(0)).join('').toUpperCase() :
-            `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
-          patientId: rawFeedback.patientId,
+          // Patient info - resolved from patients and users nodes
+          patientId: patientId,
+          patientName: rawFeedback.patientName || 
+            (patientUserDetails ? `${patientUserDetails.firstName} ${patientUserDetails.lastName}` : 'Unknown Patient'),
+          patientEmail: rawFeedback.patientEmail || 
+            (patientUserDetails ? patientUserDetails.email : ''),
+          patientFirstName: patientUserDetails?.firstName || patientDetails?.firstName || '',
+          patientLastName: patientUserDetails?.lastName || patientDetails?.lastName || '',
           
-          // Doctor/Provider info - handle both old and new structures
-          doctorName: rawFeedback.doctorName || `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
-          doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
-          providerId: rawFeedback.doctorId || rawFeedback.providerId,
+          // Doctor/Provider info - resolved from doctors and users nodes
+          providerId: doctorId,
+          doctorId: doctorId,
+          doctorName: rawFeedback.doctorName || 
+            (doctorUserDetails ? `Dr. ${doctorUserDetails.firstName} ${doctorUserDetails.lastName}` : 'Unknown Doctor'),
+          doctorFirstName: doctorUserDetails?.firstName || doctorDetails?.firstName || '',
+          doctorLastName: doctorUserDetails?.lastName || doctorDetails?.lastName || '',
           
-          // Clinic info - handle both old and new structures
-          clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
-          clinicId: rawFeedback.clinicId,
+          // Clinic info - resolved from clinics node
+          clinicId: clinicId,
+          clinicName: rawFeedback.clinicName || 
+            (clinicDetails ? clinicDetails.name : 'Unknown Clinic'),
+          practiceLocationName: rawFeedback.practiceLocationName || 
+            (clinicDetails ? clinicDetails.name : ''),
           
           // Rating and comments
           rating: rawFeedback.rating || 0,
@@ -296,19 +525,26 @@ export class RealDataService {
           sentiment: rawFeedback.sentiment || 'neutral',
           submittedBy: rawFeedback.submittedBy,
           timestamp: rawFeedback.timestamp,
+          isAnonymous: rawFeedback.isAnonymous || false,
           
           // UI-specific fields
           status: rawFeedback.status || 'pending',
           date: rawFeedback.timestamp || rawFeedback.appointmentDate,
           createdAt: rawFeedback.createdAt || rawFeedback.timestamp,
           
-          // Tags for UI display (based on sentiment and rating)
+          // Tags for UI display
           tags: rawFeedback.tags || [
             rawFeedback.sentiment === 'positive' ? 'Positive' : 
             rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
             rawFeedback.rating >= 4 ? 'High Rating' : 
             rawFeedback.rating >= 3 ? 'Average Rating' : 'Low Rating'
-          ].filter(Boolean)
+          ].filter(Boolean),
+          
+          // Raw data for debugging
+          _rawFeedback: rawFeedback,
+          _patientDetails: patientDetails,
+          _doctorDetails: doctorDetails,
+          _clinicDetails: clinicDetails
         };
       });
     } catch (error) {
@@ -318,71 +554,147 @@ export class RealDataService {
   }
 
   /**
-   * Subscribe to real-time feedback updates
+   * Subscribe to real-time feedback updates with resolved details
    */
   subscribeToFeedback(callback: (feedback: any[]) => void): () => void {
     const feedbackRef = ref(db, 'feedback');
     
-    const unsubscribe = onValue(feedbackRef, (snapshot) => {
-              const feedback: any[] = [];
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        Object.keys(data).forEach(id => {
-          const rawFeedback = data[id];
-          
-          // Transform the data to match UI expectations
-          const transformedFeedback = {
-            id,
-            // Patient info - handle both old and new structures
-            patientName: rawFeedback.patientName || `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
-            patientInitials: rawFeedback.patientName ? 
-              rawFeedback.patientName.split(' ').map((n: string) => n.charAt(0)).join('').toUpperCase() :
-              `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
-            patientId: rawFeedback.patientId,
+    const unsubscribe = onValue(feedbackRef, async (snapshot) => {
+      try {
+        // Fetch all related data for resolution
+        const [patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+          get(ref(db, 'patients')),
+          get(ref(db, 'doctors')),
+          get(ref(db, 'clinics')),
+          get(ref(db, 'users'))
+        ]);
+        
+        const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+        const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+        const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+        
+        const feedback: any[] = [];
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          Object.keys(data).forEach(id => {
+            const rawFeedback = data[id];
             
-            // Doctor/Provider info - handle both old and new structures
-            doctorName: rawFeedback.doctorName || `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
-            doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
-            providerId: rawFeedback.doctorId || rawFeedback.providerId,
+            // Resolve patient details - try both id and patientId
+            let patientDetails = null;
+            const patientId = rawFeedback.patientId || rawFeedback.id;
             
-            // Clinic info - handle both old and new structures
-            clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
-            clinicId: rawFeedback.clinicId,
+            if (patientId) {
+              // First try to find patient by patientId
+              if (patients[patientId]) {
+                patientDetails = patients[patientId];
+              } else {
+                // If not found, search through all patients to find by userId
+                const foundPatient = Object.values(patients).find((p: any) => p.userId === patientId);
+                if (foundPatient) {
+                  patientDetails = foundPatient;
+                }
+              }
+            }
             
-            // Rating and comments
-            rating: rawFeedback.rating || 0,
-            comment: rawFeedback.comment || rawFeedback.comments || 'No comment provided',
+            // Resolve doctor details
+            let doctorDetails = null;
+            const doctorId = rawFeedback.doctorId || rawFeedback.providerId;
+            if (doctorId && doctors[doctorId]) {
+              doctorDetails = doctors[doctorId];
+            }
             
-            // Appointment info
-            appointmentDate: rawFeedback.appointmentDate,
-            appointmentTime: rawFeedback.appointmentTime,
-            appointmentType: rawFeedback.appointmentType || rawFeedback.treatmentType,
-            clinicAppointmentId: rawFeedback.clinicAppointmentId,
+            // Resolve clinic details
+            let clinicDetails = null;
+            const clinicId = rawFeedback.clinicId;
+            if (clinicId && clinics[clinicId]) {
+              clinicDetails = clinics[clinicId];
+            }
             
-            // Additional fields
-            referralId: rawFeedback.referralId,
-            sentiment: rawFeedback.sentiment || 'neutral',
-            submittedBy: rawFeedback.submittedBy,
-            timestamp: rawFeedback.timestamp,
+            // Resolve user details for patient and doctor
+            let patientUserDetails = null;
+            let doctorUserDetails = null;
             
-            // UI-specific fields
-            status: 'pending', // Default status since it's not in the original data
-            date: rawFeedback.timestamp || rawFeedback.appointmentDate,
-            createdAt: rawFeedback.timestamp,
+            if (patientDetails?.userId && users[patientDetails.userId]) {
+              patientUserDetails = users[patientDetails.userId];
+            }
             
-            // Tags for UI display (based on sentiment and rating)
-            tags: [
-              rawFeedback.sentiment === 'positive' ? 'Positive' : 
-              rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
-              rawFeedback.rating >= 4 ? 'High Rating' : 
-              rawFeedback.rating >= 3 ? 'Average Rating' : 'Low Rating'
-            ].filter(Boolean)
-          };
-          
-          feedback.push(transformedFeedback);
-        });
+            if (doctorDetails?.userId && users[doctorDetails.userId]) {
+              doctorUserDetails = users[doctorDetails.userId];
+            }
+            
+            // Transform the data to match UI expectations
+            const transformedFeedback = {
+              id,
+              // Patient info - resolved from patients and users nodes
+              patientId: patientId,
+              patientName: rawFeedback.patientName || 
+                (patientUserDetails ? `${patientUserDetails.firstName} ${patientUserDetails.lastName}` : 'Unknown Patient'),
+              patientEmail: rawFeedback.patientEmail || 
+                (patientUserDetails ? patientUserDetails.email : ''),
+              patientFirstName: patientUserDetails?.firstName || patientDetails?.firstName || '',
+              patientLastName: patientUserDetails?.lastName || patientDetails?.lastName || '',
+              
+              // Doctor/Provider info - resolved from doctors and users nodes
+              providerId: doctorId,
+              doctorId: doctorId,
+              doctorName: rawFeedback.doctorName || 
+                (doctorUserDetails ? `Dr. ${doctorUserDetails.firstName} ${doctorUserDetails.lastName}` : 'Unknown Doctor'),
+              doctorFirstName: doctorUserDetails?.firstName || doctorDetails?.firstName || '',
+              doctorLastName: doctorUserDetails?.lastName || doctorDetails?.lastName || '',
+              
+              // Clinic info - resolved from clinics node
+              clinicId: clinicId,
+              clinicName: rawFeedback.clinicName || 
+                (clinicDetails ? clinicDetails.name : 'Unknown Clinic'),
+              practiceLocationName: rawFeedback.practiceLocationName || 
+                (clinicDetails ? clinicDetails.name : ''),
+              
+              // Rating and comments
+              rating: rawFeedback.rating || 0,
+              comment: rawFeedback.comment || rawFeedback.comments || 'No comment provided',
+              
+              // Appointment info
+              appointmentDate: rawFeedback.appointmentDate,
+              appointmentTime: rawFeedback.appointmentTime,
+              appointmentType: rawFeedback.appointmentType || rawFeedback.treatmentType,
+              clinicAppointmentId: rawFeedback.clinicAppointmentId,
+              
+              // Additional fields
+              referralId: rawFeedback.referralId,
+              sentiment: rawFeedback.sentiment || 'neutral',
+              submittedBy: rawFeedback.submittedBy,
+              timestamp: rawFeedback.timestamp,
+              isAnonymous: rawFeedback.isAnonymous || false,
+              
+              // UI-specific fields
+              status: rawFeedback.status || 'pending',
+              date: rawFeedback.timestamp || rawFeedback.appointmentDate,
+              createdAt: rawFeedback.createdAt || rawFeedback.timestamp,
+              
+              // Tags for UI display
+              tags: rawFeedback.tags || [
+                rawFeedback.sentiment === 'positive' ? 'Positive' : 
+                rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
+                rawFeedback.rating >= 4 ? 'High Rating' : 
+                rawFeedback.rating >= 3 ? 'Average Rating' : 'Low Rating'
+              ].filter(Boolean),
+              
+              // Raw data for debugging
+              _rawFeedback: rawFeedback,
+              _patientDetails: patientDetails,
+              _doctorDetails: doctorDetails,
+              _clinicDetails: clinicDetails
+            };
+            
+            feedback.push(transformedFeedback);
+          });
+        }
+        callback(feedback);
+      } catch (error) {
+        console.error('Error in feedback subscription:', error);
+        callback([]);
       }
-      callback(feedback);
     });
 
     return unsubscribe;
@@ -408,11 +720,10 @@ export class RealDataService {
   }
 
   /**
-   * Get all appointments from your database with resolved patient, doctor, and clinic names
+   * Get all appointments from your database
    */
   async getAppointments(): Promise<Appointment[]> {
     try {
-      // Fetch appointments, patients, doctors, clinics, and users in parallel
       const [appointmentsSnapshot, patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
         get(ref(db, 'appointments')),
         get(ref(db, 'patients')),
@@ -420,80 +731,77 @@ export class RealDataService {
         get(ref(db, 'clinics')),
         get(ref(db, 'users'))
       ]);
-
+      
       if (!appointmentsSnapshot.exists()) return [];
-
+      
       const appointments = appointmentsSnapshot.val();
       const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
       const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
       const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
       const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
-
+      
+      // Create lookup maps for quick access
+      const patientNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+      const doctorNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+      const clinicNameMap: { [key: string]: string } = {};
+      const userNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+      
+      // Build patient name map
+      Object.keys(patients).forEach(patientId => {
+        const patient = patients[patientId];
+        patientNameMap[patientId] = {
+          firstName: patient.firstName || 'Unknown',
+          lastName: patient.lastName || 'Patient'
+        };
+      });
+      
+      // Build doctor name map
+      Object.keys(doctors).forEach(doctorId => {
+        const doctor = doctors[doctorId];
+        doctorNameMap[doctorId] = {
+          firstName: doctor.firstName || 'Unknown',
+          lastName: doctor.lastName || 'Doctor'
+        };
+      });
+      
+      // Build clinic name map
+      Object.keys(clinics).forEach(clinicId => {
+        clinicNameMap[clinicId] = clinics[clinicId].name || 'Unknown Clinic';
+      });
+      
+      // Build user name map
+      Object.keys(users).forEach(userId => {
+        const user = users[userId];
+        userNameMap[userId] = {
+          firstName: user.firstName || 'Unknown',
+          lastName: user.lastName || 'User'
+        };
+      });
+      
       return Object.keys(appointments).map(id => {
         const appointment = appointments[id];
+        const patientId = appointment.patientId;
+        const doctorId = appointment.doctorId;
+        const clinicId = appointment.clinicId;
+        const bookedByUserId = appointment.bookedByUserId;
         
-        // Resolve patient name
-        let patientFirstName = '';
-        let patientLastName = '';
+        // Resolve names from respective nodes
+        const patientNames = patientId ? patientNameMap[patientId] : { firstName: appointment.patientFirstName || 'Unknown', lastName: appointment.patientLastName || 'Patient' };
+        const doctorNames = doctorId ? doctorNameMap[doctorId] : { firstName: appointment.doctorFirstName || 'Unknown', lastName: appointment.doctorLastName || 'Doctor' };
+        const clinicName = clinicId ? clinicNameMap[clinicId] : appointment.clinicName || 'Unknown Clinic';
+        const userNames = bookedByUserId ? userNameMap[bookedByUserId] : { firstName: appointment.bookedByUserFirstName || 'Unknown', lastName: appointment.bookedByUserLastName || 'User' };
         
-        if (appointment.patientId) {
-          // First try to find in patients node
-          if (patients[appointment.patientId]) {
-            patientFirstName = patients[appointment.patientId].firstName || '';
-            patientLastName = patients[appointment.patientId].lastName || '';
-          } else {
-            // If not found in patients, try users node
-            const userEntries = Object.entries(users);
-            const patientUser = userEntries.find(([userId, userData]: [string, any]) => 
-              userData.patientId === appointment.patientId || userId === appointment.patientId
-            );
-            
-            if (patientUser) {
-              const [, userData] = patientUser;
-              patientFirstName = userData.firstName || '';
-              patientLastName = userData.lastName || '';
-            }
-          }
-        }
-
-        // Resolve doctor name
-        let doctorFirstName = '';
-        let doctorLastName = '';
-        
-        if (appointment.doctorId) {
-          // First try to find in doctors node
-          if (doctors[appointment.doctorId]) {
-            doctorFirstName = doctors[appointment.doctorId].firstName || '';
-            doctorLastName = doctors[appointment.doctorId].lastName || '';
-          } else {
-            // If not found in doctors, try users node
-            const userEntries = Object.entries(users);
-            const doctorUser = userEntries.find(([userId, userData]: [string, any]) => 
-              userData.doctorId === appointment.doctorId || userId === appointment.doctorId
-            );
-            
-            if (doctorUser) {
-              const [, userData] = doctorUser;
-              doctorFirstName = userData.firstName || '';
-              doctorLastName = userData.lastName || '';
-            }
-          }
-        }
-
-        // Resolve clinic name
-        let clinicName = appointment.clinicName || 'Unknown Clinic';
-        if (appointment.clinicId && clinics[appointment.clinicId]) {
-          clinicName = clinics[appointment.clinicId].name || 'Unknown Clinic';
-        }
-
         return {
           id,
           ...appointment,
-          patientFirstName,
-          patientLastName,
-          doctorFirstName,
-          doctorLastName,
-          clinicName
+          // Override with resolved names
+          patientFirstName: patientNames.firstName,
+          patientLastName: patientNames.lastName,
+          doctorFirstName: doctorNames.firstName,
+          doctorLastName: doctorNames.lastName,
+          clinicName: clinicName,
+          bookedByUserFirstName: userNames.firstName,
+          bookedByUserLastName: userNames.lastName
         };
       });
     } catch (error) {
@@ -503,18 +811,178 @@ export class RealDataService {
   }
 
   /**
-   * Get all patients from your database
+   * Get a single patient by ID with user data
+   */
+  async getPatientById(patientId: string): Promise<Patient | null> {
+    try {
+      // Fetch both specific patient and users data
+      const [patientSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, `patients/${patientId}`)),
+        get(ref(db, 'users'))
+      ]);
+      
+      if (!patientSnapshot.exists()) return null;
+      
+      const patient = patientSnapshot.val();
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      
+      // Try multiple ways to find the user data
+      let userId = patient.userId;
+      let user = users[userId] || {};
+      
+      // If no user found with patient.userId, try using patientId as userId
+      if (!user.email && !user.firstName) {
+        userId = patientId;
+        user = users[userId] || {};
+      }
+      
+      // If still no user found, try to find by email in users
+      if (!user.email && patient.email) {
+        const userByEmail = Object.values(users).find((u: any) => u.email === patient.email);
+        if (userByEmail) {
+          user = userByEmail;
+          userId = Object.keys(users).find(key => users[key] === userByEmail) || userId;
+        }
+      }
+      
+      // Resolve addresses using the utility function
+      const resolvedAddress = resolveAddress(patient);
+      const resolvedFullAddress = resolveFullAddress(patient);
+      const streetAddress = getStreetAddress(patient);
+      const locationDetails = getLocationDetails(patient);
+      const addressComponents = getAddressComponents(patient);
+      
+             return {
+         id: patientId,
+         userId: userId,
+         // User data
+         firstName: user.firstName || patient.firstName || '',
+         middleName: user.middleName || patient.middleName || '',
+         lastName: user.lastName || patient.lastName || '',
+         email: user.email || patient.email || '',
+         // Handle both profileImage and profileImageUrl fields
+         profileImageUrl: user.profileImageUrl || user.profileImage || patient.profileImageUrl || patient.profileImage || '',
+         // Patient data
+         ...patient,
+         // Resolved address data
+         resolvedAddress,
+         resolvedFullAddress,
+         streetAddress,
+         locationDetails,
+         addressComponents
+       };
+    } catch (error) {
+      console.error('Error fetching patient by ID:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug method to check user data availability
+   */
+  async debugUserData(): Promise<{ patients: any[], users: any[], missingEmails: string[] }> {
+    try {
+      const [patientsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'patients')),
+        get(ref(db, 'users'))
+      ]);
+      
+      const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      
+      const missingEmails: string[] = [];
+      
+      Object.keys(patients).forEach(patientId => {
+        const patient = patients[patientId];
+        const userId = patient.userId;
+        const user = users[userId] || {};
+        
+        if (!user.email && patient.email) {
+          missingEmails.push(`Patient ${patientId}: userId=${userId}, email=${patient.email}`);
+        }
+      });
+      
+      return {
+        patients: Object.keys(patients).map(id => ({ id, ...patients[id] })),
+        users: Object.keys(users).map(id => ({ id, ...users[id] })),
+        missingEmails
+      };
+    } catch (error) {
+      console.error('Error debugging user data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all patients from your database with user data
    */
   async getPatients(): Promise<Patient[]> {
     try {
-      const snapshot = await get(ref(db, 'patients'));
-      if (!snapshot.exists()) return [];
+      // Fetch both patients and users data
+      const [patientsSnapshot, usersSnapshot] = await Promise.all([
+        get(ref(db, 'patients')),
+        get(ref(db, 'users'))
+      ]);
       
-      const patients = snapshot.val();
-      return Object.keys(patients).map(id => ({
-        id,
-        ...patients[id]
-      }));
+      if (!patientsSnapshot.exists()) return [];
+      
+      const patients = patientsSnapshot.val();
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      
+      return Object.keys(patients).map(patientId => {
+        const patient = patients[patientId];
+        
+        // Try multiple ways to find the user data
+        let userId = patient.userId;
+        let user = users[userId] || {};
+        
+        // If no user found with patient.userId, try using patientId as userId
+        if (!user.email && !user.firstName) {
+          userId = patientId;
+          user = users[userId] || {};
+        }
+        
+        // If still no user found, try to find by email in users
+        if (!user.email && patient.email) {
+          const userByEmail = Object.values(users).find((u: any) => u.email === patient.email);
+          if (userByEmail) {
+            user = userByEmail;
+            userId = Object.keys(users).find(key => users[key] === userByEmail) || userId;
+          }
+        }
+        
+        // Log warning if no user data found
+        if (!user.email && !user.firstName) {
+          console.warn(`No user data found for patient ${patientId}. Patient userId: ${patient.userId}, Patient email: ${patient.email}`);
+        }
+        
+        // Resolve addresses using the utility function
+        const resolvedAddress = resolveAddress(patient);
+        const resolvedFullAddress = resolveFullAddress(patient);
+        const streetAddress = getStreetAddress(patient);
+        const locationDetails = getLocationDetails(patient);
+        const addressComponents = getAddressComponents(patient);
+        
+                 return {
+           id: patientId,
+           userId: userId,
+           // User data (prioritize user data over patient data)
+           firstName: user.firstName || patient.firstName || '',
+           middleName: user.middleName || patient.middleName || '',
+           lastName: user.lastName || patient.lastName || '',
+           email: user.email || patient.email || '',
+           // Handle both profileImage and profileImageUrl fields
+           profileImageUrl: user.profileImageUrl || user.profileImage || patient.profileImageUrl || patient.profileImage || '',
+           // Patient data
+           ...patient,
+           // Resolved address data
+           resolvedAddress,
+           resolvedFullAddress,
+           streetAddress,
+           locationDetails,
+           addressComponents
+         };
+      });
     } catch (error) {
       console.error('Error fetching patients:', error);
       throw error;
@@ -522,125 +990,39 @@ export class RealDataService {
   }
 
   /**
-   * Get all referrals from your database with resolved names and clinic names
+   * Get all referrals from your database
    */
   async getReferrals(): Promise<Referral[]> {
     try {
-      // Fetch referrals, patients, doctors, clinics, and users in parallel
-      const [referralsSnapshot, patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+      const [referralsSnapshot, clinicsSnapshot] = await Promise.all([
         get(ref(db, 'referrals')),
-        get(ref(db, 'patients')),
-        get(ref(db, 'doctors')),
-        get(ref(db, 'clinics')),
-        get(ref(db, 'users'))
+        get(ref(db, 'clinics'))
       ]);
-
+      
       if (!referralsSnapshot.exists()) return [];
-
+      
       const referrals = referralsSnapshot.val();
-      const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
-      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
       const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
-      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
-
+      
+      // Create a map of clinic IDs to clinic names for quick lookup
+      const clinicNameMap: { [key: string]: string } = {};
+      Object.keys(clinics).forEach(clinicId => {
+        clinicNameMap[clinicId] = clinics[clinicId].name || 'Unknown Clinic';
+      });
+      
       return Object.keys(referrals).map(id => {
         const referral = referrals[id];
+        const specialistClinicId = referral.practiceLocation?.clinicId;
+        const referringClinicId = referral.referringClinicId;
         
-        // Resolve patient name
-        let patientFirstName = '';
-        let patientLastName = '';
+        const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
+        const referringClinicName = referringClinicId ? clinicNameMap[referringClinicId] || referral.referringClinicName || 'Unknown Clinic' : referral.referringClinicName || 'Unknown Clinic';
         
-        if (referral.patientId) {
-          // First try to find in patients node
-          if (patients[referral.patientId]) {
-            patientFirstName = patients[referral.patientId].firstName || '';
-            patientLastName = patients[referral.patientId].lastName || '';
-          } else {
-            // If not found in patients, try users node
-            const userEntries = Object.entries(users);
-            const patientUser = userEntries.find(([userId, userData]: [string, any]) => 
-              userData.patientId === referral.patientId || userId === referral.patientId
-            );
-            
-            if (patientUser) {
-              const [, userData] = patientUser;
-              patientFirstName = userData.firstName || '';
-              patientLastName = userData.lastName || '';
-            }
-          }
-        }
-
-        // Resolve referring generalist name
-        let referringGeneralistFirstName = '';
-        let referringGeneralistLastName = '';
-        
-        if (referral.referringGeneralistId) {
-          // First try to find in doctors node
-          if (doctors[referral.referringGeneralistId]) {
-            referringGeneralistFirstName = doctors[referral.referringGeneralistId].firstName || '';
-            referringGeneralistLastName = doctors[referral.referringGeneralistId].lastName || '';
-          } else {
-            // If not found in doctors, try users node
-            const userEntries = Object.entries(users);
-            const generalistUser = userEntries.find(([userId, userData]: [string, any]) => 
-              userData.doctorId === referral.referringGeneralistId || userId === referral.referringGeneralistId
-            );
-            
-            if (generalistUser) {
-              const [, userData] = generalistUser;
-              referringGeneralistFirstName = userData.firstName || '';
-              referringGeneralistLastName = userData.lastName || '';
-            }
-          }
-        }
-
-        // Resolve assigned specialist name
-        let assignedSpecialistFirstName = '';
-        let assignedSpecialistLastName = '';
-        
-        if (referral.assignedSpecialistId) {
-          // First try to find in doctors node
-          if (doctors[referral.assignedSpecialistId]) {
-            assignedSpecialistFirstName = doctors[referral.assignedSpecialistId].firstName || '';
-            assignedSpecialistLastName = doctors[referral.assignedSpecialistId].lastName || '';
-          } else {
-            // If not found in doctors, try users node
-            const userEntries = Object.entries(users);
-            const specialistUser = userEntries.find(([userId, userData]: [string, any]) => 
-              userData.doctorId === referral.assignedSpecialistId || userId === referral.assignedSpecialistId
-            );
-            
-            if (specialistUser) {
-              const [, userData] = specialistUser;
-              assignedSpecialistFirstName = userData.firstName || '';
-              assignedSpecialistLastName = userData.lastName || '';
-            }
-          }
-        }
-
-        // Resolve referring clinic name
-        let referringClinicName = referral.referringClinicName || 'Unknown Clinic';
-        if (referral.referringClinicId && clinics[referral.referringClinicId]) {
-          referringClinicName = clinics[referral.referringClinicId].name || 'Unknown Clinic';
-        }
-
-        // Resolve specialist's clinic name from practiceLocation
-        let specialistClinicName = 'Unknown Clinic';
-        if (referral.practiceLocation?.clinicId && clinics[referral.practiceLocation.clinicId]) {
-          specialistClinicName = clinics[referral.practiceLocation.clinicId].name || 'Unknown Clinic';
-        }
-
         return {
           id,
           ...referral,
-          patientFirstName,
-          patientLastName,
-          referringGeneralistFirstName,
-          referringGeneralistLastName,
-          assignedSpecialistFirstName,
-          assignedSpecialistLastName,
-          referringClinicName,
-          specialistClinicName
+          specialistClinicName,
+          referringClinicName
         };
       });
     } catch (error) {
@@ -960,33 +1342,33 @@ export class RealDataService {
       // 2. Use the Firebase Auth UID as the unique key
       const patientId = userCredential.user.uid;
       
+      // 3. Create user entry (only immutable fields)
       const userData = {
-        contactNumber: patientData.phone,
         createdAt: timestamp,
         email: patientData.email,
         firstName: patientData.firstName,
-        lastName: patientData.lastName,
-        role: 'patient',
-        patientId: patientId
-      };
-
-      // 3. Create patient entry
-      const patientEntry = {
-        userId: patientId,
-        firstName: patientData.firstName,
         middleName: patientData.middleName || '',
         lastName: patientData.lastName,
-        dateOfBirth: patientData.dateOfBirth,
-        gender: patientData.gender,
-        educationalAttainment: patientData.educationalAttainment || '',
-        emergencyContact: patientData.emergencyContact,
-        address: patientData.address || '',
-        createdAt: timestamp,
-        lastUpdated: timestamp,
-        isActive: true // Default to active
+        patientId: patientId,
+        role: 'patient'
       };
 
-      // 4. Save to Firebase
+      // 4. Create patient entry (detailed information)
+      const patientEntry = {
+        contactNumber: patientData.phone,
+        highestEducationalAttainment: patientData.educationalAttainment || '',
+        createdAt: timestamp,
+        dateOfBirth: patientData.dateOfBirth,
+        emergencyContact: patientData.emergencyContact,
+        firstName: patientData.firstName,
+        gender: patientData.gender,
+        middleName: patientData.middleName || '',
+        lastName: patientData.lastName,
+        lastUpdated: timestamp,
+        userId: patientId
+      };
+
+      // 5. Save to Firebase
       await set(ref(db, `users/${patientId}`), userData);
       await set(ref(db, `patients/${patientId}`), patientEntry);
 
@@ -1000,12 +1382,61 @@ export class RealDataService {
   async updatePatient(patientId: string, patientData: any): Promise<void> {
     try {
       const patientRef = ref(db, `patients/${patientId}`);
-      await set(patientRef, {
+      await update(patientRef, {
         ...patientData,
         lastUpdated: new Date().toISOString()
       });
     } catch (error) {
       console.error('Error updating patient:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update doctor information in both users and doctors nodes
+   */
+  async updateDoctor(doctorId: string, doctorData: any): Promise<void> {
+    try {
+      const timestamp = new Date().toISOString();
+      
+      // Get current doctor data to preserve existing fields
+      const [doctorSnapshot, userSnapshot] = await Promise.all([
+        get(ref(db, `doctors/${doctorId}`)),
+        get(ref(db, `users/${doctorId}`))
+      ]);
+
+      if (!doctorSnapshot.exists()) {
+        throw new Error('Doctor not found');
+      }
+
+      const currentDoctor = doctorSnapshot.val();
+      const currentUser = userSnapshot.exists() ? userSnapshot.val() : {};
+
+      // Prepare updates for doctors node
+      const doctorUpdates = {
+        ...currentDoctor,
+        ...doctorData,
+        lastUpdated: timestamp
+      };
+
+      // Prepare updates for users node (only specific fields)
+      const userUpdates = {
+        ...currentUser,
+        firstName: doctorData.firstName || currentUser.firstName,
+        middleName: doctorData.middleName || currentUser.middleName,
+        lastName: doctorData.lastName || currentUser.lastName,
+        email: doctorData.email || currentUser.email
+      };
+
+      // Update both nodes
+      await Promise.all([
+        set(ref(db, `doctors/${doctorId}`), doctorUpdates),
+        set(ref(db, `users/${doctorId}`), userUpdates)
+      ]);
+
+      console.log('Doctor updated successfully:', doctorId);
+    } catch (error) {
+      console.error('Error updating doctor:', error);
       throw error;
     }
   }

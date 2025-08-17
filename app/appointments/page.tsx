@@ -82,6 +82,7 @@ const appointmentStatuses = [
 const referralStatuses = [
   "All Statuses",
   "Pending",
+  "Pending Acceptance",
   "Confirmed",
   "Completed",
   "Ongoing",
@@ -220,7 +221,10 @@ export default function AppointmentsPage() {
       referral.specialistClinicName?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "All Statuses" || 
-      referral.status?.toLowerCase() === statusFilter.toLowerCase();
+      (statusFilter === "Pending Acceptance" && referral.status === "pending_acceptance") ||
+      (statusFilter === "Pending" && referral.status === "pending") ||
+      (statusFilter !== "Pending Acceptance" && statusFilter !== "Pending" && 
+       referral.status?.toLowerCase() === statusFilter.toLowerCase());
     
     const matchesClinic = clinicFilter === "All Clinics" || 
       referral.specialistClinicName === clinicFilter;

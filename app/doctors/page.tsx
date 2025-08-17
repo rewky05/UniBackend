@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
+import { useRealDoctors, useRealClinics, useRealReferrals } from "@/hooks/useRealData";
+import { realDataService } from "@/lib/services/real-data.service";
+import { ProfessionalFeeStats } from "@/components/doctors/professional-fee-stats";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatPhilippinePeso, formatDateToText, formatDateTimeToText, safeGetTimestamp } from "@/lib/utils";
 import { useDoctorActions } from "@/hooks/useDoctors";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
 import { ScheduleCard } from "@/components/schedules/schedule-card";
@@ -66,6 +69,7 @@ import {
   Clock,
   X,
   Upload,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -97,6 +101,7 @@ import {
 import { BulkImportDialog } from "@/components/doctors/bulk-import-dialog";
 import { PrintView } from "@/components/ui/print-view";
 import { Pagination } from "@/components/ui/pagination";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 const specialties = [
   "All Specialties",
@@ -122,6 +127,7 @@ export default function DoctorsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { toast } = useToast();
   const { updateDoctorStatus, loading: actionLoading, error: actionError } = useDoctorActions();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,6 +154,33 @@ export default function DoctorsPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>("");
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const { referrals, loading: referralsLoading } = useRealReferrals();
+  
+  // Inline editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<{
+    contactNumber: string;
+    gender: string;
+    civilStatus: string;
+    address: string;
+    specialty: string;
+    prcId: string;
+    prcExpiryDate: string;
+    medicalLicenseNumber: string;
+    professionalFee: number;
+  }>({
+    contactNumber: '',
+    gender: '',
+    civilStatus: '',
+    address: '',
+    specialty: '',
+    prcId: '',
+    prcExpiryDate: '',
+    medicalLicenseNumber: '',
+    professionalFee: 0
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -270,9 +303,9 @@ export default function DoctorsPage() {
   const sortedDoctors = [...filteredDoctors].sort((a, b) => {
     switch (selectedSort) {
       case 'name-asc':
-        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        return `${a.firstName} ${a.middleName || ''} ${a.lastName}`.localeCompare(`${b.firstName} ${b.middleName || ''} ${b.lastName}`);
       case 'name-desc':
-        return `${b.firstName} ${b.lastName}`.localeCompare(`${a.firstName} ${a.lastName}`);
+        return `${b.firstName} ${b.middleName || ''} ${b.lastName}`.localeCompare(`${a.firstName} ${a.middleName || ''} ${a.lastName}`);
       case 'specialty-asc':
         return (a.specialty || '').localeCompare(b.specialty || '');
       case 'specialty-desc':
@@ -303,7 +336,7 @@ export default function DoctorsPage() {
 
   // Print columns configuration
   const printColumns = [
-    { key: 'name', label: 'Full Name', render: (doctor: any) => `${doctor.firstName} ${doctor.lastName}` },
+    { key: 'name', label: 'Full Name', render: (doctor: any) => `${doctor.firstName} ${doctor.middleName || ''} ${doctor.lastName}` },
     { key: 'email', label: 'Email' },
     { key: 'specialty', label: 'Specialty' },
     { key: 'status', label: 'Status', render: (doctor: any) => doctor.status?.charAt(0).toUpperCase() + doctor.status?.slice(1) },
@@ -347,6 +380,163 @@ export default function DoctorsPage() {
     }
   };
 
+  // Inline editing functions
+  const handleStartEdit = () => {
+    setEditData({
+      contactNumber: selectedDoctor.contactNumber || '',
+      gender: selectedDoctor.gender || '',
+      civilStatus: selectedDoctor.civilStatus || '',
+      address: selectedDoctor.address || '',
+      specialty: selectedDoctor.specialty || '',
+      prcId: selectedDoctor.prcId || '',
+      prcExpiryDate: selectedDoctor.prcExpiry || '', // Use prcExpiry from database
+      medicalLicenseNumber: selectedDoctor.medicalLicense || '', // Use medicalLicense from database
+      professionalFee: selectedDoctor.professionalFee || 0
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditData({
+      contactNumber: '',
+      gender: '',
+      civilStatus: '',
+      address: '',
+      specialty: '',
+      prcId: '',
+      prcExpiryDate: '',
+      medicalLicenseNumber: '',
+      professionalFee: 0
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedDoctor || !user) return;
+    
+    // Validate required fields
+    if (!editData.specialty?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Specialty is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Show confirmation dialog instead of directly saving
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!selectedDoctor || !user) return;
+    
+    console.log('Current selectedDoctor before update:', selectedDoctor);
+    console.log('Current editData:', editData);
+    
+    setIsSavingEdit(true);
+    try {
+      // Prepare the data for database update
+      const updateData: any = {};
+      
+      // Map the edit fields to the correct database field names
+      if (editData.contactNumber !== undefined) {
+        updateData.contactNumber = editData.contactNumber;
+      }
+      if (editData.gender !== undefined) {
+        updateData.gender = editData.gender;
+      }
+      if (editData.civilStatus !== undefined) {
+        updateData.civilStatus = editData.civilStatus;
+      }
+      if (editData.address !== undefined) {
+        updateData.address = editData.address;
+      }
+      if (editData.specialty !== undefined) {
+        updateData.specialty = editData.specialty;
+      }
+      if (editData.prcId !== undefined) {
+        updateData.prcId = editData.prcId;
+      }
+      if (editData.prcExpiryDate !== undefined) {
+        // Convert date to ISO string format for database storage
+        updateData.prcExpiry = editData.prcExpiryDate;
+        console.log('PRC Expiry date being saved:', editData.prcExpiryDate);
+      }
+      if (editData.medicalLicenseNumber !== undefined) {
+        updateData.medicalLicense = editData.medicalLicenseNumber;
+        console.log('Medical License being saved:', editData.medicalLicenseNumber);
+      }
+      if (editData.professionalFee !== undefined) {
+        updateData.professionalFee = Number(editData.professionalFee) || 0;
+      }
+
+      // Save to database using the real data service
+      console.log('Saving updateData:', updateData);
+      await realDataService.updateDoctor(selectedDoctor.id, updateData);
+      
+      // Reset editing state first
+      setIsEditing(false);
+      setEditData({
+        contactNumber: '',
+        gender: '',
+        civilStatus: '',
+        address: '',
+        specialty: '',
+        prcId: '',
+        prcExpiryDate: '',
+        medicalLicenseNumber: '',
+        professionalFee: 0
+      });
+      
+      // Update local state to reflect changes with proper field mapping
+      const updatedDoctor = {
+        ...selectedDoctor,
+        ...updateData,
+        // Ensure the display fields are properly updated
+        prcExpiry: updateData.prcExpiry || selectedDoctor.prcExpiry,
+        medicalLicense: updateData.medicalLicense || selectedDoctor.medicalLicense
+      };
+      console.log('Updated doctor state:', updatedDoctor);
+      setSelectedDoctor(updatedDoctor);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Doctor information updated successfully!",
+      });
+    } catch (error) {
+      console.error('Error updating doctor:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update doctor information. Please try again.",
+        variant: "destructive",
+      });
+      // Reset editing state on error as well
+      setIsEditing(false);
+      setEditData({
+        contactNumber: '',
+        gender: '',
+        civilStatus: '',
+        address: '',
+        specialty: '',
+        prcId: '',
+        prcExpiryDate: '',
+        medicalLicenseNumber: '',
+        professionalFee: 0
+      });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   return (
     <DashboardLayout title="">
       <div className="space-y-6">
@@ -380,11 +570,11 @@ export default function DoctorsPage() {
         </div>
 
         {/* Show loading state */}
-        {(loading || clinicsLoading) && (
+        {(loading || clinicsLoading || referralsLoading) && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading specialist data...</p>
+              <p className="text-muted-foreground">Loading specialist data and statistics...</p>
             </div>
           </div>
         )}
@@ -539,16 +729,17 @@ export default function DoctorsPage() {
                              <div className="flex items-center space-x-3">
                                <Avatar className="h-8 w-8">
                                  <AvatarImage src={doctor.profileImageUrl || ""} />
-                                 <AvatarFallback>
-                                   {`${doctor.firstName} ${doctor.lastName}`
-                                     .split(" ")
-                                     .map((n: string) => n[0])
-                                     .join("")}
-                                 </AvatarFallback>
+                                                                   <AvatarFallback>
+                                    {`${doctor.firstName} ${doctor.middleName || ''} ${doctor.lastName}`
+                                      .split(" ")
+                                      .filter((n: string) => n.trim())
+                                      .map((n: string) => n[0])
+                                      .join("")}
+                                  </AvatarFallback>
                                </Avatar>
-                               <div className="font-medium">
-                                 {doctor.firstName} {doctor.lastName}
-                               </div>
+                                                               <div className="font-medium">
+                                  {doctor.firstName} {doctor.middleName || ''} {doctor.lastName}
+                                </div>
                              </div>
                            </TableCell>
                            <TableCell>
@@ -591,37 +782,16 @@ export default function DoctorsPage() {
                              </Badge>
                            </TableCell>
                           <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedDoctor(doctor);
-                                    setIsSheetOpen(true);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedDoctor(doctor);
-                                    setIsSheetOpen(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Suspend Account
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDoctor(doctor);
+                                setIsSheetOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -652,31 +822,70 @@ export default function DoctorsPage() {
           <SheetContent side="right" className="w-full max-w-md sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl backdrop-blur-md overflow-y-auto">
             <div className="p-6">
               <SheetHeader>
-                <SheetTitle>{selectedDoctor.firstName} {selectedDoctor.lastName} - Specialist Details</SheetTitle>
-                <SheetDescription>Full profile and professional information</SheetDescription>
+                <div className="flex items-center justify-between">
+                                     <SheetTitle>{selectedDoctor.firstName} {selectedDoctor.middleName || ''} {selectedDoctor.lastName} - Specialist Details</SheetTitle>
+                  <Badge className={getStatusColor(selectedDoctor.status || 'pending')}>
+                    {getStatusIcon(selectedDoctor.status || 'pending')}
+                    <span className="ml-1 capitalize">{selectedDoctor.status}</span>
+                  </Badge>
+                </div>
+                <SheetDescription className="mt-1">Full profile and professional information</SheetDescription>
               </SheetHeader>
               <div className="flex flex-col items-center md:items-start gap-6 mt-6">
-                <Avatar className="h-20 w-20 mb-2">
+                {/* <Avatar className="h-20 w-20 mb-2">
                   <AvatarImage src={selectedDoctor.profileImageUrl || ""} />
                   <AvatarFallback className="text-lg">
                     {`${selectedDoctor.firstName} ${selectedDoctor.lastName}`.split(" ").map((n) => n[0]).join("")}
                   </AvatarFallback>
-                </Avatar>
-                <Badge className={getStatusColor(selectedDoctor.status || 'pending')}>
-                  {getStatusIcon(selectedDoctor.status || 'pending')}
-                  <span className="ml-1 capitalize">{selectedDoctor.status}</span>
-                </Badge>
+                </Avatar> */}
+                {/* Professional Fee Statistics */}
+                <div className="">
+                  <ProfessionalFeeStats
+                    doctorId={selectedDoctor.id?.toString() || ""}
+                    professionalFee={selectedDoctor.professionalFee || 0}
+                    referrals={referrals}
+                  />
+                </div>
               </div>
-              <div className="mt-8">
+              <div className="mt-4">
                 <Accordion type="single" collapsible defaultValue="overview">
                   {/* Overview Section */}
                   <AccordionItem value="overview">
                     <AccordionTrigger className="text-lg font-semibold">Overview</AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-8">
-                        {/* Personal Information */}
-                        <div>
-                          <h3 className="text-base font-semibold mb-4 text-foreground">Personal Information</h3>
+                                                 {/* Personal Information */}
+                         <div>
+                                                       <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-base font-semibold text-foreground">Personal Information</h3>
+                              <div className="flex gap-2">
+                                {isEditing ? (
+                                  <>
+                                                                         <Button 
+                                       variant="outline" 
+                                       size="sm" 
+                                       onClick={handleCancelEdit}
+                                       disabled={isSavingEdit}
+                                       className="min-w-[80px]"
+                                     >
+                                       Cancel
+                                     </Button>
+                                                                         <Button 
+                                       size="sm" 
+                                       onClick={handleSaveEdit}
+                                       disabled={isSavingEdit}
+                                       className="min-w-[100px]"
+                                     >
+                                       Save Changes
+                                     </Button>
+                                  </>
+                                ) : (
+                                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                                    <Edit className="h-4 w-4 mr-2" /> Edit Details
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                          <div className="flex flex-col">
                                <span className="text-xs text-muted-foreground mb-1">First Name</span>
@@ -700,52 +909,167 @@ export default function DoctorsPage() {
                               <span className="text-xs text-muted-foreground mb-1">Email</span>
                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.email || 'No email'}</span>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Contact Number</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.contactNumber}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Gender</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.gender ? selectedDoctor.gender.charAt(0).toUpperCase() + selectedDoctor.gender.slice(1) : 'Not specified'}</span>
-                            </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Contact Number</span>
+                               {isEditing ? (
+                                 <Input
+                                   value={editData.contactNumber || ''}
+                                   onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                                   placeholder="Enter contact number"
+                                   className="font-medium text-base"
+                                 />
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.contactNumber || 'No contact number'}
+                                 </span>
+                               )}
+                             </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Gender</span>
+                               {isEditing ? (
+                                 <Select value={editData.gender || ''} onValueChange={(value) => handleInputChange('gender', value)}>
+                                   <SelectTrigger className="font-medium text-base">
+                                     <SelectValue placeholder="Select gender" />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     <SelectItem value="male">Male</SelectItem>
+                                     <SelectItem value="female">Female</SelectItem>
+                                     <SelectItem value="other">Other</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.gender ? selectedDoctor.gender.charAt(0).toUpperCase() + selectedDoctor.gender.slice(1) : 'Not specified'}
+                                 </span>
+                               )}
+                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs text-muted-foreground mb-1">Date of Birth</span>
                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.dateOfBirth ? formatDateToText(selectedDoctor.dateOfBirth) : 'Not specified'}</span>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Civil Status</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.civilStatus ? selectedDoctor.civilStatus.charAt(0).toUpperCase() + selectedDoctor.civilStatus.slice(1) : 'Not specified'}</span>
-                            </div>
-                            <div className="flex flex-col md:col-span-2">
-                              <span className="text-xs text-muted-foreground mb-1">Address</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.address || 'No address'}</span>
-                            </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Civil Status</span>
+                               {isEditing ? (
+                                 <Select value={editData.civilStatus || ''} onValueChange={(value) => handleInputChange('civilStatus', value)}>
+                                   <SelectTrigger className="font-medium text-base">
+                                     <SelectValue placeholder="Select civil status" />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     <SelectItem value="single">Single</SelectItem>
+                                     <SelectItem value="married">Married</SelectItem>
+                                     <SelectItem value="divorced">Divorced</SelectItem>
+                                     <SelectItem value="widowed">Widowed</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.civilStatus ? selectedDoctor.civilStatus.charAt(0).toUpperCase() + selectedDoctor.civilStatus.slice(1) : 'Not specified'}
+                                 </span>
+                               )}
+                             </div>
+                                                         <div className="flex flex-col md:col-span-2">
+                               <span className="text-xs text-muted-foreground mb-1">Address</span>
+                               {isEditing ? (
+                                 <Input
+                                   value={editData.address || ''}
+                                   onChange={(e) => handleInputChange('address', e.target.value)}
+                                   placeholder="Enter address"
+                                   className="font-medium text-base"
+                                 />
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.address || 'No address'}
+                                 </span>
+                               )}
+                             </div>
                           </div>
                         </div>
-                        {/* Professional Information */}
-                        <div>
-                          <h3 className="text-base font-semibold mb-4 text-foreground">Professional Information</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Specialty</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.specialty || 'Not specified'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">PRC ID</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.prcId || 'Not specified'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">PRC Expiry</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.prcExpiryDate ? formatDateToText(selectedDoctor.prcExpiryDate) : 'Not specified'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Medical License</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.medicalLicenseNumber || 'Not specified'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground mb-1">Professional Fee</span>
-                              <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{formatPhilippinePeso(selectedDoctor.professionalFee)}</span>
-                            </div>
+                                                 {/* Professional Information */}
+                         <div>
+                           <h3 className="text-base font-semibold mb-4 text-foreground">Professional Information</h3>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Specialty</span>
+                               {isEditing ? (
+                                 <Select value={editData.specialty || ''} onValueChange={(value) => handleInputChange('specialty', value)}>
+                                   <SelectTrigger className="font-medium text-base">
+                                     <SelectValue placeholder="Select specialty" />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     <SelectItem value="Cardiology">Cardiology</SelectItem>
+                                     <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                                     <SelectItem value="Dermatology">Dermatology</SelectItem>
+                                     <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                                     <SelectItem value="Neurology">Neurology</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.specialty || 'Not specified'}
+                                 </span>
+                               )}
+                             </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">PRC ID</span>
+                               {isEditing ? (
+                                 <Input
+                                   value={editData.prcId || ''}
+                                   onChange={(e) => handleInputChange('prcId', e.target.value)}
+                                   placeholder="Enter PRC ID"
+                                   className="font-medium text-base"
+                                 />
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {selectedDoctor.prcId || 'Not specified'}
+                                 </span>
+                               )}
+                             </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">PRC Expiry</span>
+                               {isEditing ? (
+                                                                   <Input
+                                    type="date"
+                                    value={editData.prcExpiryDate ? editData.prcExpiryDate.split('T')[0] : ''}
+                                    onChange={(e) => handleInputChange('prcExpiryDate', e.target.value)}
+                                    className="font-medium text-base"
+                                  />
+                                                               ) : (
+                                  <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                    {selectedDoctor.prcExpiry ? formatDateToText(selectedDoctor.prcExpiry) : 'Not specified'}
+                                  </span>
+                                )}
+                             </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Medical License</span>
+                               {isEditing ? (
+                                 <Input
+                                   value={editData.medicalLicenseNumber || ''}
+                                   onChange={(e) => handleInputChange('medicalLicenseNumber', e.target.value)}
+                                   placeholder="Enter medical license number"
+                                   className="font-medium text-base"
+                                 />
+                                                               ) : (
+                                  <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                    {selectedDoctor.medicalLicense || 'Not specified'}
+                                  </span>
+                                )}
+                             </div>
+                                                         <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground mb-1">Professional Fee</span>
+                               {isEditing ? (
+                                 <Input
+                                   type="number"
+                                   value={editData.professionalFee || 0}
+                                   onChange={(e) => handleInputChange('professionalFee', parseFloat(e.target.value) || 0)}
+                                   placeholder="Enter professional fee"
+                                   className="font-medium text-base"
+                                 />
+                               ) : (
+                                 <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                                   {formatPhilippinePeso(selectedDoctor.professionalFee)}
+                                 </span>
+                               )}
+                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs text-muted-foreground mb-1">Last Login</span>
                               <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">{selectedDoctor.lastLogin ? formatDateTimeToText(selectedDoctor.lastLogin) : 'Not specified'}</span>
@@ -762,7 +1086,7 @@ export default function DoctorsPage() {
                       <div className="space-y-6">
                         <h3 className="text-base font-semibold mb-4 text-foreground">Schedule Management</h3>
                                                  <DoctorInfoBanner
-                           doctor={{ ...selectedDoctor, id: selectedDoctor.id?.toString() || '', name: `${selectedDoctor.firstName || ''} ${selectedDoctor.lastName || ''}` }}
+                           doctor={{ ...selectedDoctor, id: selectedDoctor.id?.toString() || '', name: `${selectedDoctor.firstName || ''} ${selectedDoctor.middleName || ''} ${selectedDoctor.lastName || ''}` }}
                          />
                         {scheduleError && (
                           <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg">
@@ -841,7 +1165,6 @@ export default function DoctorsPage() {
                 </Accordion>
               </div>
               <div className="flex justify-end gap-2 mt-8">
-                <Button variant="outline"><Edit className="h-4 w-4 mr-2" /> Edit Details</Button>
                 {/* <SheetClose asChild>
                   <Button variant="ghost">Close</Button>
                 </SheetClose> */}
@@ -883,15 +1206,28 @@ export default function DoctorsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bulk Import Dialog */}
-      <BulkImportDialog
-        open={showBulkImport}
-        onOpenChange={setShowBulkImport}
-        onSuccess={() => {
-          // Refresh the doctors list
-          window.location.reload();
-        }}
-      />
-    </DashboardLayout>
-  );
-}
+             {/* Bulk Import Dialog */}
+       <BulkImportDialog
+         open={showBulkImport}
+         onOpenChange={setShowBulkImport}
+         onSuccess={() => {
+           // Refresh the doctors list
+           window.location.reload();
+         }}
+       />
+
+       {/* Save Confirmation Dialog */}
+       <ConfirmationDialog
+         open={showSaveConfirmation}
+         onOpenChange={setShowSaveConfirmation}
+         title="Confirm Changes"
+         description="Are you sure you want to save these changes to the doctor's information? This action cannot be undone."
+         confirmText="Save Changes"
+         cancelText="Cancel"
+         variant="default"
+         onConfirm={handleConfirmSave}
+         loading={isSavingEdit}
+       />
+     </DashboardLayout>
+   );
+ }

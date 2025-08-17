@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,6 +90,11 @@ export default function AddPatientPage() {
 
   const [formData, setFormData] = useState<PatientFormData>(initialFormData);
   const [isLoaded, setIsLoaded] = useState(true);
+
+  // Optimized update function to prevent unnecessary re-renders
+  const handleFormUpdate = useCallback((updates: Partial<PatientFormData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  }, []);
   
   // Reset form when success dialog closes
   useEffect(() => {
@@ -386,32 +391,15 @@ export default function AddPatientPage() {
 
                                                            <TabsContent value="personal" className="space-y-6">
                   <PersonalInfoForm
-                    data={{
-                      firstName: formData.firstName,
-                      middleName: formData.middleName,
-                      lastName: formData.lastName,
-                      email: formData.email,
-                      phone: formData.phone,
-                      address: formData.address,
-                      educationalAttainment: formData.educationalAttainment,
-                      dateOfBirth: formData.dateOfBirth,
-                      gender: formData.gender,
-                      temporaryPassword: formData.temporaryPassword
-                    }}
-                    onUpdate={(data) => {
-                      setFormData(prev => ({ ...prev, ...data }));
-                    }}
+                    data={formData}
+                    onUpdate={handleFormUpdate}
                   />
                 </TabsContent>
 
                                <TabsContent value="emergency" className="space-y-6">
                   <EmergencyContactForm
-                    data={{
-                      emergencyContact: formData.emergencyContact
-                    }}
-                    onUpdate={(data) => {
-                      setFormData(prev => ({ ...prev, ...data }));
-                    }}
+                    data={formData}
+                    onUpdate={handleFormUpdate}
                   />
                 </TabsContent>
             </Tabs>

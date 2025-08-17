@@ -420,13 +420,13 @@ export function useFeedbackActions() {
     feedbackId: string,
     status: FeedbackStatus,
     reviewedBy?: string,
-    reviewNotes?: string
+    reviewedById?: string
   ) => {
     setLoading(true);
     setError(null);
 
     try {
-      await feedbackService.updateFeedbackStatus(feedbackId, status, reviewedBy, reviewNotes);
+      await feedbackService.updateFeedbackStatus(feedbackId, status, reviewedBy, reviewedById);
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -439,13 +439,13 @@ export function useFeedbackActions() {
     feedbackIds: string[],
     status: FeedbackStatus,
     reviewedBy?: string,
-    reviewNotes?: string
+    reviewedById?: string
   ) => {
     setLoading(true);
     setError(null);
 
     try {
-      await feedbackService.bulkUpdateFeedbackStatus(feedbackIds, status, reviewedBy, reviewNotes);
+      await feedbackService.bulkUpdateFeedbackStatus(feedbackIds, status, reviewedBy, reviewedById);
     } catch (err: any) {
       setError(err.message);
       throw err;

@@ -152,7 +152,7 @@ export function ClinicCard({
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground truncate">
-                          {clinic.newClinicDetails.addressLine}
+                          {clinic.resolvedAddress || clinic.newClinicDetails?.addressLine || 'Address not available'}
                         </span>
                       </div>
                     )}

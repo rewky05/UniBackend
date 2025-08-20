@@ -66,7 +66,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PrintView } from "@/components/ui/print-view";
+import { ReportActions } from "@/components/ui/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 
 // Status configurations
@@ -104,7 +104,7 @@ export default function AppointmentsPage() {
   const uniqueClinics = Array.from(new Set([
     ...appointments.map(a => a.clinicName).filter(Boolean),
     ...referrals.map(r => r.specialistClinicName).filter(Boolean)
-  ]));
+  ])).filter((clinicName): clinicName is string => clinicName !== undefined);
 
   // State management
   const [selectedTab, setSelectedTab] = useState("appointments");
@@ -361,6 +361,7 @@ export default function AppointmentsPage() {
                         setStatusFilter("All Statuses");
                         setClinicFilter("All Clinics");
                       }}
+                      disabled={(searchTerm ?? "") === "" && statusFilter === "All Statuses" && clinicFilter === "All Clinics"}
                       className="w-full"
                     >
                       Clear Filters
@@ -380,12 +381,13 @@ export default function AppointmentsPage() {
                       {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''} found
                     </CardDescription>
                   </div>
-                  <PrintView
+                  <ReportActions
                     title="Clinic Appointments Report"
-                    subtitle="Comprehensive list of clinic appointments"
+                    subtitle={`${filteredAppointments.length} appointments found`}
                     data={filteredAppointments}
                     columns={appointmentPrintColumns}
                     filters={printFilters}
+                    filename={`clinic_appointments_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>
               </CardHeader>
@@ -570,6 +572,7 @@ export default function AppointmentsPage() {
                         setStatusFilter("All Statuses");
                         setClinicFilter("All Clinics");
                       }}
+                      disabled={searchTerm === "" && statusFilter === "All Statuses" && clinicFilter === "All Clinics"}
                       className="w-full"
                     >
                       Clear Filters
@@ -589,12 +592,13 @@ export default function AppointmentsPage() {
                       {filteredReferrals.length} referral{filteredReferrals.length !== 1 ? 's' : ''} found
                     </CardDescription>
                   </div>
-                  <PrintView
+                  <ReportActions
                     title="Specialist Referrals Report"
-                    subtitle="Comprehensive list of specialist referrals"
+                    subtitle={`${filteredReferrals.length} referrals found`}
                     data={filteredReferrals}
                     columns={referralPrintColumns}
                     filters={printFilters}
+                    filename={`specialist_referrals_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>
               </CardHeader>

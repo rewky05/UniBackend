@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Upload, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PersonalInfoData {
   firstName: string;
@@ -61,6 +61,15 @@ const CIVIL_STATUS = [
 
 export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  // Reset internal state when form data is cleared
+  useEffect(() => {
+    // If all personal info fields are empty, clear internal state
+    const isFormEmpty = !data.firstName && !data.lastName && !data.email && !data.phone;
+    if (isFormEmpty) {
+      setAvatarPreview(null);
+    }
+  }, [data.firstName, data.lastName, data.email, data.phone]);
 
   const handleInputChange = (field: keyof PersonalInfoData, value: string) => {
     onUpdate({ [field]: value });

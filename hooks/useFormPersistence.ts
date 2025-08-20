@@ -1,168 +1,139 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { saveFormData, loadFormData, clearFormData } from '@/lib/utils';
+import { useState, useEffect, useCallback } from 'react';
+import { clearFormCompletely as clearFormUtil } from '@/lib/utils/form-reset';
 
-interface UseFormPersistenceOptions<T> {
-  formKey: string;
-  userId?: string;
-  maxAge?: number; // in milliseconds
+export interface UseFormPersistenceOptions {
+  storageKey: string;
+  initialData?: any;
   autoSave?: boolean;
-  autoSaveDelay?: number; // in milliseconds
-  onDataLoaded?: (data: T) => void;
-  onDataSaved?: (data: T) => void;
+  autoLoad?: boolean;
+}
+
+export interface UseFormPersistenceReturn<T> {
+  formData: T;
+  setFormData: (data: T | ((prev: T) => T)) => void;
+  clearForm: () => void;
+  isLoaded: boolean;
+  hasUnsavedChanges: boolean;
 }
 
 /**
- * Custom hook for form data persistence
- * Automatically saves form data to localStorage and restores it on page reload
+ * Custom hook for form persistence with automatic clearing functionality
+ * @param options - Configuration options for form persistence
+ * @returns Form data state and utility functions
  */
 export function useFormPersistence<T>(
-  initialData: T,
-  options: UseFormPersistenceOptions<T>
-) {
-  const {
-    formKey,
-    userId,
-    maxAge = 24 * 60 * 60 * 1000, // 24 hours default
-    autoSave = false, // Default to false to prevent interference
-    autoSaveDelay = 3000, // Increased default delay
-    onDataLoaded,
-    onDataSaved
-  } = options;
-
-  const [data, setData] = useState<T>(initialData);
+  options: UseFormPersistenceOptions
+): UseFormPersistenceReturn<T> {
+  const { storageKey, initialData = {} as T, autoSave = true, autoLoad = true } = options;
+  
+  const [formData, setFormDataState] = useState<T>(initialData);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [lastSaved, setLastSaved] = useState<number | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastDataRef = useRef<T>(initialData);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Load saved data on mount
+  // Load form data from localStorage on mount
   useEffect(() => {
-    const savedData = loadFormData<T>(formKey, userId, maxAge);
-    if (savedData) {
-      setData(savedData);
-      lastDataRef.current = savedData;
+    if (!autoLoad) {
       setIsLoaded(true);
-      onDataLoaded?.(savedData);
-    } else {
-      setIsLoaded(true);
-    }
-  }, [formKey, userId, maxAge, onDataLoaded]);
-
-  // Debounced auto-save functionality (only if enabled)
-  useEffect(() => {
-    if (!autoSave || !isLoaded) return;
-
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+      return;
     }
 
-    // Only save if data has actually changed
-    const hasChanged = JSON.stringify(data) !== JSON.stringify(lastDataRef.current);
-    
-    if (hasChanged) {
-      saveTimeoutRef.current = setTimeout(() => {
-        saveFormData(formKey, data, userId);
-        setLastSaved(Date.now());
-        lastDataRef.current = data;
-        onDataSaved?.(data);
-      }, autoSaveDelay);
-    }
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+    try {
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        setFormDataState(parsedData);
+        setHasUnsavedChanges(true);
       }
-    };
-  }, [data, formKey, userId, autoSave, autoSaveDelay, isLoaded, onDataSaved]);
+    } catch (error) {
+      console.error('Error loading form data from localStorage:', error);
+      setFormDataState(initialData);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, [storageKey, autoLoad, initialData]);
 
-  // Manual save function
-  const saveData = useCallback((newData?: T) => {
-    const dataToSave = newData || data;
-    saveFormData(formKey, dataToSave, userId);
-    setLastSaved(Date.now());
-    lastDataRef.current = dataToSave;
-    onDataSaved?.(dataToSave);
-  }, [formKey, userId, data, onDataSaved]);
-
-  // Manual clear function
-  const clearData = useCallback(() => {
-    clearFormData(formKey, userId);
-    setData(initialData);
-    lastDataRef.current = initialData;
-    setLastSaved(null);
-  }, [formKey, userId, initialData]);
-
-  // Update data function with better handling
-  const updateData = useCallback((newData: T | ((prev: T) => T)) => {
-    setData(prev => {
-      const updated = typeof newData === 'function' ? newData(prev) : newData;
-      return updated;
+  // Save form data to localStorage whenever it changes
+  const setFormData = useCallback((data: T | ((prev: T) => T)) => {
+    setFormDataState(prevData => {
+      const newData = typeof data === 'function' ? (data as (prev: T) => T)(prevData) : data;
+      
+      if (autoSave) {
+        try {
+          // Create a copy without File objects for localStorage serialization
+          const serializableData = { ...newData } as Record<string, any>;
+          
+          // Remove File objects as they can't be serialized
+          Object.keys(serializableData).forEach(key => {
+            if (serializableData[key] instanceof File) {
+              delete serializableData[key];
+            }
+          });
+          
+          localStorage.setItem(storageKey, JSON.stringify(serializableData));
+          setHasUnsavedChanges(true);
+        } catch (error) {
+          console.error('Error saving form data to localStorage:', error);
+        }
+      }
+      
+      return newData;
     });
-  }, []);
+  }, [storageKey, autoSave]);
+
+  // Clear form data completely
+  const clearForm = useCallback(() => {
+    setFormDataState(initialData);
+    setHasUnsavedChanges(false);
+    
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      console.error('Error clearing form data from localStorage:', error);
+    }
+  }, [storageKey, initialData]);
 
   return {
-    data,
-    setData: updateData,
-    saveData,
-    clearData,
+    formData,
+    setFormData,
+    clearForm,
     isLoaded,
-    lastSaved,
-    hasUnsavedChanges: lastSaved !== null
+    hasUnsavedChanges
   };
 }
 
 /**
- * Hook for simple form field persistence
- * Useful for individual form fields that need to persist
+ * Enhanced form clearing function that works with the persistence hook
+ * @param setFormData - The form data setter from useFormPersistence
+ * @param clearForm - The clear function from useFormPersistence
+ * @param options - Additional options for clearing
  */
-export function useFieldPersistence<T>(
-  fieldKey: string,
-  initialValue: T,
-  userId?: string,
-  maxAge: number = 24 * 60 * 60 * 1000
-) {
-  const [value, setValue] = useState<T>(initialValue);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+export const clearFormWithPersistence = (
+  setFormData: (data: any) => void,
+  clearForm: () => void,
+  options: {
+    setActiveTab?: (tab: string) => void;
+    setFormResetKey?: (updater: (prev: number) => number) => void;
+    showToast?: boolean;
+    toastMessage?: string;
+  } = {}
+) => {
+  const { setActiveTab, setFormResetKey, showToast, toastMessage } = options;
 
-  // Load saved value on mount
-  useEffect(() => {
-    const savedValue = loadFormData<T>(fieldKey, userId, maxAge);
-    if (savedValue !== null) {
-      setValue(savedValue);
-    }
-    setIsLoaded(true);
-  }, [fieldKey, userId, maxAge]);
+  // Clear form data
+  clearForm();
 
-  // Debounced save value when it changes
-  useEffect(() => {
-    if (isLoaded) {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+  // Reset to first tab if specified
+  if (setActiveTab) {
+    setActiveTab('personal');
+  }
 
-      saveTimeoutRef.current = setTimeout(() => {
-        saveFormData(fieldKey, value, userId);
-      }, 1000); // Increased delay to 1 second
+  // Force re-render of all form components by incrementing reset key
+  if (setFormResetKey) {
+    setFormResetKey(prev => prev + 1);
+  }
 
-      return () => {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-      };
-    }
-  }, [value, fieldKey, userId, isLoaded]);
-
-  const clearValue = useCallback(() => {
-    clearFormData(fieldKey, userId);
-    setValue(initialValue);
-  }, [fieldKey, userId, initialValue]);
-
-  return {
-    value,
-    setValue,
-    clearValue,
-    isLoaded
-  };
-} 
+  // Show toast if specified
+  if (showToast) {
+    console.log('Toast message:', toastMessage || 'Form cleared successfully');
+  }
+}; 

@@ -15,9 +15,9 @@ export const doctorSchema = z.object({
 
   // Professional Information
   specialty: z.string().min(2, "Please select a specialty"),
-  medicalLicense: z.string().optional(),
+  medicalLicenseNumber: z.string().optional(),
   prcId: z.string().optional(),
-  prcExpiry: z.string().optional(),
+  prcExpiryDate: z.string().optional(),
   professionalFee: z.number().optional(),
   schedules: z.array(z.any()).optional(),
 });

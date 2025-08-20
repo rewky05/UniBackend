@@ -145,7 +145,28 @@ export function ScheduleCard({
       return 'No time slots';
     }
     
-    const sortedTimeSlots = [...timeSlots].sort();
+    // Sort time slots properly by converting to 24-hour format for comparison
+    const sortedTimeSlots = [...timeSlots].sort((a, b) => {
+      // Convert 12-hour format to 24-hour format for proper sorting
+      const convertTo24Hour = (time12h: string): number => {
+        const [time, modifier] = time12h.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        
+        if (hours === 12) {
+          hours = modifier === 'PM' ? 12 : 0;
+        } else if (modifier === 'PM') {
+          hours += 12;
+        }
+        
+        return hours * 60 + minutes; // Convert to total minutes for comparison
+      };
+      
+      const timeA = convertTo24Hour(a);
+      const timeB = convertTo24Hour(b);
+      
+      return timeA - timeB;
+    });
+    
     const firstSlot = sortedTimeSlots[0];
     const lastSlot = sortedTimeSlots[sortedTimeSlots.length - 1];
     return `${firstSlot} - ${lastSlot}`;

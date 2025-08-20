@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/config';
 import { signOut } from 'firebase/auth';
 import { authService } from '@/lib/auth/auth.service';
+import { clearFormCompletely } from '@/lib/utils/form-reset';
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,9 @@ export interface SpecialistSchedule {
   validFrom: string;
 }
 
+// LocalStorage key for form persistence
+const FORM_STORAGE_KEY = 'doctor-creation-form-data';
+
 export default function AddDoctorPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -104,46 +108,50 @@ export default function AddDoctorPage() {
   const [showAdminAuth, setShowAdminAuth] = useState(false);
   const [adminAuthError, setAdminAuthError] = useState('');
   
-  // Initial form data
-  const initialFormData: DoctorFormData = {
-    // Personal Information
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    suffix: '',
-    email: '',
-    phone: '',
-    address: '',
-    dateOfBirth: '',
-    gender: '',
-    civilStatus: '',
-    avatar: null,
-
-    // Professional Details
-    specialty: '',
-    subSpecialty: '',
-    medicalLicense: '',
-    prcId: '',
-    prcExpiry: '',
-    professionalFee: 0,
-
-    // Schedules
-    schedules: [],
-    
-    // TEMPORARY: For testing purposes
-    temporaryPassword: ''
-  };
-
-  // Use regular useState instead of form persistence to fix input issues
-  const [formData, setFormData] = useState<DoctorFormData>(initialFormData);
+  // Single state object for all form data
+  const [formData, setFormData] = useState<DoctorFormData>({} as DoctorFormData);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Initialize form data when component mounts
+  // Form reset key to force re-render of form components
+  const [formResetKey, setFormResetKey] = useState(0);
+
+  // Initialize form data from localStorage on component mount
   useEffect(() => {
-    setFormData(initialFormData);
-    setIsLoaded(true);
+    const loadFormData = () => {
+      try {
+        const savedData = localStorage.getItem(FORM_STORAGE_KEY);
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          setFormData(parsedData);
+        }
+      } catch (error) {
+        console.error('Error loading form data from localStorage:', error);
+        // If there's an error parsing, start with empty object
+        setFormData({} as DoctorFormData);
+      }
+      setIsLoaded(true);
+    };
+
+    loadFormData();
   }, []);
+
+  // Save form data to localStorage whenever it changes
+  const updateFormData = (updates: Partial<DoctorFormData>) => {
+    const newFormData = { ...formData, ...updates };
+    setFormData(newFormData);
+    
+    try {
+      // Create a copy without File objects for localStorage serialization
+      const serializableData = { ...newFormData };
+      // Remove File objects as they can't be serialized
+      if (serializableData.avatar instanceof File) {
+        delete serializableData.avatar;
+      }
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(serializableData));
+    } catch (error) {
+      console.error('Error saving form data to localStorage:', error);
+    }
+  };
 
   // Track success dialog state changes
   useEffect(() => {
@@ -157,15 +165,6 @@ export default function AddDoctorPage() {
       console.log('Success data password length:', successData?.password?.length);
     }
   }, [successDialog, successData]);
-
-  // Cleanup timeout on unmount
-  // useEffect(() => {
-  //   return () => {
-  //     if (saveTimeoutRef.current) {
-  //       clearTimeout(saveTimeoutRef.current);
-  //     }
-  //   };
-  // }, []);
 
   const handleSubmit = () => {
     setSubmitDialog(true);
@@ -191,41 +190,50 @@ export default function AddDoctorPage() {
     const logs = [];
     
     try {
-      
-      logs.push('=== Starting handleAdminAuth ===');
+      logs.push('=== Starting Enhanced Individual Doctor Creation ===');
       logs.push(`Current user before doctor creation: ${user?.email}`);
       logs.push(`Admin password length: ${adminPassword.length}`);
+      logs.push(`Timestamp: ${new Date().toISOString()}`);
       
-      console.log('=== Starting handleAdminAuth ===');
+      console.log('=== Starting Enhanced Individual Doctor Creation ===');
       console.log('Current user before doctor creation:', user);
       console.log('Admin email:', user?.email);
       console.log('Admin password length:', adminPassword.length);
+      console.log('Timestamp:', new Date().toISOString());
       
       const realDataService = new RealDataService();
       
-      // Create doctor data for Firebase
+      // Step 1: Validate form data before creation
+      logs.push('Step 1: Validating form data...');
+      if (!isFormValid()) {
+        throw new Error('Form validation failed. Please complete all required fields.');
+      }
+      logs.push('Form validation passed');
+      
+      // Step 2: Create doctor data for Firebase
+      logs.push('Step 2: Preparing doctor data...');
       const doctorData = {
-        firstName: formData.firstName,
-        middleName: formData.middleName,
-        lastName: formData.lastName,
-        suffix: formData.suffix,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        civilStatus: formData.civilStatus,
-        specialty: formData.specialty,
-        subSpecialty: formData.subSpecialty,
-        medicalLicense: formData.medicalLicense,
-        prcId: formData.prcId,
-        prcExpiry: formData.prcExpiry,
-        professionalFee: formData.professionalFee,
+        firstName: formData.firstName || '',
+        middleName: formData.middleName || '',
+        lastName: formData.lastName || '',
+        suffix: formData.suffix || '',
+        email: formData.email || '',
+        phone: formData.phone || '',
+        address: formData.address || '',
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || '',
+        civilStatus: formData.civilStatus || '',
+        specialty: formData.specialty || '',
+        subSpecialty: formData.subSpecialty || '',
+        medicalLicenseNumber: formData.medicalLicense || '',
+        prcId: formData.prcId || '',
+        prcExpiryDate: formData.prcExpiry || '',
+        professionalFee: formData.professionalFee || 0,
         isSpecialist: true, // Always true for this form
         isGeneralist: false,
         status: 'pending',
         // Add schedules data
-        schedules: formData.schedules,
+        schedules: formData.schedules || [],
         
         // Add other fields as needed
         accreditations: [], // Can be added later
@@ -233,47 +241,49 @@ export default function AddDoctorPage() {
         yearsOfExperience: 0, // Can be calculated or added later
         
         // TEMPORARY: Pass the temporary password from form
-        temporaryPassword: formData.temporaryPassword
+        temporaryPassword: formData.temporaryPassword || ''
       };
+      logs.push('Doctor data prepared successfully');
 
       console.log('About to create doctor with email:', doctorData.email);
-      
       logs.push(`About to create doctor with email: ${doctorData.email}`);
       
-      // Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
+      // Step 3: Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
+      logs.push('Step 3: Creating doctor in Firebase...');
       const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
       
       console.log('Doctor created successfully:', { doctorId, temporaryPassword });
       console.log('Temporary password type:', typeof temporaryPassword);
       console.log('Temporary password length:', temporaryPassword?.length);
       console.log('Current auth user after doctor creation:', auth.currentUser);
-      console.log('About to reauthenticate admin...');
       
       logs.push(`Doctor created successfully. ID: ${doctorId}`);
       logs.push(`Temporary password: ${temporaryPassword}`);
       logs.push(`Temporary password type: ${typeof temporaryPassword}`);
       logs.push(`Temporary password length: ${temporaryPassword?.length || 0}`);
       logs.push(`Current auth user after doctor creation: ${auth.currentUser?.email || 'null'}`);
-      logs.push('About to reauthenticate admin...');
       
-      // Re-authenticate the admin user using their credentials
-      console.log('About to reauthenticate admin with email:', user?.email);
-      console.log('Admin password provided:', adminPassword ? 'Yes' : 'No');
+      // Step 4: Enhanced re-authentication with progress tracking
+      logs.push('Step 4: Starting enhanced re-authentication...');
+      console.log('About to reauthenticate admin with enhanced system...');
       
       logs.push(`About to reauthenticate admin with email: ${user?.email}`);
       logs.push(`Admin password provided: ${adminPassword ? 'Yes' : 'No'}`);
       
       const reauthenticatedAdmin = await authService.reauthenticateAdmin(user?.email || '', adminPassword);
       
-      console.log('Reauthentication successful:', reauthenticatedAdmin);
+      console.log('Enhanced reauthentication successful:', reauthenticatedAdmin);
       console.log('Current auth user after reauthentication:', auth.currentUser);
       console.log('Reauthentication result email:', reauthenticatedAdmin?.email);
       console.log('Current auth user email:', auth.currentUser?.email);
       
-      logs.push(`Reauthentication successful: ${reauthenticatedAdmin?.email || 'null'}`);
+      logs.push(`Enhanced reauthentication successful: ${reauthenticatedAdmin?.email || 'null'}`);
       logs.push(`Current auth user after reauthentication: ${auth.currentUser?.email || 'null'}`);
       logs.push(`Reauthentication result email: ${reauthenticatedAdmin?.email || 'null'}`);
       logs.push(`Current auth user email: ${auth.currentUser?.email || 'null'}`);
+      
+      // Step 5: Cleanup and success handling
+      logs.push('Step 5: Cleaning up and handling success...');
       
       // Clear admin password from state
       setAdminPassword('');
@@ -281,61 +291,69 @@ export default function AddDoctorPage() {
       
       // Set success data and show dialog
       const successDataObj = {
-        email: formData.email,
+        email: formData.email || '',
         password: temporaryPassword,
         doctorId: doctorId
       };
       console.log('Setting success data:', successDataObj);
       console.log('Success data email:', successDataObj.email);
       console.log('Success data password:', successDataObj.password);
-      console.log('=== handleAdminAuth completed successfully ===');
+      
+      logs.push(`Setting success data: ${JSON.stringify(successDataObj)}`);
+      logs.push('=== Enhanced Individual Doctor Creation completed successfully ===');
       
       // Store logs in localStorage
       localStorage.setItem('adminAuthLogs', JSON.stringify(logs));
       
-             setSuccessData(successDataObj);
-       setSuccessDialog(true);
-       
-       // Clear form data after successful creation
-       setFormData(initialFormData);
-       setActiveTab('personal');
-       
-       // Show a success toast
-       toast({
-         title: "Specialist created successfully",
-         description: "Your admin session has been restored automatically.",
-         variant: "default",
-       });
+      setSuccessData(successDataObj);
+      setSuccessDialog(true);
+      
+      // Clear form data after successful creation
+      handleFormClear();
+      
+      // Show a success toast with enhanced messaging
+      toast({
+        title: "Specialist created successfully! 🎉",
+        description: "Your admin session has been restored automatically with enhanced security.",
+        variant: "default",
+      });
       
     } catch (error: any) {
-      console.error('=== Error in handleAdminAuth ===');
+      console.error('=== Error in Enhanced Individual Doctor Creation ===');
       console.error('Error creating specialist:', error);
       console.error('Error code:', error.code);
       console.error('Error message:', error.message);
       console.error('Current auth user after error:', auth.currentUser);
       console.error('Error stack:', error.stack);
       
-      logs.push(`=== Error in handleAdminAuth ===`);
-      logs.push(`Error code: ${error.code}`);
+      logs.push(`=== Error in Enhanced Individual Doctor Creation ===`);
+      logs.push(`Error code: ${error.code || 'N/A'}`);
       logs.push(`Error message: ${error.message}`);
       logs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
-      logs.push(`Error stack: ${error.stack}`);
+      logs.push(`Error stack: ${error.stack || 'N/A'}`);
       
+      // Enhanced error handling with specific messages
       let errorMessage = 'Failed to create specialist. Please try again.';
       
       if (error.message) {
         if (error.message.includes('email-already-in-use')) {
-          errorMessage = 'A doctor with this email already exists.';
+          errorMessage = 'A doctor with this email already exists. Please use a different email address.';
         } else if (error.message.includes('invalid-email')) {
-          errorMessage = 'Please enter a valid email address.';
+          errorMessage = 'Please enter a valid email address for the doctor.';
         } else if (error.message.includes('weak-password')) {
-          errorMessage = 'Password is too weak.';
+          errorMessage = 'The temporary password is too weak. Please use a stronger password.';
         } else if (error.message.includes('wrong-password')) {
-          errorMessage = 'Incorrect admin password. Please try again.';
+          errorMessage = 'Incorrect admin password. Please verify your credentials and try again.';
         } else if (error.message.includes('user-not-found')) {
-          errorMessage = 'Admin user not found. Please check your credentials.';
+          errorMessage = 'Admin user not found. Please check your credentials and try again.';
         } else if (error.message.includes('network')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
+          errorMessage = 'Network error occurred. Please check your connection and try again.';
+        } else if (error.message.includes('too-many-requests')) {
+          errorMessage = 'Too many authentication attempts. Please wait a moment and try again.';
+        } else if (error.message.includes('session')) {
+          errorMessage = 'Session management error. Please refresh the page and try again.';
+        } else if (error.message.includes('Form validation failed')) {
+          errorMessage = 'Please complete all required fields before submitting.';
         } else if (error.message.includes('Failed to restore admin session')) {
           errorMessage = 'Specialist created but admin session could not be restored. Please sign in again.';
         }
@@ -355,19 +373,40 @@ export default function AddDoctorPage() {
     }
   };
 
+  /**
+   * Comprehensive form clearing function that resets all form data and internal component state
+   */
+  const handleFormClear = () => {
+    // Use the utility function for consistent form clearing
+    clearFormCompletely(
+      setFormData,
+      setActiveTab,
+      setFormResetKey,
+      {
+        clearLocalStorage: true,
+        storageKey: FORM_STORAGE_KEY,
+        resetToFirstTab: true,
+        showToast: true,
+        toastMessage: "All form data has been cleared successfully.",
+        initialData: {} as DoctorFormData // Pass empty object as initial data for doctor form
+      }
+    );
+    
+    // Show toast notification
+    toast({
+      title: "Form cleared",
+      description: "All form data has been cleared successfully.",
+      variant: "default",
+    });
+  };
+
   const handleClearForm = () => {
     setClearDialog(true);
   };
 
   const confirmClearForm = () => {
-    setFormData(initialFormData);
-    setActiveTab('personal');
+    handleFormClear();
     setClearDialog(false);
-    toast({
-      title: "Form cleared",
-      description: "All form data has been cleared.",
-      variant: "default",
-    });
   };
 
   const isFormValid = () => {
@@ -392,23 +431,23 @@ export default function AddDoctorPage() {
     
     // Check if all required fields have valid data
     const validations = [
-      formData.firstName.trim().length >= 2,
-      formData.lastName.trim().length >= 2,
-      formData.middleName.trim().length >= 2,
-      formData.suffix.trim().length > 0,
-      isValidEmail(formData.email),
-      isValidPhone(formData.phone),
-      formData.address.trim().length >= 10,
-      isValidDate(formData.dateOfBirth),
-      formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender),
-      formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus),
-      formData.specialty.trim().length >= 3,
-      isValidLicense(formData.medicalLicense),
-      isValidPRCId(formData.prcId),
-      isValidExpiry(formData.prcExpiry),
+      formData.firstName?.trim().length >= 2,
+      formData.lastName?.trim().length >= 2,
+      formData.middleName?.trim().length >= 2,
+      formData.suffix?.trim().length > 0,
+      isValidEmail(formData.email || ''),
+      isValidPhone(formData.phone || ''),
+      formData.address?.trim().length >= 10,
+      isValidDate(formData.dateOfBirth || ''),
+      formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender),
+      formData.civilStatus?.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus),
+      formData.specialty?.trim().length >= 3,
+      isValidLicense(formData.medicalLicense || ''),
+      isValidPRCId(formData.prcId || ''),
+      isValidExpiry(formData.prcExpiry || ''),
       isValidProfessionalFee(formData.professionalFee),
       // Add schedules validation - at least one valid schedule is required
-      formData.schedules.length > 0 && formData.schedules.some(schedule => 
+      formData.schedules?.length > 0 && formData.schedules.some(schedule => 
         schedule.practiceLocation?.clinicId && 
         schedule.practiceLocation?.roomOrUnit &&
         schedule.recurrence?.dayOfWeek?.length > 0 &&
@@ -478,26 +517,26 @@ export default function AddDoctorPage() {
     let completedFields = 0;
 
     // Personal Information (10 fields) - with validation
-    if (formData.firstName.trim().length >= 2) completedFields++;
-    if (formData.lastName.trim().length >= 2) completedFields++;
-    if (formData.middleName.trim().length >= 2) completedFields++;
-    if (formData.suffix.trim().length > 0) completedFields++;
-    if (isValidEmail(formData.email)) completedFields++;
-    if (isValidPhone(formData.phone)) completedFields++;
-    if (formData.address.trim().length >= 10) completedFields++;
-    if (isValidDate(formData.dateOfBirth)) completedFields++;
-    if (formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
-    if (formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus)) completedFields++;
+    if (formData.firstName?.trim().length >= 2) completedFields++;
+    if (formData.lastName?.trim().length >= 2) completedFields++;
+    if (formData.middleName?.trim().length >= 2) completedFields++;
+    if (formData.suffix?.trim().length > 0) completedFields++;
+    if (isValidEmail(formData.email || '')) completedFields++;
+    if (isValidPhone(formData.phone || '')) completedFields++;
+    if (formData.address?.trim().length >= 10) completedFields++;
+    if (isValidDate(formData.dateOfBirth || '')) completedFields++;
+    if (formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
+    if (formData.civilStatus?.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus)) completedFields++;
 
     // Professional Details (5 required fields) - with validation (excluding sub-specialty)
-    if (formData.specialty.trim().length >= 3) completedFields++;
-    if (isValidLicense(formData.medicalLicense)) completedFields++;
-    if (isValidPRCId(formData.prcId)) completedFields++;
-    if (isValidExpiry(formData.prcExpiry)) completedFields++;
+    if (formData.specialty?.trim().length >= 3) completedFields++;
+    if (isValidLicense(formData.medicalLicense || '')) completedFields++;
+    if (isValidPRCId(formData.prcId || '')) completedFields++;
+    if (isValidExpiry(formData.prcExpiry || '')) completedFields++;
     if (isValidProfessionalFee(formData.professionalFee)) completedFields++;
 
     // Schedules (1 field) - required, count if valid schedules exist
-    if (formData.schedules.length > 0) {
+    if (formData.schedules?.length > 0) {
       // Check if schedules have valid data
       const validSchedules = formData.schedules.filter(schedule => 
         schedule.practiceLocation?.clinicId && 
@@ -519,16 +558,16 @@ export default function AddDoctorPage() {
       case 'personal':
         let completedPersonal = 0;
         const personalValidations = [
-          { field: 'firstName', valid: formData.firstName.trim().length >= 2 },
-          { field: 'lastName', valid: formData.lastName.trim().length >= 2 },
-          { field: 'middleName', valid: formData.middleName.trim().length >= 2 },
-          { field: 'suffix', valid: formData.suffix.trim().length > 0 },
-          { field: 'email', valid: isValidEmail(formData.email) },
-          { field: 'phone', valid: isValidPhone(formData.phone) },
-          { field: 'address', valid: formData.address.trim().length >= 10 },
-          { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth) },
-          { field: 'gender', valid: formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) },
-          { field: 'civilStatus', valid: formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus) }
+          { field: 'firstName', valid: formData.firstName?.trim().length >= 2 },
+          { field: 'lastName', valid: formData.lastName?.trim().length >= 2 },
+          { field: 'middleName', valid: formData.middleName?.trim().length >= 2 },
+          { field: 'suffix', valid: formData.suffix?.trim().length > 0 },
+          { field: 'email', valid: isValidEmail(formData.email || '') },
+          { field: 'phone', valid: isValidPhone(formData.phone || '') },
+          { field: 'address', valid: formData.address?.trim().length >= 10 },
+          { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth || '') },
+          { field: 'gender', valid: formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) },
+          { field: 'civilStatus', valid: formData.civilStatus?.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus) }
         ];
         
         personalValidations.forEach(({ field, valid }) => {
@@ -540,16 +579,16 @@ export default function AddDoctorPage() {
       
       case 'professional':
         let completedProfessional = 0;
-        if (formData.specialty.trim().length >= 3) completedProfessional++;
-        if (isValidLicense(formData.medicalLicense)) completedProfessional++;
-        if (isValidPRCId(formData.prcId)) completedProfessional++;
-        if (isValidExpiry(formData.prcExpiry)) completedProfessional++;
+        if (formData.specialty?.trim().length >= 3) completedProfessional++;
+        if (isValidLicense(formData.medicalLicense || '')) completedProfessional++;
+        if (isValidPRCId(formData.prcId || '')) completedProfessional++;
+        if (isValidExpiry(formData.prcExpiry || '')) completedProfessional++;
         if (isValidProfessionalFee(formData.professionalFee)) completedProfessional++;
         return Math.round((completedProfessional / 5) * 100);
       
            case 'affiliations':
         // For scheduling, consider it complete only if valid schedules exist
-        if (formData.schedules.length > 0) {
+        if (formData.schedules?.length > 0) {
           const validSchedules = formData.schedules.filter(schedule => 
             schedule.practiceLocation?.clinicId && 
             schedule.practiceLocation?.roomOrUnit &&
@@ -671,20 +710,6 @@ export default function AddDoctorPage() {
      }
    };
 
-  // Add warning for unsaved changes
-  // useEffect(() => {
-  //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-  //     if (hasUnsavedChanges) {
-  //       e.preventDefault();
-  //       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-  //       return e.returnValue;
-  //     }
-  //   };
-
-  //   window.addEventListener('beforeunload', handleBeforeUnload);
-  //   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  // }, [hasUnsavedChanges]);
-
   // Show loading state while form data is being loaded
   if (!isLoaded) {
     return (
@@ -753,16 +778,6 @@ export default function AddDoctorPage() {
           </div>
         </div>
 
-        {/* Auto-save indicator */}
-        {/* {hasUnsavedChanges && (
-          <Alert className="border-blue-200 bg-blue-50">
-            <Save className="h-4 w-4" />
-            <AlertDescription>
-              Your changes are being automatically saved.
-            </AlertDescription>
-          </Alert>
-        )} */}
-
                  {/* Form Tabs */}
          <Card className="card-shadow">
                                    <CardHeader>
@@ -789,49 +804,52 @@ export default function AddDoctorPage() {
 
               <TabsContent value="personal" className="space-y-6">
                 <PersonalInfoForm
+                  key={formResetKey} // Add key to force re-render
                   data={{
-                    firstName: formData.firstName,
-                    middleName: formData.middleName,
-                    lastName: formData.lastName,
-                    suffix: formData.suffix,
-                    email: formData.email,
-                    phone: formData.phone,
-                    address: formData.address,
-                    dateOfBirth: formData.dateOfBirth,
-                    gender: formData.gender,
-                    civilStatus: formData.civilStatus,
-                    avatar: formData.avatar,
-                    temporaryPassword: formData.temporaryPassword
+                    firstName: formData.firstName || '',
+                    middleName: formData.middleName || '',
+                    lastName: formData.lastName || '',
+                    suffix: formData.suffix || '',
+                    email: formData.email || '',
+                    phone: formData.phone || '',
+                    address: formData.address || '',
+                    dateOfBirth: formData.dateOfBirth || '',
+                    gender: formData.gender || '',
+                    civilStatus: formData.civilStatus || '',
+                    avatar: formData.avatar || null,
+                    temporaryPassword: formData.temporaryPassword || ''
                   }}
                   onUpdate={(data) => {
-                    setFormData(prev => ({ ...prev, ...data }));
+                    updateFormData(data);
                   }}
                 />
               </TabsContent>
 
               <TabsContent value="professional" className="space-y-6">
                                  <ProfessionalDetailsForm
+                   key={formResetKey} // Add key to force re-render
                    data={{
-                     specialty: formData.specialty,
-                     subSpecialty: formData.subSpecialty,
-                     medicalLicense: formData.medicalLicense,
-                     prcId: formData.prcId,
-                     prcExpiry: formData.prcExpiry,
-                     professionalFee: formData.professionalFee
+                     specialty: formData.specialty || '',
+                     subSpecialty: formData.subSpecialty || '',
+                     medicalLicense: formData.medicalLicense || '',
+                     prcId: formData.prcId || '',
+                     prcExpiry: formData.prcExpiry || '',
+                     professionalFee: formData.professionalFee || 0
                    }}
                    onUpdate={(data) => {
-                     setFormData(prev => ({ ...prev, ...data }));
+                     updateFormData(data);
                    }}
                  />
               </TabsContent>
 
               <TabsContent value="affiliations" className="space-y-6">
                                  <AffiliationsEducationForm
+                   key={formResetKey} // Add key to force re-render
                    data={{
-                     schedules: formData.schedules
+                     schedules: formData.schedules || []
                    }}
                    onUpdate={(data) => {
-                     setFormData(prev => ({ ...prev, ...data }));
+                     updateFormData(data);
                    }}
                  />
               </TabsContent>
@@ -852,15 +870,6 @@ export default function AddDoctorPage() {
             
             {/* Form persistence controls */}
             <div className="flex items-center space-x-2">
-              {/* <Button 
-                variant="outline" 
-                size="sm"
-                // onClick={() => saveData()} // This line is removed as per the edit hint
-                disabled={!hasUnsavedChanges}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save Now
-              </Button> */}
               <Button 
                 variant="outline" 
                 size="sm"
@@ -966,7 +975,7 @@ export default function AddDoctorPage() {
         open={submitDialog}
         onOpenChange={setSubmitDialog}
         title="Submit Doctor Registration"
-        description={`Are you sure you want to submit the registration for Dr. ${formData.firstName} ${formData.lastName}? This will create a new doctor account in the system.`}
+        description={`Are you sure you want to submit the registration for Dr. ${formData.firstName || ''} ${formData.lastName || ''}? This will create a new doctor account in the system.`}
         confirmText="Submit Registration"
         cancelText="Cancel"
         variant="default"

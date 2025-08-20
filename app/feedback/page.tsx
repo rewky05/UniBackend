@@ -469,6 +469,20 @@ export default function FeedbackPage() {
                      ))}
                    </SelectContent>
                  </Select>
+
+                 <Button 
+                   variant="outline" 
+                   onClick={() => {
+                     setSearchQuery("");
+                     setSelectedRating("All");
+                     setSelectedClinic("All");
+                     setSelectedSort("date-desc");
+                   }}
+                   disabled={(searchQuery ?? "") === "" && selectedRating === "All" && selectedClinic === "All" && selectedSort === "date-desc"}
+                   className="w-32"
+                 >
+                   Clear Filters
+                 </Button>
               </div>
             </div>
           </CardContent>
@@ -539,11 +553,11 @@ export default function FeedbackPage() {
                       <TableCell className="py-4">
                                                  <div>
                            <div className="font-medium">{item.doctorName}</div>
-                           {item.doctorFirstName && item.doctorLastName && (
+                           {/* {item.doctorFirstName && item.doctorLastName && (
                              <div className="text-sm text-muted-foreground">
                                {item.doctorFirstName} {item.doctorLastName}
                              </div>
-                           )}
+                           )} */}
                          </div>
                       </TableCell>
                                               <TableCell className="py-4 text-sm">{item.clinicName || item.practiceLocationName}</TableCell>

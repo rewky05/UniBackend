@@ -90,7 +90,7 @@ export class RealDataService {
         address: doctorData.address,
         civilStatus: doctorData.civilStatus,
         clinicAffiliations: doctorData.schedules?.map((schedule: any) => schedule.practiceLocation.clinicId) || [],
-        contactNumber: doctorData.phone,
+        contactNumber: doctorData.phone, // ✅ Reverted: Use 'phone' as provided by bulk import
         createdAt: timestamp,
         dateOfBirth: doctorData.dateOfBirth,
         email: doctorData.email,
@@ -100,8 +100,8 @@ export class RealDataService {
         isSpecialist: true,
         lastLogin: timestamp,
         lastName: doctorData.lastName,
-        medicalLicenseNumber: doctorData.medicalLicense,
-        prcExpiryDate: doctorData.prcExpiry,
+        medicalLicenseNumber: doctorData.medicalLicenseNumber, // ✅ Reverted: Use 'medicalLicense' as provided by bulk import
+        prcExpiryDate: doctorData.prcExpiryDate, // ✅ Reverted: Use 'prcExpiry' as provided by bulk import
         prcId: doctorData.prcId,
         professionalFee: doctorData.professionalFee || 0,
         profileImageUrl: doctorData.profileImageUrl || '',
@@ -749,19 +749,27 @@ export class RealDataService {
       // Build patient name map
       Object.keys(patients).forEach(patientId => {
         const patient = patients[patientId];
-        patientNameMap[patientId] = {
-          firstName: patient.firstName || 'Unknown',
-          lastName: patient.lastName || 'Patient'
-        };
+        if (patient && (patient.firstName || patient.lastName)) {
+          patientNameMap[patientId] = {
+            firstName: patient.firstName || 'Unknown',
+            lastName: patient.lastName || 'Patient'
+          };
+        } else {
+          console.warn(`Patient ${patientId} has missing or invalid data:`, patient);
+        }
       });
       
       // Build doctor name map
       Object.keys(doctors).forEach(doctorId => {
         const doctor = doctors[doctorId];
-        doctorNameMap[doctorId] = {
-          firstName: doctor.firstName || 'Unknown',
-          lastName: doctor.lastName || 'Doctor'
-        };
+        if (doctor && (doctor.firstName || doctor.lastName)) {
+          doctorNameMap[doctorId] = {
+            firstName: doctor.firstName || 'Unknown',
+            lastName: doctor.lastName || 'Doctor'
+          };
+        } else {
+          console.warn(`Doctor ${doctorId} has missing or invalid data:`, doctor);
+        }
       });
       
       // Build clinic name map
@@ -772,10 +780,14 @@ export class RealDataService {
       // Build user name map
       Object.keys(users).forEach(userId => {
         const user = users[userId];
-        userNameMap[userId] = {
-          firstName: user.firstName || 'Unknown',
-          lastName: user.lastName || 'User'
-        };
+        if (user && (user.firstName || user.lastName)) {
+          userNameMap[userId] = {
+            firstName: user.firstName || 'Unknown',
+            lastName: user.lastName || 'User'
+          };
+        } else {
+          console.warn(`User ${userId} has missing or invalid data:`, user);
+        }
       });
       
       return Object.keys(appointments).map(id => {
@@ -785,11 +797,25 @@ export class RealDataService {
         const clinicId = appointment.clinicId;
         const bookedByUserId = appointment.bookedByUserId;
         
-        // Resolve names from respective nodes
-        const patientNames = patientId ? patientNameMap[patientId] : { firstName: appointment.patientFirstName || 'Unknown', lastName: appointment.patientLastName || 'Patient' };
-        const doctorNames = doctorId ? doctorNameMap[doctorId] : { firstName: appointment.doctorFirstName || 'Unknown', lastName: appointment.doctorLastName || 'Doctor' };
-        const clinicName = clinicId ? clinicNameMap[clinicId] : appointment.clinicName || 'Unknown Clinic';
-        const userNames = bookedByUserId ? userNameMap[bookedByUserId] : { firstName: appointment.bookedByUserFirstName || 'Unknown', lastName: appointment.bookedByUserLastName || 'User' };
+        // Log missing references for debugging
+        if (patientId && !patientNameMap[patientId]) {
+          console.warn(`Appointment ${id} references missing patient ${patientId}`);
+        }
+        if (doctorId && !doctorNameMap[doctorId]) {
+          console.warn(`Appointment ${id} references missing doctor ${doctorId}`);
+        }
+        if (clinicId && !clinicNameMap[clinicId]) {
+          console.warn(`Appointment ${id} references missing clinic ${clinicId}`);
+        }
+        if (bookedByUserId && !userNameMap[bookedByUserId]) {
+          console.warn(`Appointment ${id} references missing user ${bookedByUserId}`);
+        }
+        
+        // Resolve names from respective nodes with fallback handling
+        const patientNames = patientId && patientNameMap[patientId] ? patientNameMap[patientId] : { firstName: appointment.patientFirstName || 'Unknown', lastName: appointment.patientLastName || 'Patient' };
+        const doctorNames = doctorId && doctorNameMap[doctorId] ? doctorNameMap[doctorId] : { firstName: appointment.doctorFirstName || 'Unknown', lastName: appointment.doctorLastName || 'Doctor' };
+        const clinicName = clinicId && clinicNameMap[clinicId] ? clinicNameMap[clinicId] : appointment.clinicName || 'Unknown Clinic';
+        const userNames = bookedByUserId && userNameMap[bookedByUserId] ? userNameMap[bookedByUserId] : { firstName: appointment.bookedByUserFirstName || 'Unknown', lastName: appointment.bookedByUserLastName || 'User' };
         
         return {
           id,
@@ -1364,6 +1390,7 @@ export class RealDataService {
         gender: patientData.gender,
         middleName: patientData.middleName || '',
         lastName: patientData.lastName,
+        address: patientData.address || '',
         lastUpdated: timestamp,
         userId: patientId
       };

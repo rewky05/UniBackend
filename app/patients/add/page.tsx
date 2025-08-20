@@ -19,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/config';
 import { signOut } from 'firebase/auth';
 import { authService } from '@/lib/auth/auth.service';
+import { clearFormCompletely } from '@/lib/utils/form-reset';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import {
   Dialog,
   DialogContent,
@@ -46,8 +48,8 @@ export interface PatientFormData {
     phone: string;
     relationship: string;
   };
-  // TEMPORARY: For testing purposes
-  temporaryPassword?: string;
+  // Required for account creation
+  temporaryPassword: string;
 }
 
 export default function AddPatientPage() {
@@ -84,26 +86,33 @@ export default function AddPatientPage() {
       phone: '',
       relationship: ''
     },
-    // TEMPORARY: For testing purposes
+    // Required for account creation
     temporaryPassword: ''
   };
 
-  const [formData, setFormData] = useState<PatientFormData>(initialFormData);
-  const [isLoaded, setIsLoaded] = useState(true);
+  // Use form persistence hook for better form management
+  const {
+    formData,
+    setFormData,
+    clearForm,
+    isLoaded,
+    hasUnsavedChanges
+  } = useFormPersistence<PatientFormData>({
+    storageKey: 'patient-form-data',
+    initialData: initialFormData,
+    autoSave: true,
+    autoLoad: true
+  });
+
+  // Form reset key to force re-render of form components
+  const [formResetKey, setFormResetKey] = useState(0);
 
   // Optimized update function to prevent unnecessary re-renders
   const handleFormUpdate = useCallback((updates: Partial<PatientFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
-  }, []);
+  }, [setFormData]);
   
-  // Reset form when success dialog closes
-  useEffect(() => {
-    if (!successDialog && successData) {
-      setFormData(initialFormData);
-      setActiveTab('personal');
-      setSuccessData(null);
-    }
-  }, [successDialog, successData]);
+
 
   const handleSubmit = () => {
     setSubmitDialog(true);
@@ -124,47 +133,154 @@ export default function AddPatientPage() {
     setIsSubmitting(true);
     setAdminAuthError('');
     
+    // Clear previous logs
+    localStorage.removeItem('patientAuthLogs');
+    const logs = [];
+    
     try {
+      logs.push('=== Starting Enhanced Individual Patient Creation ===');
+      logs.push(`Current user before patient creation: ${user?.email}`);
+      logs.push(`Admin password length: ${adminPassword.length}`);
+      logs.push(`Timestamp: ${new Date().toISOString()}`);
+      
+      console.log('=== Starting Enhanced Individual Patient Creation ===');
+      console.log('Current user before patient creation:', user);
+      console.log('Admin email:', user?.email);
+      console.log('Admin password length:', adminPassword.length);
+      console.log('Timestamp:', new Date().toISOString());
+      
       const realDataService = new RealDataService();
       
-      // Create patient in Firebase (users and patients nodes)
+      // Step 1: Validate form data before creation
+      logs.push('Step 1: Validating form data...');
+      if (!isLoaded || !formData) {
+        throw new Error('Form data is not properly loaded. Please refresh the page and try again.');
+      }
+      if (!isFormValid()) {
+        throw new Error('Form validation failed. Please complete all required fields.');
+      }
+      logs.push('Form validation passed');
+      
+      // Step 2: Create patient in Firebase (users and patients nodes)
+      logs.push('Step 2: Creating patient in Firebase...');
+      console.log('About to create patient with email:', formData.email);
+      logs.push(`About to create patient with email: ${formData.email}`);
+      
       const { patientId, temporaryPassword } = await realDataService.createPatient(formData);
       
-      // Re-authenticate the admin user using their credentials
-      await authService.reauthenticateAdmin(user?.email || '', adminPassword);
+      console.log('Patient created successfully:', { patientId, temporaryPassword });
+      console.log('Temporary password type:', typeof temporaryPassword);
+      console.log('Temporary password length:', temporaryPassword?.length);
+      console.log('Current auth user after patient creation:', auth.currentUser);
+      
+      logs.push(`Patient created successfully. ID: ${patientId}`);
+      logs.push(`Temporary password: ${temporaryPassword}`);
+      logs.push(`Temporary password type: ${typeof temporaryPassword}`);
+      logs.push(`Temporary password length: ${temporaryPassword?.length || 0}`);
+      logs.push(`Current auth user after patient creation: ${auth.currentUser?.email || 'null'}`);
+      
+      // Step 3: Enhanced re-authentication with progress tracking
+      logs.push('Step 3: Starting enhanced re-authentication...');
+      console.log('About to reauthenticate admin with enhanced system...');
+      
+      logs.push(`About to reauthenticate admin with email: ${user?.email}`);
+      logs.push(`Admin password provided: ${adminPassword ? 'Yes' : 'No'}`);
+      
+      const reauthenticatedAdmin = await authService.reauthenticateAdmin(user?.email || '', adminPassword);
+      
+      console.log('Enhanced reauthentication successful:', reauthenticatedAdmin);
+      console.log('Current auth user after reauthentication:', auth.currentUser);
+      console.log('Reauthentication result email:', reauthenticatedAdmin?.email);
+      console.log('Current auth user email:', auth.currentUser?.email);
+      
+      logs.push(`Enhanced reauthentication successful: ${reauthenticatedAdmin?.email || 'null'}`);
+      logs.push(`Current auth user after reauthentication: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Reauthentication result email: ${reauthenticatedAdmin?.email || 'null'}`);
+      logs.push(`Current auth user email: ${auth.currentUser?.email || 'null'}`);
+      
+      // Step 4: Cleanup and success handling
+      logs.push('Step 4: Cleaning up and handling success...');
       
       // Clear admin password from state
       setAdminPassword('');
       setShowAdminAuth(false);
       
-             // Set success data and show dialog
-       setSuccessData({
-         email: formData.email,
-         password: temporaryPassword
-       });
-       setSuccessDialog(true);
-       
-       // Clear form data after successful creation
-       setFormData(initialFormData);
-       setActiveTab('personal');
-       
-       // Force a re-render to ensure form components update
-       setTimeout(() => {
-         setFormData(initialFormData);
-       }, 100);
-       
-       // Show a success toast
-       toast({
-         title: "Patient created successfully",
-         description: "Your admin session has been restored automatically.",
-         variant: "default",
-       });
-    } catch (error) {
+      // Set success data and show dialog
+      const successDataObj = {
+        email: formData.email,
+        password: temporaryPassword
+      };
+      console.log('Setting success data:', successDataObj);
+      console.log('Success data email:', successDataObj.email);
+      console.log('Success data password:', successDataObj.password);
+      
+      logs.push(`Setting success data: ${JSON.stringify(successDataObj)}`);
+      logs.push('=== Enhanced Individual Patient Creation completed successfully ===');
+      
+      // Store logs in localStorage
+      localStorage.setItem('patientAuthLogs', JSON.stringify(logs));
+      
+      setSuccessData(successDataObj);
+      setSuccessDialog(true);
+      
+      // Clear form data after successful creation
+      handleFormClear();
+      
+      // Show a success toast with enhanced messaging
+      toast({
+        title: "Patient created successfully! 🎉",
+        description: "Your admin session has been restored automatically with enhanced security.",
+        variant: "default",
+      });
+      
+    } catch (error: any) {
+      console.error('=== Error in Enhanced Individual Patient Creation ===');
       console.error('Error creating patient:', error);
-      setAdminAuthError('Failed to create patient or restore admin session. Please try again.');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Current auth user after error:', auth.currentUser);
+      console.error('Error stack:', error.stack);
+      
+      logs.push(`=== Error in Enhanced Individual Patient Creation ===`);
+      logs.push(`Error code: ${error.code || 'N/A'}`);
+      logs.push(`Error message: ${error.message}`);
+      logs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Error stack: ${error.stack || 'N/A'}`);
+      
+      // Enhanced error handling with specific messages
+      let errorMessage = 'Failed to create patient. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('email-already-in-use')) {
+          errorMessage = 'A patient with this email already exists. Please use a different email address.';
+        } else if (error.message.includes('invalid-email')) {
+          errorMessage = 'Please enter a valid email address for the patient.';
+        } else if (error.message.includes('weak-password')) {
+          errorMessage = 'The temporary password is too weak. Please use a stronger password.';
+        } else if (error.message.includes('wrong-password')) {
+          errorMessage = 'Incorrect admin password. Please verify your credentials and try again.';
+        } else if (error.message.includes('user-not-found')) {
+          errorMessage = 'Admin user not found. Please check your credentials and try again.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error occurred. Please check your connection and try again.';
+        } else if (error.message.includes('too-many-requests')) {
+          errorMessage = 'Too many authentication attempts. Please wait a moment and try again.';
+        } else if (error.message.includes('session')) {
+          errorMessage = 'Session management error. Please refresh the page and try again.';
+        } else if (error.message.includes('Form validation failed')) {
+          errorMessage = 'Please complete all required fields before submitting.';
+        } else if (error.message.includes('Failed to restore admin session')) {
+          errorMessage = 'Patient created but admin session could not be restored. Please sign in again.';
+        }
+      }
+      
+      // Store error logs in localStorage
+      localStorage.setItem('patientAuthErrorLogs', JSON.stringify(logs));
+      
+      setAdminAuthError(errorMessage);
       toast({
         title: "Error creating patient",
-        description: "Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -172,39 +288,51 @@ export default function AddPatientPage() {
     }
   };
 
-  const handleClearForm = () => {
-    setClearDialog(true);
-  };
-
-  const confirmClearForm = () => {
-    setFormData(initialFormData);
-    setClearDialog(false);
+  /**
+   * Comprehensive form clearing function that resets all form data and internal component state
+   */
+  const handleFormClear = () => {
+    // Use the clearForm function from useFormPersistence hook
+    clearForm();
+    
+    // Reset to first tab
+    setActiveTab('personal');
+    
+    // Force re-render of all form components by incrementing reset key
+    setFormResetKey(prev => prev + 1);
+    
+    // Show toast notification
     toast({
       title: "Form cleared",
-      description: "All form data has been cleared.",
+      description: "All form data has been cleared successfully.",
       variant: "default",
     });
   };
 
   const isFormValid = () => {
+    // Don't validate if form is not loaded yet
+    if (!isLoaded || !formData) {
+      return false;
+    }
+
     // Personal Information validation
     const personalValid = 
-      formData.firstName.trim().length >= 2 &&
-      formData.lastName.trim().length >= 2 &&
-      formData.middleName.trim().length >= 2 &&
-      isValidEmail(formData.email) &&
-      isValidPhone(formData.phone) &&
-      formData.address.trim().length >= 10 &&
-      formData.educationalAttainment.trim().length > 0 &&
-      isValidDate(formData.dateOfBirth) &&
-      formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) &&
+      formData.firstName?.trim().length >= 2 &&
+      formData.lastName?.trim().length >= 2 &&
+      formData.middleName?.trim().length >= 2 &&
+      isValidEmail(formData.email || '') &&
+      isValidPhone(formData.phone || '') &&
+      formData.address?.trim().length >= 10 &&
+      formData.educationalAttainment?.trim().length > 0 &&
+      isValidDate(formData.dateOfBirth || '') &&
+      formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) &&
       formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6;
     
     // Emergency Contact validation
     const emergencyValid = 
-      formData.emergencyContact.name.trim().length >= 2 &&
-      isValidPhone(formData.emergencyContact.phone) &&
-      formData.emergencyContact.relationship.trim().length >= 2;
+      formData.emergencyContact?.name?.trim().length >= 2 &&
+      isValidPhone(formData.emergencyContact?.phone || '') &&
+      formData.emergencyContact?.relationship?.trim().length >= 2;
 
     return personalValid && emergencyValid;
   };
@@ -230,47 +358,66 @@ export default function AddPatientPage() {
     return isValid;
   };
 
+  const handleClearForm = () => {
+    setClearDialog(true);
+  };
+
+  const confirmClearForm = () => {
+    handleFormClear();
+    setClearDialog(false);
+  };
+
   // Calculate form completion percentage with validation
   const calculateProgress = () => {
+    // Don't calculate if form is not loaded yet
+    if (!isLoaded || !formData) {
+      return 0;
+    }
+
     const totalFields = 13; // Total number of required fields (10 personal + 3 emergency contact)
     let completedFields = 0;
 
     // Personal Information (10 fields) - with validation
-    if (formData.firstName.trim().length >= 2) completedFields++;
-    if (formData.lastName.trim().length >= 2) completedFields++;
-    if (formData.middleName.trim().length >= 2) completedFields++;
-    if (isValidEmail(formData.email)) completedFields++;
+    if (formData.firstName?.trim().length >= 2) completedFields++;
+    if (formData.lastName?.trim().length >= 2) completedFields++;
+    if (formData.middleName?.trim().length >= 2) completedFields++;
+    if (isValidEmail(formData.email || '')) completedFields++;
     if (formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6) completedFields++;
-    if (isValidPhone(formData.phone)) completedFields++;
-    if (formData.address.trim().length >= 10) completedFields++;
-    if (formData.educationalAttainment.trim().length > 0) completedFields++;
-    if (isValidDate(formData.dateOfBirth)) completedFields++;
-    if (formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
+    if (isValidPhone(formData.phone || '')) completedFields++;
+    if (formData.address?.trim().length >= 10) completedFields++;
+    if (formData.educationalAttainment?.trim().length > 0) completedFields++;
+    if (isValidDate(formData.dateOfBirth || '')) completedFields++;
+    if (formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
 
     // Emergency Contact (3 required fields) - with validation
-    if (formData.emergencyContact.name.trim().length >= 2) completedFields++;
-    if (isValidPhone(formData.emergencyContact.phone)) completedFields++;
-    if (formData.emergencyContact.relationship.trim().length >= 2) completedFields++;
+    if (formData.emergencyContact?.name?.trim().length >= 2) completedFields++;
+    if (isValidPhone(formData.emergencyContact?.phone || '')) completedFields++;
+    if (formData.emergencyContact?.relationship?.trim().length >= 2) completedFields++;
 
     return Math.round((completedFields / totalFields) * 100);
   };
 
   // Calculate completion percentage for each tab with validation
   const calculateTabProgress = (tabName: string) => {
+    // Don't calculate if form is not loaded yet
+    if (!isLoaded || !formData) {
+      return 0;
+    }
+
     switch (tabName) {
       case 'personal':
         let completedPersonal = 0;
         const personalValidations = [
-          { field: 'firstName', valid: formData.firstName.trim().length >= 2 },
-          { field: 'lastName', valid: formData.lastName.trim().length >= 2 },
-          { field: 'middleName', valid: formData.middleName.trim().length >= 2 },
-          { field: 'email', valid: isValidEmail(formData.email) },
+          { field: 'firstName', valid: formData.firstName?.trim().length >= 2 },
+          { field: 'lastName', valid: formData.lastName?.trim().length >= 2 },
+          { field: 'middleName', valid: formData.middleName?.trim().length >= 2 },
+          { field: 'email', valid: isValidEmail(formData.email || '') },
           { field: 'temporaryPassword', valid: formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6 },
-          { field: 'phone', valid: isValidPhone(formData.phone) },
-          { field: 'address', valid: formData.address.trim().length >= 10 },
-          { field: 'educationalAttainment', valid: formData.educationalAttainment.trim().length > 0 },
-          { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth) },
-          { field: 'gender', valid: formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) }
+          { field: 'phone', valid: isValidPhone(formData.phone || '') },
+          { field: 'address', valid: formData.address?.trim().length >= 10 },
+          { field: 'educationalAttainment', valid: formData.educationalAttainment?.trim().length > 0 },
+          { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth || '') },
+          { field: 'gender', valid: formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) }
         ];
         
         personalValidations.forEach(({ field, valid }) => {
@@ -281,9 +428,9 @@ export default function AddPatientPage() {
       
       case 'emergency':
         let completedEmergency = 0;
-        if (formData.emergencyContact.name.trim().length >= 2) completedEmergency++;
-        if (isValidPhone(formData.emergencyContact.phone)) completedEmergency++;
-        if (formData.emergencyContact.relationship.trim().length >= 2) completedEmergency++;
+        if (formData.emergencyContact?.name?.trim().length >= 2) completedEmergency++;
+        if (isValidPhone(formData.emergencyContact?.phone || '')) completedEmergency++;
+        if (formData.emergencyContact?.relationship?.trim().length >= 2) completedEmergency++;
         return Math.round((completedEmergency / 3) * 100);
       
       default:
@@ -364,6 +511,12 @@ export default function AddPatientPage() {
               </p>
             </div>
           </div>
+          {hasUnsavedChanges && (
+            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/20 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span>Auto-saving...</span>
+            </div>
+          )}
         </div>
 
         {/* Form Tabs */}
@@ -389,18 +542,24 @@ export default function AddPatientPage() {
                 <TabsTrigger value="emergency">{renderTabIndicator(emergencyProgress, 'Emergency')}</TabsTrigger>
               </TabsList>
 
-                                                           <TabsContent value="personal" className="space-y-6">
-                  <PersonalInfoForm
-                    data={formData}
-                    onUpdate={handleFormUpdate}
-                  />
+                <TabsContent value="personal" className="space-y-6">
+                  {isLoaded && formData && (
+                    <PersonalInfoForm
+                      key={formResetKey} // Add key to force re-render
+                      data={formData}
+                      onUpdate={handleFormUpdate}
+                    />
+                  )}
                 </TabsContent>
 
-                               <TabsContent value="emergency" className="space-y-6">
-                  <EmergencyContactForm
-                    data={formData}
-                    onUpdate={handleFormUpdate}
-                  />
+                <TabsContent value="emergency" className="space-y-6">
+                  {isLoaded && formData && (
+                    <EmergencyContactForm
+                      key={formResetKey} // Add key to force re-render
+                      data={formData}
+                      onUpdate={handleFormUpdate}
+                    />
+                  )}
                 </TabsContent>
             </Tabs>
           </CardContent>
@@ -519,7 +678,7 @@ export default function AddPatientPage() {
         open={submitDialog}
         onOpenChange={setSubmitDialog}
         title="Submit Patient Registration"
-        description={`Are you sure you want to submit the registration for ${formData.firstName} ${formData.lastName}? This will create a new patient account in the system.`}
+        description={`Are you sure you want to submit the registration for ${formData.firstName || ''} ${formData.lastName || ''}? This will create a new patient account in the system.`}
         confirmText="Submit Registration"
         cancelText="Cancel"
         variant="default"

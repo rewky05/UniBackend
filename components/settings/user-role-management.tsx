@@ -57,7 +57,8 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     email: '',
     password: '',
     firstName: '',
-    lastName: ''
+    lastName: '',
+    role: 'admin' as 'admin' | 'superadmin'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -67,12 +68,12 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load admin users from Firebase
+  // Load users from Firebase
   useEffect(() => {
-    loadAdminUsers();
+    loadUsers();
   }, []);
 
-  const loadAdminUsers = async () => {
+  const loadUsers = async () => {
     try {
       setLoading(true);
       const usersRef = ref(db, 'users');
@@ -92,7 +93,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       }
     } catch (error) {
       console.error('Error loading admin users:', error);
-      setError('Failed to load admin users');
+      setError('Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -100,7 +101,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
 
   const handleCreateUser = async () => {
     if (!isSuperadmin()) {
-      setError('Only superadmins can create admin users');
+      setError('Only superadmins can create users');
       return;
     }
 
@@ -128,7 +129,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        role: 'admin', // Always set to admin since this is admin user creation
+        role: formData.role, // Use the selected role
         isActive: true,
         createdAt: new Date().toISOString(),
         createdBy: creatorEmail
@@ -141,21 +142,22 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       await auth.signOut();
 
       // Refresh users list
-      await loadAdminUsers();
+      await loadUsers();
 
       // Reset form
       setFormData({
         email: '',
         password: '',
         firstName: '',
-        lastName: ''
+        lastName: '',
+        role: 'admin' as 'admin' | 'superadmin'
       });
       setIsDialogOpen(false);
       onUnsavedChanges(false);
 
     } catch (error: any) {
-      console.error('Error creating admin user:', error);
-      setError(error.message || 'Failed to create admin user');
+      console.error('Error creating user:', error);
+              setError(error.message || 'Failed to create user');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,12 +165,13 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
 
   const handleDeleteUser = async (user: AdminUser) => {
     if (!isSuperadmin()) {
-      setError('Only superadmins can delete admin users');
+      setError('Only superadmins can delete users');
       return;
     }
 
-    if (user.role === 'superadmin') {
-      setError('Cannot delete superadmin users');
+    // Prevent superadmins from deleting themselves
+    if (user.uid === auth.currentUser?.uid) {
+      setError('Cannot delete your own account');
       return;
     }
 
@@ -185,11 +188,11 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       await remove(ref(db, `users/${selectedUser.uid}`));
       
       // Refresh users list
-      await loadAdminUsers();
+      await loadUsers();
       
     } catch (error) {
-      console.error('Error deleting admin user:', error);
-      setError('Failed to delete admin user');
+      console.error('Error deleting user:', error);
+      setError('Failed to delete user');
     } finally {
       setActionLoading(false);
     }
@@ -198,6 +201,12 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   const handleToggleUserStatus = async (user: AdminUser) => {
     if (!isSuperadmin()) {
       setError('Only superadmins can modify user status');
+      return;
+    }
+
+    // Prevent superadmins from deactivating themselves
+    if (user.uid === auth.currentUser?.uid) {
+      setError('Cannot modify your own account status');
       return;
     }
 
@@ -211,7 +220,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     setActionLoading(true);
     try {
       await set(ref(db, `users/${selectedUser.uid}/isActive`), !selectedUser.isActive);
-      await loadAdminUsers();
+      await loadUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
       setError('Failed to update user status');
@@ -221,15 +230,18 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   };
 
   if (!isSuperadmin()) {
-  return (
-      <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
+    return (
+      <Card className="card-shadow">
+        <CardHeader>
+          <CardTitle className="flex items-center">
             <Shield className="h-5 w-5 mr-2" />
-          User & Role Management
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+            User & Role Management
+          </CardTitle>
+          <CardDescription>
+            Manage admin users and their permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -242,238 +254,255 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-            <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">User & Role Management</h2>
-          <p className="text-muted-foreground">
-            Manage admin users and their permissions
-          </p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-                <Plus className="h-4 w-4 mr-2" />
-              Add Admin User
-              </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Admin User</DialogTitle>
-              <DialogDescription>
-                Add a new administrator to the system. They will receive login credentials.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="admin@unihealth.ph"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter secure password"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    placeholder="First Name"
-                  />
-            </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    placeholder="Last Name"
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateUser} disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create User'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Users Table */}
-      <Card>
+    <>
+      <Card className="card-shadow">
         <CardHeader>
-          <CardTitle>Admin Users</CardTitle>
-          <CardDescription>
-            Manage system administrators and their roles
-          </CardDescription>
+          <div className="flex items-start justify-between">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                User & Role Management
+              </CardTitle>
+              <CardDescription>
+                Manage admin users and their permissions
+              </CardDescription>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogDescription>
+                    Add a new administrator or superadmin to the system. They will receive login credentials.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="admin@unihealth.ph"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Enter secure password"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        placeholder="First Name"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        placeholder="Last Name"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'superadmin' })} value={formData.role}>
+                      <SelectTrigger id="role">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="superadmin">Superadmin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateUser} disabled={isSubmitting}>
+                    {isSubmitting ? 'Creating...' : 'Create User'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-2">Loading users...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No active admin users found</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Create your first admin user to get started
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.uid}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Mail className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{user.firstName}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'superadmin' ? 'default' : 'secondary'}>
-                        {user.role === 'superadmin' ? (
-                          <>
-                            <Shield className="h-3 w-3 mr-1" />
-                            Superadmin
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck className="h-3 w-3 mr-1" />
-                            Admin
-                          </>
-                        )}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.isActive ? 'default' : 'destructive'}>
-                        {user.isActive ? (
-                          <>
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <UserX className="h-3 w-3 mr-1" />
-                            Inactive
-                          </>
-                        )}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm">
-                          {formatDateToText(user.createdAt)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {user.lastLogin ? (
-                        <span className="text-sm text-muted-foreground">
-                          {formatDateToText(user.lastLogin)}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Never</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleUserStatus(user)}
-                          disabled={user.role === 'superadmin'}
-                        >
-                          {user.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user)}
-                          disabled={user.role === 'superadmin'}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <CardContent className="space-y-6">
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-      </CardContent>
-    </Card>
 
-    {/* Confirmation Dialogs */}
-    <ConfirmationDialog
-      open={deleteUserDialog}
-      onOpenChange={setDeleteUserDialog}
-      title="Delete Admin User"
-      description={`Are you sure you want to delete ${selectedUser?.firstName}? This action cannot be undone and will permanently remove the user from the system.`}
-      confirmText="Delete User"
-      cancelText="Cancel"
-      variant="destructive"
-      loading={actionLoading}
-      onConfirm={confirmDeleteUser}
-    />
+          {/* System Users */}
+          <div className="space-y-4">
+            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              System Users
+            </h4>
+            
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-2">Loading users...</span>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No active users found</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create your first user to get started
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.uid}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                              <Mail className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.firstName}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.role === 'superadmin' ? 'default' : 'secondary'}>
+                            {user.role === 'superadmin' ? (
+                              <>
+                                <Shield className="h-3 w-3 mr-1" />
+                                Superadmin
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="h-3 w-3 mr-1" />
+                                Admin
+                              </>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.isActive ? 'default' : 'destructive'}>
+                            {user.isActive ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Active
+                              </>
+                            ) : (
+                              <>
+                                <UserX className="h-3 w-3 mr-1" />
+                                Inactive
+                              </>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">
+                              {formatDateToText(user.createdAt)}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {user.lastLogin ? (
+                            <span className="text-sm text-muted-foreground">
+                              {formatDateToText(user.lastLogin)}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Never</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleToggleUserStatus(user)}
+                              disabled={user.uid === auth.currentUser?.uid}
+                            >
+                              {user.isActive ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={user.uid === auth.currentUser?.uid}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-    <ConfirmationDialog
-      open={toggleStatusDialog}
-      onOpenChange={setToggleStatusDialog}
-      title={`${selectedUser?.isActive ? 'Deactivate' : 'Activate'} User`}
-      description={`Are you sure you want to ${selectedUser?.isActive ? 'deactivate' : 'activate'} ${selectedUser?.firstName}? This will ${selectedUser?.isActive ? 'prevent' : 'allow'} them from accessing the system.`}
-      confirmText={selectedUser?.isActive ? 'Deactivate' : 'Activate'}
-      cancelText="Cancel"
-      variant="default"
-      loading={actionLoading}
-      onConfirm={confirmToggleUserStatus}
-    />
-    </div>
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        open={deleteUserDialog}
+        onOpenChange={setDeleteUserDialog}
+        title="Delete User"
+        description={`Are you sure you want to delete ${selectedUser?.firstName}? This action cannot be undone and will permanently remove the user from the system.`}
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={actionLoading}
+        onConfirm={confirmDeleteUser}
+      />
+
+      <ConfirmationDialog
+        open={toggleStatusDialog}
+        onOpenChange={setToggleStatusDialog}
+        title={`${selectedUser?.isActive ? 'Deactivate' : 'Activate'} User`}
+        description={`Are you sure you want to ${selectedUser?.isActive ? 'deactivate' : 'activate'} ${selectedUser?.firstName}? This will ${selectedUser?.isActive ? 'prevent' : 'allow'} them from accessing the system.`}
+        confirmText={selectedUser?.isActive ? 'Deactivate' : 'Activate'}
+        cancelText="Cancel"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={confirmToggleUserStatus}
+      />
+    </>
   );
 }

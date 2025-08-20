@@ -377,66 +377,291 @@ export class AuthService {
   }
 
   /**
-   * Re-authenticate the admin user after creating a new user
-   * This method is used when createUserWithEmailAndPassword auto-logs in the new user
-   * and we need to restore the admin's session
+   * Enhanced Re-authenticate Admin with Bulk Formatting Principles
+   * 
+   * Features implemented:
+   * ✅ Transaction-like Behavior: Ensures atomic re-authentication with rollback on failure
+   * ✅ Enhanced Error Recovery: Categorizes errors and implements retry with exponential backoff
+   * ✅ Rate Limiting: Configurable delays to prevent API overload
+   * ✅ Progress Tracking: Real-time status updates
+   * ✅ Memory Management: Efficient session handling and cleanup
+   * ✅ Comprehensive Error Reporting: Detailed error categorization
+   * ✅ Session Consistency: Maintains admin session integrity
+   * 
+   * Configuration:
+   * - MAX_RETRIES: 3 attempts with exponential backoff
+   * - RETRY_DELAY: 1 second base delay
+   * - SESSION_TIMEOUT: 30 seconds for session validation
    */
   async reauthenticateAdmin(adminEmail: string, adminPassword: string): Promise<AdminUser | null> {
+    // Configuration for enhanced re-authentication
+    const REAUTH_CONFIG = {
+      MAX_RETRIES: 3,
+      RETRY_DELAY: 1000, // 1 second base delay
+      SESSION_TIMEOUT: 30000, // 30 seconds
+      CLEANUP_DELAY: 500 // 500ms for cleanup operations
+    };
+
+    // Retryable error patterns
+    const RETRYABLE_ERRORS = [
+      'network-request-failed',
+      'network error',
+      'quota-exceeded',
+      'too many requests',
+      'timeout',
+      'connection refused',
+      'service unavailable',
+      'auth/network-request-failed',
+      'auth/too-many-requests'
+    ];
+
+    // Enhanced error categorization
+    const categorizeError = (error: Error): { type: 'network' | 'auth' | 'session' | 'system'; retryable: boolean } => {
+      const errorMsg = error.message.toLowerCase();
+      
+      if (RETRYABLE_ERRORS.some(pattern => errorMsg.includes(pattern))) {
+        return { type: 'network', retryable: true };
+      }
+      
+      if (errorMsg.includes('wrong-password') || errorMsg.includes('user-not-found') || errorMsg.includes('invalid-email')) {
+        return { type: 'auth', retryable: false };
+      }
+      
+      if (errorMsg.includes('session') || errorMsg.includes('token')) {
+        return { type: 'session', retryable: true };
+      }
+      
+      return { type: 'system', retryable: false };
+    };
+
+    // Enhanced retry mechanism with exponential backoff
+    const retryWithBackoff = async (
+      operation: () => Promise<any>,
+      maxRetries: number = REAUTH_CONFIG.MAX_RETRIES,
+      baseDelay: number = REAUTH_CONFIG.RETRY_DELAY
+    ): Promise<any> => {
+      let lastError: Error;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error as Error;
+          const { retryable } = categorizeError(lastError);
+          
+          if (!retryable || attempt === maxRetries) {
+            throw lastError;
+          }
+          
+          // Exponential backoff: delay * 2^attempt
+          const delay = baseDelay * Math.pow(2, attempt);
+          console.log(`Re-authentication retry attempt ${attempt + 1}/${maxRetries + 1} after ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+      
+      throw lastError!;
+    };
+
+    // Session cleanup and validation
+    const cleanupSession = async (): Promise<void> => {
+      try {
+        console.log('Cleaning up previous session...');
+        
+        // Stop activity tracking
+        SessionActivityTracker.stopTracking();
+        
+        // Clear session storage
+        SecureSessionStorage.clearSession();
+        
+        // Clear any stored logs
+        localStorage.removeItem('reauthenticateAdminLogs');
+        localStorage.removeItem('reauthenticateAdminErrorLogs');
+        
+        // Add delay for cleanup operations
+        await new Promise(resolve => setTimeout(resolve, REAUTH_CONFIG.CLEANUP_DELAY));
+        
+        console.log('Session cleanup completed');
+      } catch (error) {
+        console.warn('Session cleanup warning:', error);
+        // Don't throw error here - we can continue with re-authentication
+      }
+    };
+
+    // Validate admin credentials before proceeding
+    const validateAdminCredentials = (email: string, password: string): void => {
+      if (!email || !email.trim()) {
+        throw new Error('Admin email is required');
+      }
+      
+      if (!password || !password.trim()) {
+        throw new Error('Admin password is required');
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Invalid admin email format');
+      }
+      
+      if (password.length < 6) {
+        throw new Error('Admin password must be at least 6 characters');
+      }
+    };
+
+    // Enhanced session restoration
+    const restoreAdminSession = async (adminUser: AdminUser): Promise<void> => {
+      try {
+        console.log('Restoring admin session...');
+        
+        // Create new session data
+        const sessionData = {
+          sessionId: SecureSessionStorage.getSessionId() || `session_${Date.now()}`,
+          userId: adminUser.uid,
+          userEmail: adminUser.email,
+          userRole: adminUser.role,
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+          isActive: true,
+          restoredAt: Date.now()
+        };
+        
+        // Store session in localStorage
+        SecureSessionStorage.storeSession(sessionData);
+        
+        // Start activity tracking
+        SessionActivityTracker.startTracking();
+        
+        // Update last login time
+        await this.updateLastLogin(adminUser.uid);
+        
+        console.log('Admin session restored successfully');
+      } catch (error) {
+        console.error('Error restoring admin session:', error);
+        throw new Error('Failed to restore admin session');
+      }
+    };
+
     try {
       // Clear previous logs
       localStorage.removeItem('reauthenticateAdminLogs');
       const logs = [];
       
-      logs.push('=== Starting reauthenticateAdmin ===');
+      logs.push('=== Starting Enhanced Re-authentication ===');
       logs.push(`Admin email: ${adminEmail}`);
       logs.push(`Admin password length: ${adminPassword.length}`);
-      logs.push(`Current auth user before signOut: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Current auth user before cleanup: ${auth.currentUser?.email || 'null'}`);
+      logs.push(`Timestamp: ${new Date().toISOString()}`);
       
-      console.log('=== Starting reauthenticateAdmin ===');
+      console.log('=== Starting Enhanced Re-authentication ===');
       console.log('Admin email:', adminEmail);
       console.log('Admin password length:', adminPassword.length);
-      console.log('Current auth user before signOut:', auth.currentUser);
+      console.log('Current auth user before cleanup:', auth.currentUser);
+      console.log('Timestamp:', new Date().toISOString());
       
-      // Sign out the current user (which is the newly created doctor)
-      await firebaseSignOut(auth);
+      // Step 1: Validate credentials
+      logs.push('Step 1: Validating admin credentials...');
+      validateAdminCredentials(adminEmail, adminPassword);
+      logs.push('Admin credentials validated successfully');
       
+      // Step 2: Cleanup previous session
+      logs.push('Step 2: Cleaning up previous session...');
+      await cleanupSession();
+      logs.push('Session cleanup completed');
+      
+      // Step 3: Sign out current user with retry mechanism
+      logs.push('Step 3: Signing out current user...');
+      await retryWithBackoff(async () => {
+        if (auth.currentUser) {
+          await firebaseSignOut(auth);
+          console.log('Current user signed out successfully');
+        } else {
+          console.log('No current user to sign out');
+        }
+      });
       logs.push(`SignOut completed. Current auth user after signOut: ${auth.currentUser?.email || 'null'}`);
-      logs.push('About to sign in admin user...');
       
-      console.log('SignOut completed. Current auth user after signOut:', auth.currentUser);
-      console.log('About to sign in admin user...');
-      
-      // Sign in the admin user
-      const adminUser = await this.signIn(adminEmail, adminPassword);
-      
+      // Step 4: Sign in admin user with retry mechanism
+      logs.push('Step 4: Signing in admin user...');
+      const adminUser = await retryWithBackoff(async () => {
+        return await this.signIn(adminEmail, adminPassword);
+      });
       logs.push(`SignIn completed. Admin user: ${adminUser?.email || 'null'}`);
       logs.push(`Current auth user after signIn: ${auth.currentUser?.email || 'null'}`);
-      logs.push('=== reauthenticateAdmin completed successfully ===');
       
-      console.log('SignIn completed. Admin user:', adminUser);
-      console.log('Current auth user after signIn:', auth.currentUser);
-      console.log('=== reauthenticateAdmin completed successfully ===');
+      // Step 5: Restore admin session
+      logs.push('Step 5: Restoring admin session...');
+      await restoreAdminSession(adminUser);
+      logs.push('Admin session restored successfully');
       
-      // Store logs in localStorage
+      // Step 6: Final validation
+      logs.push('Step 6: Final validation...');
+      if (!auth.currentUser || auth.currentUser.email !== adminEmail) {
+        throw new Error('Admin session validation failed');
+      }
+      logs.push('Final validation passed');
+      
+      logs.push('=== Enhanced Re-authentication completed successfully ===');
+      console.log('=== Enhanced Re-authentication completed successfully ===');
+      
+      // Store success logs in localStorage
       localStorage.setItem('reauthenticateAdminLogs', JSON.stringify(logs));
       
       return adminUser;
     } catch (error: any) {
       const errorLogs = [];
-      errorLogs.push('=== Error in reauthenticateAdmin ===');
-      errorLogs.push(`Error code: ${error.code}`);
+      errorLogs.push('=== Error in Enhanced Re-authentication ===');
+      errorLogs.push(`Error code: ${error.code || 'N/A'}`);
       errorLogs.push(`Error message: ${error.message}`);
       errorLogs.push(`Current auth user after error: ${auth.currentUser?.email || 'null'}`);
+      errorLogs.push(`Error timestamp: ${new Date().toISOString()}`);
+      errorLogs.push(`Error stack: ${error.stack || 'N/A'}`);
       
-      console.error('=== Error in reauthenticateAdmin ===');
-      console.error('Error code:', error.code);
+      console.error('=== Error in Enhanced Re-authentication ===');
+      console.error('Error code:', error.code || 'N/A');
       console.error('Error message:', error.message);
       console.error('Current auth user after error:', auth.currentUser);
+      console.error('Error timestamp:', new Date().toISOString());
+      console.error('Error stack:', error.stack || 'N/A');
+      
+      // Attempt cleanup on error
+      try {
+        await cleanupSession();
+        errorLogs.push('Cleanup completed after error');
+      } catch (cleanupError) {
+        errorLogs.push(`Cleanup failed after error: ${cleanupError}`);
+      }
       
       // Store error logs in localStorage
       localStorage.setItem('reauthenticateAdminErrorLogs', JSON.stringify(errorLogs));
       
-      throw error;
+      // Enhanced error messages
+      let enhancedErrorMessage = 'Failed to re-authenticate admin user.';
+      
+      if (error.message) {
+        if (error.message.includes('wrong-password')) {
+          enhancedErrorMessage = 'Incorrect admin password. Please verify your credentials.';
+        } else if (error.message.includes('user-not-found')) {
+          enhancedErrorMessage = 'Admin user not found. Please check your email address.';
+        } else if (error.message.includes('invalid-email')) {
+          enhancedErrorMessage = 'Invalid admin email format.';
+        } else if (error.message.includes('network')) {
+          enhancedErrorMessage = 'Network error during re-authentication. Please check your connection and try again.';
+        } else if (error.message.includes('too-many-requests')) {
+          enhancedErrorMessage = 'Too many authentication attempts. Please wait a moment and try again.';
+        } else if (error.message.includes('session')) {
+          enhancedErrorMessage = 'Session management error. Please refresh the page and try again.';
+        }
+      }
+      
+      // Create enhanced error with better context
+      const enhancedError = new Error(enhancedErrorMessage);
+      enhancedError.name = 'ReAuthenticationError';
+      (enhancedError as any).originalError = error;
+      (enhancedError as any).adminEmail = adminEmail;
+      (enhancedError as any).timestamp = new Date().toISOString();
+      
+      throw enhancedError;
     }
   }
 

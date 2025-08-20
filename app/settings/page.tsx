@@ -52,13 +52,13 @@ const settingsCategories = [
   //   description: 'Monitor and manage active sessions',
   //   allowedRoles: ['superadmin']
   // },
-  {
-    id: 'services',
-    label: 'Medical Services & Catalogs',
-    icon: FileText,
-    description: 'Manage medical specialties and services',
-    allowedRoles: ['superadmin', 'admin']
-  },
+  // {
+  //   id: 'services',
+  //   label: 'Medical Services & Catalogs',
+  //   icon: FileText,
+  //   description: 'Manage medical specialties and services',
+  //   allowedRoles: ['superadmin', 'admin']
+  // },
   {
     id: 'data',
     label: 'Data & Audit',

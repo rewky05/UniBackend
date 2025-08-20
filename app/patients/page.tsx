@@ -61,7 +61,7 @@ import {
   SheetDescription,
   SheetClose,
 } from "@/components/ui/sheet";
-import { PrintView } from "@/components/ui/print-view";
+import { ReportActions } from "@/components/ui/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -340,9 +340,32 @@ export default function PatientsPage() {
     }).join(' ');
   };
 
-  // Helper function to capitalize first letter
+  // Helper function to capitalize first letter and handle special cases
   const capitalizeFirstLetter = (str: string) => {
     if (!str) return str;
+    
+    // Handle kebab-case values for gender and relationship
+    const formatMap: Record<string, string> = {
+      'male': 'Male',
+      'female': 'Female',
+      'other': 'Other',
+      'prefer-not-to-say': 'Prefer not to say',
+      'spouse': 'Spouse',
+      'parent': 'Parent',
+      'sibling': 'Sibling',
+      'child': 'Child',
+      'grandparent': 'Grandparent',
+      'uncle-aunt': 'Uncle/Aunt',
+      'cousin': 'Cousin',
+      'friend': 'Friend',
+      'guardian': 'Guardian'
+    };
+    
+    // First check the format map
+    const formatted = formatMap[str.toLowerCase()];
+    if (formatted) return formatted;
+    
+    // If not in map, apply proper capitalization
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
 
@@ -367,15 +390,75 @@ export default function PatientsPage() {
         emergencyContact: selectedPatient.emergencyContact
       });
       
+      // Normalize gender value to match dropdown options
+      const normalizeGender = (gender: string) => {
+        if (!gender) return '';
+        const genderLower = gender.toLowerCase();
+        if (genderLower === 'male' || genderLower === 'female' || genderLower === 'other') {
+          return genderLower;
+        }
+        if (genderLower === 'prefer not to say' || genderLower === 'prefer-not-to-say') {
+          return 'prefer-not-to-say';
+        }
+        return genderLower;
+      };
+
+      // Normalize educational attainment value to match dropdown options
+      const normalizeEducation = (education: string) => {
+        if (!education) return '';
+        const educationLower = education.toLowerCase();
+        const educationMap: Record<string, string> = {
+          'elementary': 'elementary',
+          'junior high school': 'junior-high-school',
+          'junior-high-school': 'junior-high-school',
+          'senior high school': 'senior-high-school',
+          'senior-high-school': 'senior-high-school',
+          'vocational': 'vocational',
+          'associate degree': 'associate-degree',
+          'associate-degree': 'associate-degree',
+          'bachelor\'s degree': 'bachelors-degree',
+          'bachelors degree': 'bachelors-degree',
+          'bachelors-degree': 'bachelors-degree',
+          'master\'s degree': 'masters-degree',
+          'masters degree': 'masters-degree',
+          'masters-degree': 'masters-degree',
+          'doctorate': 'doctorate',
+          'post graduate': 'post-graduate',
+          'post-graduate': 'post-graduate',
+          'other': 'other'
+        };
+        return educationMap[educationLower] || educationLower;
+      };
+
+      // Normalize relationship value to match dropdown options
+      const normalizeRelationship = (relationship: string) => {
+        if (!relationship) return '';
+        const relationshipLower = relationship.toLowerCase();
+        const relationshipMap: Record<string, string> = {
+          'spouse': 'spouse',
+          'parent': 'parent',
+          'sibling': 'sibling',
+          'child': 'child',
+          'grandparent': 'grandparent',
+          'uncle/aunt': 'uncle-aunt',
+          'uncle-aunt': 'uncle-aunt',
+          'cousin': 'cousin',
+          'friend': 'friend',
+          'guardian': 'guardian',
+          'other': 'other'
+        };
+        return relationshipMap[relationshipLower] || relationshipLower;
+      };
+
       const newEditData = {
         contactNumber: selectedPatient.contactNumber || '',
-        gender: selectedPatient.gender || '',
+        gender: normalizeGender(selectedPatient.gender || ''),
         address: consolidatedAddress !== "N/A" ? consolidatedAddress : '',
-        educationalAttainment: selectedPatient.educationalAttainment || '',
+        educationalAttainment: normalizeEducation(selectedPatient.educationalAttainment || ''),
         emergencyContact: {
           name: selectedPatient.emergencyContact?.name || '',
           phone: selectedPatient.emergencyContact?.phone || '',
-          relationship: selectedPatient.emergencyContact?.relationship || ''
+          relationship: normalizeRelationship(selectedPatient.emergencyContact?.relationship || '')
         }
       };
       
@@ -573,6 +656,17 @@ export default function PatientsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedStatus("All Status");
+                    setSelectedSort("date-desc");
+                  }}
+                  disabled={(searchQuery ?? "") === "" && selectedStatus === "All Status" && selectedSort === "date-desc"}
+                >
+                  Clear Filters
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -591,12 +685,13 @@ export default function PatientsPage() {
                   Comprehensive list of patient records and information
                 </CardDescription>
               </div>
-              <PrintView 
+              <ReportActions
                 title="Patients Report"
-                subtitle="Comprehensive list of patient records and information"
+                subtitle={`${sortedPatients.length} patients found`}
                 data={sortedPatients}
                 columns={printColumns}
                 filters={printFilters}
+                filename={`patients_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
               />
             </div>
           </CardHeader>
@@ -626,14 +721,14 @@ export default function PatientsPage() {
                               ? "Try adjusting your search criteria or filters"
                               : "Get started by adding your first patient"}
                           </p>
-                          {!searchQuery && selectedStatus === "All Status" && (
+                          {/* {!searchQuery && selectedStatus === "All Status" && (
                             <Button asChild size="sm" className="mt-2">
                               <Link href="/patients/add">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add First Patient
                               </Link>
                             </Button>
-                          )}
+                          )} */}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -828,10 +923,10 @@ export default function PatientsPage() {
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                            <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
@@ -899,16 +994,16 @@ export default function PatientsPage() {
                             <SelectValue placeholder="Select educational attainment" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Elementary">Elementary</SelectItem>
-                            <SelectItem value="Junior High School">Junior High School</SelectItem>
-                            <SelectItem value="Senior High School">Senior High School</SelectItem>
-                            <SelectItem value="Vocational">Vocational</SelectItem>
-                            <SelectItem value="Associate Degree">Associate Degree</SelectItem>
-                            <SelectItem value="Bachelor's Degree">Bachelor's Degree</SelectItem>
-                            <SelectItem value="Master's Degree">Master's Degree</SelectItem>
-                            <SelectItem value="Doctorate">Doctorate</SelectItem>
-                            <SelectItem value="Post Graduate">Post Graduate</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            <SelectItem value="elementary">Elementary</SelectItem>
+                            <SelectItem value="junior-high-school">Junior High School</SelectItem>
+                            <SelectItem value="senior-high-school">Senior High School</SelectItem>
+                            <SelectItem value="vocational">Vocational</SelectItem>
+                            <SelectItem value="associate-degree">Associate Degree</SelectItem>
+                            <SelectItem value="bachelors-degree">Bachelor's Degree</SelectItem>
+                            <SelectItem value="masters-degree">Master's Degree</SelectItem>
+                            <SelectItem value="doctorate">Doctorate</SelectItem>
+                            <SelectItem value="post-graduate">Post Graduate</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
@@ -939,12 +1034,34 @@ export default function PatientsPage() {
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">Relationship</span>
                         {isEditing ? (
-                          <Input
+                          <Select
                             value={editData.emergencyContact.relationship || ''}
-                            onChange={(e) => handleInputChange('emergencyContact', { relationship: e.target.value })}
-                            placeholder="Enter relationship"
-                            className="font-medium text-base"
-                          />
+                            onValueChange={(value) => handleInputChange('emergencyContact', { relationship: value })}
+                            onOpenChange={(open) => {
+                              if (open) {
+                                console.log('=== RELATIONSHIP DROPDOWN DEBUG ===');
+                                console.log('editData.emergencyContact.relationship:', editData.emergencyContact?.relationship);
+                                console.log('selectedPatient.emergencyContact.relationship:', selectedPatient?.emergencyContact?.relationship);
+                                console.log('finalValue:', editData.emergencyContact?.relationship || '');
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="font-medium text-base">
+                              <SelectValue placeholder="Select relationship" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="spouse">Spouse</SelectItem>
+                              <SelectItem value="parent">Parent</SelectItem>
+                              <SelectItem value="sibling">Sibling</SelectItem>
+                              <SelectItem value="child">Child</SelectItem>
+                              <SelectItem value="grandparent">Grandparent</SelectItem>
+                              <SelectItem value="uncle-aunt">Uncle/Aunt</SelectItem>
+                              <SelectItem value="cousin">Cousin</SelectItem>
+                              <SelectItem value="friend">Friend</SelectItem>
+                              <SelectItem value="guardian">Guardian</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
                             {selectedPatient.emergencyContact?.relationship ? capitalizeFirstLetter(selectedPatient.emergencyContact.relationship) : "N/A"}

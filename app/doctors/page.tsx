@@ -99,17 +99,26 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { BulkImportDialog } from "@/components/doctors/bulk-import-dialog";
-import { PrintView } from "@/components/ui/print-view";
+import { ReportActions } from "@/components/ui/report-actions";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 const specialties = [
   "All Specialties",
   "Cardiology",
-  "Pediatrics",
   "Dermatology",
-  "Orthopedics",
+  "Emergency Medicine",
+  "Family Medicine",
+  "Internal Medicine",
   "Neurology",
+  "Obstetrics and Gynecology",
+  "Oncology",
+  "Orthopedics",
+  "Pediatrics",
+  "Psychiatry",
+  "Radiology",
+  "Surgery",
+  "Urology",
 ];
 const statuses = ["All Status", "Verified", "Pending", "Suspended"];
 const sortOptions = [
@@ -389,8 +398,8 @@ export default function DoctorsPage() {
       address: selectedDoctor.address || '',
       specialty: selectedDoctor.specialty || '',
       prcId: selectedDoctor.prcId || '',
-      prcExpiryDate: selectedDoctor.prcExpiry || '', // Use prcExpiry from database
-      medicalLicenseNumber: selectedDoctor.medicalLicense || '', // Use medicalLicense from database
+      prcExpiryDate: selectedDoctor.prcExpiryDate || selectedDoctor.prcExpiry || '', // Use prcExpiryDate from database, fallback to prcExpiry
+      medicalLicenseNumber: selectedDoctor.medicalLicenseNumber || selectedDoctor.medicalLicense || '', // Use medicalLicenseNumber from database, fallback to medicalLicense
       professionalFee: selectedDoctor.professionalFee || 0
     });
     setIsEditing(true);
@@ -460,11 +469,11 @@ export default function DoctorsPage() {
       }
       if (editData.prcExpiryDate !== undefined) {
         // Convert date to ISO string format for database storage
-        updateData.prcExpiry = editData.prcExpiryDate;
+        updateData.prcExpiryDate = editData.prcExpiryDate;
         console.log('PRC Expiry date being saved:', editData.prcExpiryDate);
       }
       if (editData.medicalLicenseNumber !== undefined) {
-        updateData.medicalLicense = editData.medicalLicenseNumber;
+        updateData.medicalLicenseNumber = editData.medicalLicenseNumber;
         console.log('Medical License being saved:', editData.medicalLicenseNumber);
       }
       if (editData.professionalFee !== undefined) {
@@ -494,8 +503,8 @@ export default function DoctorsPage() {
         ...selectedDoctor,
         ...updateData,
         // Ensure the display fields are properly updated
-        prcExpiry: updateData.prcExpiry || selectedDoctor.prcExpiry,
-        medicalLicense: updateData.medicalLicense || selectedDoctor.medicalLicense
+        prcExpiryDate: updateData.prcExpiryDate || selectedDoctor.prcExpiryDate,
+        medicalLicenseNumber: updateData.medicalLicenseNumber || selectedDoctor.medicalLicenseNumber
       };
       console.log('Updated doctor state:', updatedDoctor);
       setSelectedDoctor(updatedDoctor);
@@ -609,64 +618,78 @@ export default function DoctorsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                                         <Select
-                       value={selectedSpecialty}
-                       onValueChange={setSelectedSpecialty}
-                     >
-                       <SelectTrigger className="w-40">
-                         <SelectValue placeholder="Specialty" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {specialties.map((specialty) => (
-                           <SelectItem key={specialty} value={specialty}>
-                             {specialty}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                     <Select
-                       value={selectedClinic}
-                       onValueChange={setSelectedClinic}
-                     >
-                       <SelectTrigger className="w-40">
-                         <SelectValue placeholder="Clinic" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="All Clinics">All Clinics</SelectItem>
-                         {clinics.map((clinic) => (
-                           <SelectItem key={clinic.id} value={clinic.id || ""}>
-                             {clinic.name}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                     <Select
-                       value={selectedStatus}
-                       onValueChange={setSelectedStatus}
-                     >
-                       <SelectTrigger className="w-32">
-                         <SelectValue placeholder="Status" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {statuses.map((status) => (
-                           <SelectItem key={status} value={status}>
-                             {status}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                     <Select value={selectedSort} onValueChange={setSelectedSort}>
-                       <SelectTrigger className="w-40">
-                         <SelectValue placeholder="Sort by" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {sortOptions.map((option) => (
-                           <SelectItem key={option.value} value={option.value}>
-                             {option.label}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
+                    <Select
+                      value={selectedSpecialty}
+                      onValueChange={setSelectedSpecialty}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {specialties.map((specialty) => (
+                          <SelectItem key={specialty} value={specialty}>
+                            {specialty}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={selectedClinic}
+                      onValueChange={setSelectedClinic}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Clinic" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All Clinics">All Clinics</SelectItem>
+                        {clinics.map((clinic) => (
+                          <SelectItem key={clinic.id} value={clinic.id || ""}>
+                            {clinic.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={setSelectedStatus}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={selectedSort} onValueChange={setSelectedSort}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sortOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedSpecialty("All Specialties");
+                        setSelectedClinic("All Clinics");
+                        setSelectedStatus("All Status");
+                        setSelectedSort("date-desc");
+                      }}
+                      disabled={searchQuery === "" && selectedSpecialty === "All Specialties" && selectedClinic === "All Clinics" && selectedStatus === "All Status" && selectedSort === "date-desc"}
+                      className="w-32"
+                    >
+                      Clear Filters
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -685,12 +708,13 @@ export default function DoctorsPage() {
                       Comprehensive list of specialist healthcare professionals
                     </CardDescription>
                   </div>
-                  <PrintView
+                  <ReportActions
                     title="Specialist Doctors Report"
-                    subtitle="Comprehensive list of specialist healthcare professionals"
+                    subtitle={`${filteredDoctors.length} specialists found`}
                     data={sortedDoctors}
                     columns={printColumns}
                     filters={printFilters}
+                    filename={`specialist_doctors_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>
               </CardHeader>
@@ -935,6 +959,7 @@ export default function DoctorsPage() {
                                      <SelectItem value="male">Male</SelectItem>
                                      <SelectItem value="female">Female</SelectItem>
                                      <SelectItem value="other">Other</SelectItem>
+                                     <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                                    </SelectContent>
                                  </Select>
                                ) : (
@@ -959,6 +984,7 @@ export default function DoctorsPage() {
                                      <SelectItem value="married">Married</SelectItem>
                                      <SelectItem value="divorced">Divorced</SelectItem>
                                      <SelectItem value="widowed">Widowed</SelectItem>
+                                     <SelectItem value="separated">Separated</SelectItem>
                                    </SelectContent>
                                  </Select>
                                ) : (
@@ -997,10 +1023,19 @@ export default function DoctorsPage() {
                                    </SelectTrigger>
                                    <SelectContent>
                                      <SelectItem value="Cardiology">Cardiology</SelectItem>
-                                     <SelectItem value="Pediatrics">Pediatrics</SelectItem>
                                      <SelectItem value="Dermatology">Dermatology</SelectItem>
-                                     <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                                     <SelectItem value="Emergency Medicine">Emergency Medicine</SelectItem>
+                                     <SelectItem value="Family Medicine">Family Medicine</SelectItem>
+                                     <SelectItem value="Internal Medicine">Internal Medicine</SelectItem>
                                      <SelectItem value="Neurology">Neurology</SelectItem>
+                                     <SelectItem value="Obstetrics and Gynecology">Obstetrics and Gynecology</SelectItem>
+                                     <SelectItem value="Oncology">Oncology</SelectItem>
+                                     <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                                     <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                                     <SelectItem value="Psychiatry">Psychiatry</SelectItem>
+                                     <SelectItem value="Radiology">Radiology</SelectItem>
+                                     <SelectItem value="Surgery">Surgery</SelectItem>
+                                     <SelectItem value="Urology">Urology</SelectItem>
                                    </SelectContent>
                                  </Select>
                                ) : (
@@ -1035,7 +1070,7 @@ export default function DoctorsPage() {
                                   />
                                                                ) : (
                                   <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                    {selectedDoctor.prcExpiry ? formatDateToText(selectedDoctor.prcExpiry) : 'Not specified'}
+                                    {selectedDoctor.prcExpiryDate ? formatDateToText(selectedDoctor.prcExpiryDate) : selectedDoctor.prcExpiry ? formatDateToText(selectedDoctor.prcExpiry) : 'Not specified'}
                                   </span>
                                 )}
                              </div>
@@ -1050,7 +1085,7 @@ export default function DoctorsPage() {
                                  />
                                                                ) : (
                                   <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
-                                    {selectedDoctor.medicalLicense || 'Not specified'}
+                                    {selectedDoctor.medicalLicenseNumber || selectedDoctor.medicalLicense || 'Not specified'}
                                   </span>
                                 )}
                              </div>

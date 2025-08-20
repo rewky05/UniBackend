@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar, Heart } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface DemographicsData {
   gender: string;
@@ -19,6 +19,16 @@ interface DemographicsFormProps {
 }
 
 export function DemographicsForm({ data, onUpdate, disabled }: DemographicsFormProps) {
+  // Reset internal state when demographics data is cleared
+  useEffect(() => {
+    // If gender field is empty, clear any internal state
+    const isFormEmpty = !data?.gender;
+    if (isFormEmpty) {
+      // Reset any internal state here if needed
+      // For now, the form is controlled by props, so no internal state to reset
+    }
+  }, [data?.gender]);
+
   return (
     <Card>
       <CardHeader>

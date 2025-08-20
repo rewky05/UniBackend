@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,15 @@ interface PersonalInfoFormProps {
 }
 
 export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormProps) {
+  // Reset internal state when form data is cleared
+  useEffect(() => {
+    // If all personal info fields are empty, clear any internal state
+    const isFormEmpty = !data?.firstName && !data?.lastName && !data?.email && !data?.phone;
+    if (isFormEmpty) {
+      // Reset any internal state here if needed
+      // For now, the form is controlled by props, so no internal state to reset
+    }
+  }, [data?.firstName, data?.lastName, data?.email, data?.phone]);
 
   const handleInputChange = (field: string, value: any) => {
     if (onUpdate) {
@@ -103,6 +112,23 @@ export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormP
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+            <Label htmlFor="phone" className="flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Phone Number <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={data?.phone || ''}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="Enter phone number (e.g., +639123456789)"
+              required
+              disabled={disabled}
+            />
+          </div>
+
         {/* Educational Attainment */}
         <div className="space-y-2">
           <Label htmlFor="educationalAttainment" className="flex items-center gap-2">
@@ -131,6 +157,7 @@ export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormP
             </SelectContent>
           </Select>
         </div>
+        </div>
 
         {/* Address */}
         <div className="space-y-2">
@@ -148,10 +175,43 @@ export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormP
           />
         </div>
 
-
-
-
-
+        {/* Contact Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Address <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={data?.email || ''}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="Enter email address"
+              required
+              disabled={disabled}
+            />
+          </div>
+          {/* Temporary Password */}
+          <div className="space-y-2">
+            <Label htmlFor="temporaryPassword" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Temporary Password <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="temporaryPassword"
+              type="password"
+              value={data?.temporaryPassword || ''}
+              onChange={(e) => handleInputChange('temporaryPassword', e.target.value)}
+              placeholder="Enter temporary password (minimum 6 characters)"
+              required
+              disabled={disabled}
+            />
+            <p className="text-sm text-muted-foreground">
+              This will be the initial password for the patient's account. They should change it on first login.
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

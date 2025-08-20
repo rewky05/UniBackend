@@ -32,7 +32,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (user && !loading) {
       console.log('Login page: User authenticated, redirecting to dashboard');
-      setDebugInfo('User authenticated, redirecting...');
+      // setDebugInfo('User authenticated, redirecting...');
       // Use a small delay to ensure the state is stable
       setTimeout(() => {
         window.location.href = '/dashboard';
@@ -80,25 +80,25 @@ export default function LoginPage() {
       setShowCaptcha(false);
       setIsLoading(true);
       setError('');
-      setDebugInfo('Starting authentication...');
+      // setDebugInfo('Starting authentication...');
 
       try {
-        setDebugInfo('Calling authService.signIn...');
+        // setDebugInfo('Calling authService.signIn...');
         // Only now proceed with Firebase authentication
         const adminUser = await authService.signIn(email, password);
         
-        setDebugInfo('Authentication successful, waiting for auth state...');
+        // setDebugInfo('Authentication successful, waiting for auth state...');
         console.log('Authentication successful, waiting for auth state to update...');
         
         // The redirect will be handled by the useEffect that monitors auth state
-        setDebugInfo('Authentication successful! Redirect will happen automatically.');
+        // setDebugInfo('Authentication successful! Redirect will happen automatically.');
         console.log('Authentication successful! Redirect will happen automatically.');
         
       } catch (error: any) {
         console.error('Login error:', error);
         setError(error.message || 'Invalid email or password. Please try again.');
         setCaptchaCompleted(false);
-        setDebugInfo(`Error: ${error.message}`);
+        // setDebugInfo(`Error: ${error.message}`);
         
         // Check for lockout after failed attempt
         try {

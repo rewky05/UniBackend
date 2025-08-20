@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -42,6 +42,14 @@ export function AffiliationsEducationForm({
   
   // Get clinics data for clinic name lookup
   const { clinics, loading: clinicsLoading } = useRealClinics();
+
+  // Reset internal state when schedules data is cleared
+  useEffect(() => {
+    // If schedules array is empty, close any open dialogs
+    if (!data.schedules || data.schedules.length === 0) {
+      setIsScheduleDialogOpen(false);
+    }
+  }, [data.schedules]);
   
   // Function to get clinic name from clinic ID
   const getClinicName = (clinicId: string) => {

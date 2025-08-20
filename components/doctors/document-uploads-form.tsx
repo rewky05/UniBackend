@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,15 @@ interface VerificationFormProps {
 export function DocumentUploadsForm({ data, onUpdate }: VerificationFormProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
+
+  // Reset internal state when form data is cleared
+  useEffect(() => {
+    // If both fields are empty, reset verification state
+    if (!data.medicalLicense && !data.prcId) {
+      setIsVerifying(false);
+      setVerificationStatus('pending');
+    }
+  }, [data.medicalLicense, data.prcId]);
 
   const handleInputChange = (field: keyof VerificationData, value: string) => {
     onUpdate({ [field]: value });

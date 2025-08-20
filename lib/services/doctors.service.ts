@@ -269,7 +269,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
 
       return doctors.filter(doctor => {
-        const expiryDate = new Date(doctor.prcExpiry);
+        const expiryDate = new Date(doctor.prcExpiryDate || doctor.prcExpiry);
         return expiryDate <= thresholdDate && expiryDate >= new Date();
       });
     } catch (error) {
@@ -445,7 +445,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
    * Check if doctor's PRC is expiring soon
    */
   static isPrcExpiringSoon(doctor: Doctor, daysThreshold: number = 30): boolean {
-    const expiryDate = new Date(doctor.prcExpiry);
+    const expiryDate = new Date(doctor.prcExpiryDate || doctor.prcExpiry);
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
     

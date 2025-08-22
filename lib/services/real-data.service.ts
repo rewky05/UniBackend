@@ -1391,6 +1391,8 @@ export class RealDataService {
         middleName: patientData.middleName || '',
         lastName: patientData.lastName,
         address: patientData.address || '',
+        bloodType: patientData.bloodType || '',
+        allergies: patientData.allergies || [],
         lastUpdated: timestamp,
         userId: patientId
       };

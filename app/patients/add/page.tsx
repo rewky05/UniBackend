@@ -43,6 +43,8 @@ export interface PatientFormData {
   dateOfBirth: string;
   gender: string;
   educationalAttainment: string;
+  bloodType: string;
+  allergies: string[];
   emergencyContact: {
     name: string;
     phone: string;
@@ -81,6 +83,8 @@ export default function AddPatientPage() {
     dateOfBirth: '',
     gender: '',
     educationalAttainment: '',
+    bloodType: '',
+    allergies: [],
     emergencyContact: {
       name: '',
       phone: '',
@@ -95,8 +99,7 @@ export default function AddPatientPage() {
     formData,
     setFormData,
     clearForm,
-    isLoaded,
-    hasUnsavedChanges
+    isLoaded
   } = useFormPersistence<PatientFormData>({
     storageKey: 'patient-form-data',
     initialData: initialFormData,
@@ -110,7 +113,7 @@ export default function AddPatientPage() {
   // Optimized update function to prevent unnecessary re-renders
   const handleFormUpdate = useCallback((updates: Partial<PatientFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
-  }, [setFormData]);
+  }, []); // Empty dependency array since setFormData is now stable
   
 
 
@@ -326,6 +329,7 @@ export default function AddPatientPage() {
       formData.educationalAttainment?.trim().length > 0 &&
       isValidDate(formData.dateOfBirth || '') &&
       formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) &&
+      formData.bloodType?.trim().length > 0 &&
       formData.temporaryPassword && formData.temporaryPassword.trim().length >= 6;
     
     // Emergency Contact validation
@@ -374,10 +378,10 @@ export default function AddPatientPage() {
       return 0;
     }
 
-    const totalFields = 13; // Total number of required fields (10 personal + 3 emergency contact)
+    const totalFields = 14; // Total number of required fields (11 personal + 3 emergency contact)
     let completedFields = 0;
 
-    // Personal Information (10 fields) - with validation
+    // Personal Information (11 fields) - with validation
     if (formData.firstName?.trim().length >= 2) completedFields++;
     if (formData.lastName?.trim().length >= 2) completedFields++;
     if (formData.middleName?.trim().length >= 2) completedFields++;
@@ -388,6 +392,7 @@ export default function AddPatientPage() {
     if (formData.educationalAttainment?.trim().length > 0) completedFields++;
     if (isValidDate(formData.dateOfBirth || '')) completedFields++;
     if (formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
+    if (formData.bloodType?.trim().length > 0) completedFields++;
 
     // Emergency Contact (3 required fields) - with validation
     if (formData.emergencyContact?.name?.trim().length >= 2) completedFields++;
@@ -417,14 +422,15 @@ export default function AddPatientPage() {
           { field: 'address', valid: formData.address?.trim().length >= 10 },
           { field: 'educationalAttainment', valid: formData.educationalAttainment?.trim().length > 0 },
           { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth || '') },
-          { field: 'gender', valid: formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) }
+          { field: 'gender', valid: formData.gender?.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) },
+          { field: 'bloodType', valid: formData.bloodType?.trim().length > 0 }
         ];
         
         personalValidations.forEach(({ field, valid }) => {
           if (valid) completedPersonal++;
         });
         
-        return Math.round((completedPersonal / 10) * 100);
+        return Math.round((completedPersonal / 11) * 100);
       
       case 'emergency':
         let completedEmergency = 0;
@@ -511,12 +517,7 @@ export default function AddPatientPage() {
               </p>
             </div>
           </div>
-          {hasUnsavedChanges && (
-            <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/20 px-3 py-1 rounded-full">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span>Auto-saving...</span>
-            </div>
-          )}
+
         </div>
 
         {/* Form Tabs */}

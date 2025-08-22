@@ -343,8 +343,8 @@ export default function DoctorsPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedSpecialty, selectedStatus, selectedClinic, selectedSort]);
 
-  // Print columns configuration
-  const printColumns = [
+  // PDF report columns configuration
+  const pdfColumns = [
     { key: 'name', label: 'Full Name', render: (doctor: any) => `${doctor.firstName} ${doctor.middleName || ''} ${doctor.lastName}` },
     { key: 'email', label: 'Email' },
     { key: 'specialty', label: 'Specialty' },
@@ -355,8 +355,8 @@ export default function DoctorsPage() {
     { key: 'createdAt', label: 'Date Added', render: (doctor: any) => formatDateToText(doctor.createdAt) },
   ];
 
-  // Print filters
-  const printFilters = [
+  // PDF report filters
+  const pdfFilters = [
     { label: 'Search', value: searchQuery || 'None' },
     { label: 'Specialty', value: selectedSpecialty },
     { label: 'Status', value: selectedStatus },
@@ -712,8 +712,8 @@ export default function DoctorsPage() {
                     title="Specialist Doctors Report"
                     subtitle={`${filteredDoctors.length} specialists found`}
                     data={sortedDoctors}
-                    columns={printColumns}
-                    filters={printFilters}
+                    columns={pdfColumns}
+                    filters={pdfFilters}
                     filename={`specialist_doctors_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>

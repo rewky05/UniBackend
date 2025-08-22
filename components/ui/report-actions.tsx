@@ -1,6 +1,5 @@
 "use client";
 
-import { PrintView } from "./print-view";
 import { PDFGenerator } from "./pdf-generator";
 
 interface ReportActionsProps {
@@ -17,7 +16,6 @@ interface ReportActionsProps {
     label: string;
     value: string;
   }[];
-  onPrint?: () => void;
   onGeneratePDF?: () => void;
   className?: string;
   filename?: string;
@@ -29,22 +27,12 @@ export function ReportActions({
   data,
   columns,
   filters = [],
-  onPrint,
   onGeneratePDF,
   className = "",
   filename
 }: ReportActionsProps) {
   return (
     <div className={`flex gap-2 ${className}`}>
-      <PrintView
-        title={title}
-        subtitle={subtitle}
-        data={data}
-        columns={columns}
-        filters={filters}
-        onPrint={onPrint}
-      />
-      
       <PDFGenerator
         title={title}
         subtitle={subtitle}

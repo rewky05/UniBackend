@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { User, Mail, Phone, Calendar, MapPin, Heart, AlertTriangle, GraduationCap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { User, Mail, Phone, Calendar, MapPin, Heart, AlertTriangle, GraduationCap, Plus, X } from 'lucide-react';
 
 interface PersonalInfoFormProps {
   data?: any;
@@ -15,19 +17,28 @@ interface PersonalInfoFormProps {
 }
 
 export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormProps) {
-  // Reset internal state when form data is cleared
-  useEffect(() => {
-    // If all personal info fields are empty, clear any internal state
-    const isFormEmpty = !data?.firstName && !data?.lastName && !data?.email && !data?.phone;
-    if (isFormEmpty) {
-      // Reset any internal state here if needed
-      // For now, the form is controlled by props, so no internal state to reset
-    }
-  }, [data?.firstName, data?.lastName, data?.email, data?.phone]);
+  const [allergyInput, setAllergyInput] = useState('');
 
   const handleInputChange = (field: string, value: any) => {
     if (onUpdate) {
       onUpdate({ [field]: value });
+    }
+  };
+
+  const addAllergy = () => {
+    if (allergyInput.trim() && onUpdate) {
+      const currentAllergies = data?.allergies || [];
+      const newAllergies = [...currentAllergies, allergyInput.trim()];
+      onUpdate({ allergies: newAllergies });
+      setAllergyInput('');
+    }
+  };
+
+  const removeAllergy = (index: number) => {
+    if (onUpdate) {
+      const currentAllergies = data?.allergies || [];
+      const newAllergies = currentAllergies.filter((_: string, i: number) => i !== index);
+      onUpdate({ allergies: newAllergies });
     }
   };
 
@@ -157,6 +168,84 @@ export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormP
             </SelectContent>
           </Select>
         </div>
+        </div>
+
+        {/* Blood Type and Allergies */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="bloodType" className="flex items-center gap-2">
+              <Heart className="h-4 w-4" />
+              Blood Type <span className="text-destructive">*</span>
+            </Label>
+            <Select value={data?.bloodType || ''} onValueChange={(value) => handleInputChange('bloodType', value)} disabled={disabled}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select blood type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A-">A-</SelectItem>
+                <SelectItem value="B+">B+</SelectItem>
+                <SelectItem value="B-">B-</SelectItem>
+                <SelectItem value="AB+">AB+</SelectItem>
+                <SelectItem value="AB-">AB-</SelectItem>
+                <SelectItem value="O+">O+</SelectItem>
+                <SelectItem value="O-">O-</SelectItem>
+                <SelectItem value="not-known">Not known yet</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="allergies" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Allergies
+            </Label>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  id="allergyInput"
+                  placeholder="Enter allergy (e.g., Penicillin, Peanuts)"
+                  value={allergyInput || ''}
+                  onChange={(e) => setAllergyInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && allergyInput.trim()) {
+                      e.preventDefault();
+                      addAllergy();
+                    }
+                  }}
+                  disabled={disabled}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={addAllergy}
+                  disabled={!allergyInput?.trim() || disabled}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {data?.allergies && data.allergies.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {data.allergies.map((allergy: string, index: number) => (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      {allergy}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeAllergy(index)}
+                        disabled={disabled}
+                        className="h-auto p-0 hover:bg-transparent"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Address */}

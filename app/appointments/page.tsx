@@ -244,8 +244,8 @@ export default function AppointmentsPage() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, clinicFilter, selectedTab]);
 
-  // Print columns configuration for appointments
-  const appointmentPrintColumns = [
+  // PDF report columns configuration for appointments
+  const appointmentPdfColumns = [
     { key: 'patient', label: 'Patient', render: (appointment: any) => `${appointment.patientFirstName} ${appointment.patientLastName}` },
     { key: 'doctor', label: 'Doctor', render: (appointment: any) => appointment.doctorFirstName && appointment.doctorLastName ? `Dr. ${appointment.doctorFirstName} ${appointment.doctorLastName}` : 'Not assigned' },
     { key: 'clinicName', label: 'Clinic' },
@@ -254,8 +254,8 @@ export default function AppointmentsPage() {
     { key: 'status', label: 'Status', render: (appointment: any) => appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) },
   ];
 
-  // Print columns configuration for referrals
-  const referralPrintColumns = [
+  // PDF report columns configuration for referrals
+  const referralPdfColumns = [
     { key: 'patient', label: 'Patient', render: (referral: any) => `${referral.patientFirstName} ${referral.patientLastName}` },
     { key: 'referringDoctor', label: 'Referring Doctor', render: (referral: any) => `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}` },
     { key: 'assignedSpecialist', label: 'Assigned Specialist', render: (referral: any) => `Dr. ${referral.assignedSpecialistFirstName} ${referral.assignedSpecialistLastName}` },
@@ -265,8 +265,8 @@ export default function AppointmentsPage() {
     { key: 'status', label: 'Status', render: (referral: any) => referral.status?.replace('_', ' ').charAt(0).toUpperCase() + referral.status?.replace('_', ' ').slice(1) },
   ];
 
-  // Print filters
-  const printFilters = [
+  // PDF report filters
+  const pdfFilters = [
     { label: 'Search', value: searchTerm || 'None' },
     { label: 'Status', value: statusFilter },
     { label: 'Clinic', value: clinicFilter },
@@ -385,8 +385,8 @@ export default function AppointmentsPage() {
                     title="Clinic Appointments Report"
                     subtitle={`${filteredAppointments.length} appointments found`}
                     data={filteredAppointments}
-                    columns={appointmentPrintColumns}
-                    filters={printFilters}
+                    columns={appointmentPdfColumns}
+                    filters={pdfFilters}
                     filename={`clinic_appointments_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>
@@ -596,8 +596,8 @@ export default function AppointmentsPage() {
                     title="Specialist Referrals Report"
                     subtitle={`${filteredReferrals.length} referrals found`}
                     data={filteredReferrals}
-                    columns={referralPrintColumns}
-                    filters={printFilters}
+                    columns={referralPdfColumns}
+                    filters={pdfFilters}
                     filename={`specialist_referrals_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
                   />
                 </div>

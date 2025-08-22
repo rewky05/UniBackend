@@ -16,6 +16,7 @@ import { Settings, LogOut, User, Shield, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { SecureSessionStorage } from "@/lib/utils/session-storage";
 
 interface HeaderProps {
   title?: string;
@@ -29,11 +30,11 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   // Get user display information
   const getUserDisplayName = () => {
-    if (isSuperadmin()) {
-      return "Super Admin";
-    }
-    if (user?.firstName) {
-      return user.firstName;
+    // if (isSuperadmin()) {
+    //   return "Super Admin";
+    // }
+    if (user?.firstName && user?.lastName) {
+      return user.firstName + " " + user.lastName;
     }
     if (user?.displayName) {
       return user.displayName;
@@ -42,7 +43,13 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   };
 
   const getUserEmail = () => {
-    return user?.email || "admin@unihealth.ph";
+    // Get email from localStorage for superadmin, otherwise use user object
+    if (isSuperadmin()) {
+      const storedEmail = localStorage.getItem('userEmail');
+      const sessionEmail = SecureSessionStorage.getUserEmail();
+      return storedEmail || sessionEmail || user?.email || "";
+    }
+    return user?.email || "";
   };
 
   const handleLogout = async () => {

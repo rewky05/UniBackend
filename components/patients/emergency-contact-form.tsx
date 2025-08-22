@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,15 +22,6 @@ interface EmergencyContactFormProps {
 }
 
 export function EmergencyContactForm({ data, onUpdate, disabled }: EmergencyContactFormProps) {
-  // Reset internal state when emergency contact data is cleared
-  useEffect(() => {
-    // If all emergency contact fields are empty, clear any internal state
-    const isFormEmpty = !data?.emergencyContact?.name && !data?.emergencyContact?.phone && !data?.emergencyContact?.relationship;
-    if (isFormEmpty) {
-      // Reset any internal state here if needed
-      // For now, the form is controlled by props, so no internal state to reset
-    }
-  }, [data?.emergencyContact?.name, data?.emergencyContact?.phone, data?.emergencyContact?.relationship]);
 
   return (
     <Card>

@@ -155,6 +155,8 @@ export default function PatientsPage() {
     gender: string;
     address: string;
     educationalAttainment: string;
+    bloodType: string;
+    allergies: string[];
     emergencyContact: {
       name: string;
       phone: string;
@@ -165,12 +167,15 @@ export default function PatientsPage() {
     gender: '',
     address: '',
     educationalAttainment: '',
+    bloodType: '',
+    allergies: [],
     emergencyContact: {
       name: '',
       phone: '',
       relationship: ''
     }
   });
+  const [allergyInput, setAllergyInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
@@ -278,8 +283,8 @@ export default function PatientsPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedStatus, selectedSort]);
 
-  // Print columns configuration
-  const printColumns = [
+  // PDF report columns configuration
+  const pdfColumns = [
     { key: 'name', label: 'Full Name', render: (patient: Patient) => `${patient.firstName} ${patient.lastName}` },
     { key: 'contactNumber', label: 'Contact Number' },
     { key: 'email', label: 'Email' },
@@ -290,8 +295,8 @@ export default function PatientsPage() {
     { key: 'createdAt', label: 'Date Added', render: (patient: Patient) => formatDateToText(patient.createdAt) },
   ];
 
-  // Print filters
-  const printFilters = [
+  // PDF report filters
+  const pdfFilters = [
     { label: 'Search', value: searchQuery || 'None' },
     { label: 'Status', value: selectedStatus },
   ].filter(filter => filter.value !== 'All Status');
@@ -367,6 +372,18 @@ export default function PatientsPage() {
     
     // If not in map, apply proper capitalization
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  // Helper function to format blood type and handle "not-known" values
+  const formatBloodType = (bloodType: string) => {
+    if (!bloodType) return "Not specified";
+    
+    // Handle "not-known" value
+    if (bloodType.toLowerCase() === 'not-known') {
+      return "Not known yet";
+    }
+    
+    return bloodType;
   };
 
   const handleViewPatient = (patient: Patient) => {
@@ -455,6 +472,8 @@ export default function PatientsPage() {
         gender: normalizeGender(selectedPatient.gender || ''),
         address: consolidatedAddress !== "N/A" ? consolidatedAddress : '',
         educationalAttainment: normalizeEducation(selectedPatient.educationalAttainment || ''),
+        bloodType: selectedPatient.bloodType || '',
+        allergies: selectedPatient.allergies || [],
         emergencyContact: {
           name: selectedPatient.emergencyContact?.name || '',
           phone: selectedPatient.emergencyContact?.phone || '',
@@ -475,6 +494,8 @@ export default function PatientsPage() {
       gender: '',
       address: '',
       educationalAttainment: '',
+      bloodType: '',
+      allergies: [],
       emergencyContact: {
         name: '',
         phone: '',
@@ -508,6 +529,8 @@ export default function PatientsPage() {
         province: null,
         zipCode: null,
         highestEducationalAttainment: editData.educationalAttainment,
+        bloodType: editData.bloodType,
+        allergies: editData.allergies,
         emergencyContact: editData.emergencyContact,
       };
 
@@ -521,6 +544,8 @@ export default function PatientsPage() {
         gender: editData.gender,
         address: editData.address,
         educationalAttainment: editData.educationalAttainment,
+        bloodType: editData.bloodType,
+        allergies: editData.allergies,
         emergencyContact: editData.emergencyContact,
       };
       setSelectedPatient(updatedPatient);
@@ -577,6 +602,27 @@ export default function PatientsPage() {
         return newData;
       });
     }
+  };
+
+  const addAllergy = () => {
+    if (allergyInput.trim()) {
+      const currentAllergies = editData.allergies || [];
+      const newAllergies = [...currentAllergies, allergyInput.trim()];
+      setEditData(prev => ({
+        ...prev,
+        allergies: newAllergies
+      }));
+      setAllergyInput('');
+    }
+  };
+
+  const removeAllergy = (index: number) => {
+    const currentAllergies = editData.allergies || [];
+    const newAllergies = currentAllergies.filter((_, i) => i !== index);
+    setEditData(prev => ({
+      ...prev,
+      allergies: newAllergies
+    }));
   };
 
   if (loading) {
@@ -689,8 +735,8 @@ export default function PatientsPage() {
                 title="Patients Report"
                 subtitle={`${sortedPatients.length} patients found`}
                 data={sortedPatients}
-                columns={printColumns}
-                filters={printFilters}
+                columns={pdfColumns}
+                filters={pdfFilters}
                 filename={`patients_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
               />
             </div>
@@ -823,6 +869,8 @@ export default function PatientsPage() {
                 gender: '',
                 address: '',
                 educationalAttainment: '',
+                bloodType: '',
+                allergies: [],
                 emergencyContact: {
                   name: '',
                   phone: '',
@@ -1013,6 +1061,104 @@ export default function PatientsPage() {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Blood Type and Allergies */}
+                  <div className="mt-6">
+                    <h3 className="text-sm font-semibold mb-2">Medical Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Blood Type</span>
+                        {isEditing ? (
+                          <Select
+                            value={editData.bloodType || ''}
+                            onValueChange={(value) => handleInputChange('bloodType', value)}
+                          >
+                            <SelectTrigger className="font-medium text-base">
+                              <SelectValue placeholder="Select blood type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="A+">A+</SelectItem>
+                              <SelectItem value="A-">A-</SelectItem>
+                              <SelectItem value="B+">B+</SelectItem>
+                              <SelectItem value="B-">B-</SelectItem>
+                              <SelectItem value="AB+">AB+</SelectItem>
+                              <SelectItem value="AB-">AB-</SelectItem>
+                              <SelectItem value="O+">O+</SelectItem>
+                              <SelectItem value="O-">O-</SelectItem>
+                              <SelectItem value="not-known">Not known yet</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="font-medium text-base border rounded px-3 py-2 bg-muted/30">
+                            {formatBloodType(selectedPatient?.bloodType || 'Not specified')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground">Allergies</span>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Enter allergy (e.g., Penicillin, Peanuts)"
+                                value={allergyInput || ''}
+                                onChange={(e) => setAllergyInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && allergyInput.trim()) {
+                                    e.preventDefault();
+                                    addAllergy();
+                                  }
+                                }}
+                                className="font-medium text-base"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={addAllergy}
+                                disabled={!allergyInput?.trim()}
+                                className="shrink-0"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {editData.allergies && editData.allergies.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {editData.allergies.map((allergy, index) => (
+                                  <Badge key={index} variant="secondary" className="gap-1">
+                                    {allergy}
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => removeAllergy(index)}
+                                      className="h-auto p-0 hover:bg-transparent"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="font-medium text-base border rounded px-3 py-2 bg-muted/30 min-h-[42px] flex items-center">
+                            {selectedPatient.allergies && selectedPatient.allergies.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {selectedPatient.allergies.map((allergy, index) => (
+                                  <Badge key={index} variant="secondary">
+                                    {allergy}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              "No allergies recorded"
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="mt-6">
                     <h3 className="text-sm font-semibold mb-2">Emergency Contact</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

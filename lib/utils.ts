@@ -36,6 +36,17 @@ export function formatDateToText(dateString: string | Date | number): string {
     return 'No date provided';
   }
   
+  // For date-only strings (like birthdays), treat as local date, not UTC
+  if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    return localDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+  
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

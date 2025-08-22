@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { SecureSessionStorage } from "@/lib/utils/session-storage";
 import {
   Users,
   Calendar,
@@ -67,11 +68,11 @@ export function Sidebar() {
 
   // Get user display information
   const getUserDisplayName = () => {
-    if (isSuperadmin()) {
-      return "Super Admin";
-    }
-    if (user?.firstName) {
-      return user.firstName;
+    // if (isSuperadmin()) {
+    //   return "Super Admin";
+    // }
+    if (user?.firstName && user?.lastName) {
+      return user.firstName + " " + user.lastName;
     }
     if (user?.displayName) {
       return user.displayName;
@@ -82,9 +83,11 @@ export function Sidebar() {
   const getUserEmail = () => {
     // Get email from localStorage for superadmin, otherwise use user object
     if (isSuperadmin()) {
-      return localStorage.getItem('userEmail') || "admin@unihealth.ph";
+      const storedEmail = localStorage.getItem('userEmail');
+      const sessionEmail = SecureSessionStorage.getUserEmail();
+      return storedEmail || sessionEmail || "";
     }
-    return user?.email || "admin@unihealth.ph";
+    return user?.email || "";
   };
 
   return (

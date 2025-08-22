@@ -51,6 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+
+
   const refreshAuthState = () => {
     const superadminUser = checkSuperadminAuth();
     if (superadminUser) {
@@ -120,6 +122,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 lastName: userData.lastName || '',
                 role: userData.role || 'admin',
               };
+              
+              // Check if this is a superadmin and set localStorage accordingly
+              if (userData.role === AUTH_CONFIG.ROLES.SUPERADMIN) {
+                console.log('Detected superadmin user, setting localStorage values');
+                localStorage.setItem('userRole', AUTH_CONFIG.ROLES.SUPERADMIN);
+                localStorage.setItem('userEmail', firebaseUser.email || '');
+              }
             } else {
               console.log('No user data found in database, using Firebase defaults');
             }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { clearFormCompletely as clearFormUtil } from '@/lib/utils/form-reset';
 
 export interface UseFormPersistenceOptions {
@@ -13,7 +13,6 @@ export interface UseFormPersistenceReturn<T> {
   setFormData: (data: T | ((prev: T) => T)) => void;
   clearForm: () => void;
   isLoaded: boolean;
-  hasUnsavedChanges: boolean;
 }
 
 /**
@@ -28,7 +27,19 @@ export function useFormPersistence<T>(
   
   const [formData, setFormDataState] = useState<T>(initialData);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Use refs to store stable references to avoid dependency issues
+  const storageKeyRef = useRef(storageKey);
+  const autoSaveRef = useRef(autoSave);
+  const initialDataRef = useRef(initialData);
+
+  // Update refs when options change
+  useEffect(() => {
+    storageKeyRef.current = storageKey;
+    autoSaveRef.current = autoSave;
+    initialDataRef.current = initialData;
+  }, [storageKey, autoSave, initialData]);
 
   // Load form data from localStorage on mount
   useEffect(() => {
@@ -38,66 +49,79 @@ export function useFormPersistence<T>(
     }
 
     try {
-      const savedData = localStorage.getItem(storageKey);
+      const savedData = localStorage.getItem(storageKeyRef.current);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         setFormDataState(parsedData);
-        setHasUnsavedChanges(true);
       }
     } catch (error) {
       console.error('Error loading form data from localStorage:', error);
-      setFormDataState(initialData);
+      setFormDataState(initialDataRef.current);
     } finally {
       setIsLoaded(true);
     }
-  }, [storageKey, autoLoad, initialData]);
+  }, [autoLoad]); // Only depend on autoLoad, use refs for other values
 
-  // Save form data to localStorage whenever it changes
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Save form data to localStorage whenever it changes (debounced)
   const setFormData = useCallback((data: T | ((prev: T) => T)) => {
     setFormDataState(prevData => {
       const newData = typeof data === 'function' ? (data as (prev: T) => T)(prevData) : data;
       
-      if (autoSave) {
-        try {
-          // Create a copy without File objects for localStorage serialization
-          const serializableData = { ...newData } as Record<string, any>;
-          
-          // Remove File objects as they can't be serialized
-          Object.keys(serializableData).forEach(key => {
-            if (serializableData[key] instanceof File) {
-              delete serializableData[key];
-            }
-          });
-          
-          localStorage.setItem(storageKey, JSON.stringify(serializableData));
-          setHasUnsavedChanges(true);
-        } catch (error) {
-          console.error('Error saving form data to localStorage:', error);
+      if (autoSaveRef.current) {
+        // Clear existing timeout
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
         }
+        
+        // Debounce the save operation
+        saveTimeoutRef.current = setTimeout(() => {
+          try {
+            // Create a copy without File objects for localStorage serialization
+            const serializableData = { ...newData } as Record<string, any>;
+            
+            // Remove File objects as they can't be serialized
+            Object.keys(serializableData).forEach(key => {
+              if (serializableData[key] instanceof File) {
+                delete serializableData[key];
+              }
+            });
+            
+            localStorage.setItem(storageKeyRef.current, JSON.stringify(serializableData));
+          } catch (error) {
+            console.error('Error saving form data to localStorage:', error);
+          }
+        }, 500); // 500ms debounce
       }
       
       return newData;
     });
-  }, [storageKey, autoSave]);
+  }, []); // Empty dependency array - use refs for all external values
 
   // Clear form data completely
   const clearForm = useCallback(() => {
-    setFormDataState(initialData);
-    setHasUnsavedChanges(false);
+    setFormDataState(initialDataRef.current);
     
     try {
-      localStorage.removeItem(storageKey);
+      localStorage.removeItem(storageKeyRef.current);
     } catch (error) {
       console.error('Error clearing form data from localStorage:', error);
     }
-  }, [storageKey, initialData]);
+  }, []); // Empty dependency array - use refs for all external values
 
   return {
     formData,
     setFormData,
     clearForm,
-    isLoaded,
-    hasUnsavedChanges
+    isLoaded
   };
 }
 

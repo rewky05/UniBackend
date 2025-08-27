@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
 import { useRealAppointments, useRealReferrals, useRealFeedback } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatDateToText } from "@/lib/utils";
 import { LoadingSpinner, ErrorState } from "@/components/ui/loading-states";
+import { ConsultationTimeStats } from "@/components/ui/consultation-time-stats";
+import { IndividualConsultationsTable } from "@/components/ui/individual-consultations-table";
+import { useConsultationTime } from "@/hooks/useConsultationTime";
+import { formatConsultationTime, calculateConsultationTime } from "@/lib/utils/consultation-time";
+import { ConsultationTimeChart } from "@/components/ui/consultation-time-chart";
 import {
   Card,
   CardContent,
@@ -45,7 +50,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppointmentTrendsChart } from '@/components/ui/appointment-trends-chart';
-import { PatientVolumeChart } from '@/components/ui/patient-volume-chart';
 import type { Appointment } from '@/lib/types/database';
 
 
@@ -73,7 +77,7 @@ export default function DashboardPage() {
 
   // Appointments data
   const { appointments: realAppointments, loading: appointmentsLoading } = useRealAppointments();
-  const { referrals, loading: referralsLoading } = useRealReferrals();
+  const { referrals: realReferrals, loading: referralsLoading } = useRealReferrals();
   const { feedback, loading: feedbackLoading } = useRealFeedback();
 
   // TEMPORARY SAMPLE DATA - Remove when user says "remove"
@@ -100,7 +104,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(), // 45 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -124,7 +128,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(), // 30 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -148,7 +152,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(), // 60 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -172,7 +176,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000 + 20 * 60 * 1000).toISOString(), // 20 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -196,7 +200,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000).toISOString(), // 35 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -220,7 +224,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000 + 50 * 60 * 1000).toISOString(), // 50 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -244,7 +248,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000).toISOString(), // 40 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -268,7 +272,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(), // 25 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -292,7 +296,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000 + 55 * 60 * 1000).toISOString(), // 55 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -316,7 +320,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000 + 70 * 60 * 1000).toISOString(), // 70 min consultation
       sourceSystem: 'dashboard'
     },
     // More recent appointments for better visualization
@@ -341,7 +345,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(), // 30 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -365,7 +369,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(), // 45 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -389,7 +393,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000).toISOString(), // 35 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -413,7 +417,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000).toISOString(), // 40 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -437,7 +441,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 50 * 60 * 1000).toISOString(), // 50 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -461,7 +465,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(), // 25 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -485,7 +489,7 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(), // 60 min consultation
       sourceSystem: 'dashboard'
     },
     {
@@ -509,16 +513,176 @@ export default function DashboardPage() {
       bookedByUserFirstName: 'Admin',
       bookedByUserLastName: 'User',
       createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min consultation
       sourceSystem: 'dashboard'
     }
   ];
 
-  // Use sample data for now (replace with realAppointments when removing sample data)
-  const appointments = sampleAppointments;
+  // Sample referral data for demonstration
+  const sampleReferrals = [
+    {
+      id: 'R001',
+      patientId: 'P020',
+      referringGeneralistId: 'D001',
+      assignedSpecialistId: 'D005',
+      clinicAppointmentId: 'A020',
+      initialReasonForReferral: 'Cardiac evaluation needed',
+      generalistNotes: 'Patient shows signs of cardiac issues',
+      appointmentDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '10:00',
+      status: 'completed' as const,
+      referralTimestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000 + 90 * 60 * 1000).toISOString(), // 90 min consultation
+      patientArrivalConfirmed: true,
+      practiceLocation: {
+        clinicId: 'C001',
+        roomOrUnit: 'Cardiology Unit'
+      },
+      referringClinicId: 'C001',
+      sourceSystem: 'dashboard',
+      specialistScheduleId: 'S001',
+      scheduleSlotPath: 'schedules/S001/slots/1'
+    },
+    {
+      id: 'R002',
+      patientId: 'P021',
+      referringGeneralistId: 'D002',
+      assignedSpecialistId: 'D006',
+      clinicAppointmentId: 'A021',
+      initialReasonForReferral: 'Neurological assessment',
+      generalistNotes: 'Patient experiencing memory issues',
+      appointmentDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '14:30',
+      status: 'completed' as const,
+      referralTimestamp: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000 + 75 * 60 * 1000).toISOString(), // 75 min consultation
+      patientArrivalConfirmed: true,
+      practiceLocation: {
+        clinicId: 'C002',
+        roomOrUnit: 'Neurology Unit'
+      },
+      referringClinicId: 'C002',
+      sourceSystem: 'dashboard',
+      specialistScheduleId: 'S002',
+      scheduleSlotPath: 'schedules/S002/slots/2'
+    },
+    {
+      id: 'R003',
+      patientId: 'P022',
+      referringGeneralistId: 'D003',
+      assignedSpecialistId: 'D007',
+      clinicAppointmentId: 'A022',
+      initialReasonForReferral: 'Orthopedic evaluation',
+      generalistNotes: 'Patient with chronic back pain',
+      appointmentDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      appointmentTime: '09:00',
+      status: 'completed' as const,
+      referralTimestamp: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+      lastUpdated: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000 + 65 * 60 * 1000).toISOString(), // 65 min consultation
+      patientArrivalConfirmed: true,
+      practiceLocation: {
+        clinicId: 'C003',
+        roomOrUnit: 'Orthopedics Unit'
+      },
+      referringClinicId: 'C003',
+      sourceSystem: 'dashboard',
+      specialistScheduleId: 'S003',
+      scheduleSlotPath: 'schedules/S003/slots/3'
+    }
+  ];
+
+  // Use real data from Firebase, with sample data fallback for demonstration
+  const appointments = realAppointments && realAppointments.length > 0 ? realAppointments : sampleAppointments;
+  const referrals = realReferrals && realReferrals.length > 0 ? realReferrals : sampleReferrals;
+
+  // Calculate consultation time statistics using custom hook - including referrals
+  const { consultationTimeStats } = useConsultationTime(appointments, referrals);
+
+  // Transform appointment and referral data for the consultation time chart
+  // Use the same data processing logic as the consultation time calculation
+  const consultationTimeData = useMemo(() => {
+    const chartData: Array<{
+      id: string;
+      date: string;
+      duration: number;
+      specialty?: string;
+      doctorName?: string;
+      patientName?: string;
+      status: 'completed' | 'cancelled' | 'no-show';
+    }> = [];
+    
+    // Use the same logic as calculateAverageConsultationTime function
+    // Add appointments data
+    appointments.forEach(appointment => {
+      if (appointment.status === 'completed' && appointment.lastUpdated) {
+        // Use the same calculation method as the stats
+        const consultationTime = calculateConsultationTime(
+          appointment.appointmentDate,
+          appointment.appointmentTime,
+          appointment.lastUpdated
+        );
+        
+        if (consultationTime > 0 && appointment.appointmentDate) {
+          chartData.push({
+            id: appointment.id || 'unknown',
+            date: appointment.appointmentDate,
+            duration: consultationTime,
+            specialty: appointment.specialty || 'General Medicine',
+            doctorName: `${appointment.doctorFirstName || ''} ${appointment.doctorLastName || ''}`.trim() || 'Unknown Doctor',
+            patientName: `${appointment.patientFirstName || ''} ${appointment.patientLastName || ''}`.trim() || 'Unknown Patient',
+            status: appointment.status as 'completed' | 'cancelled' | 'no-show',
+          });
+        }
+      }
+    });
+    
+    // Add referrals data
+    referrals.forEach(referral => {
+      if (referral.status === 'completed' && referral.lastUpdated) {
+        // Use the same calculation method as the stats
+        const consultationTime = calculateConsultationTime(
+          referral.appointmentDate,
+          referral.appointmentTime,
+          referral.lastUpdated
+        );
+        
+        if (consultationTime > 0 && referral.appointmentDate) {
+          chartData.push({
+            id: referral.id || 'unknown',
+            date: referral.appointmentDate,
+            duration: consultationTime,
+            specialty: referral.initialReasonForReferral?.includes('Cardiac') ? 'Cardiology' : 
+                     referral.initialReasonForReferral?.includes('Neurological') ? 'Neurology' : 
+                     referral.initialReasonForReferral?.includes('Orthopedic') ? 'Orthopedics' : 'General Medicine',
+            doctorName: `Specialist ${referral.assignedSpecialistId}`,
+            patientName: `Patient ${referral.patientId}`,
+            status: referral.status as 'completed' | 'cancelled' | 'no-show',
+          });
+        }
+      }
+    });
+    
+    // Sort by date for better visualization
+    chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    console.log('Consultation time chart data:', {
+      totalAppointments: appointments.length,
+      totalReferrals: referrals.length,
+      completedAppointments: appointments.filter(a => a.status === 'completed').length,
+      completedReferrals: referrals.filter(r => r.status === 'completed').length,
+      chartDataPoints: chartData.length,
+      usingRealData: realAppointments && realAppointments.length > 0,
+      usingSampleData: !realAppointments || realAppointments.length === 0,
+      chartData: chartData.slice(0, 5), // Log first 5 for debugging
+      averageFromStats: consultationTimeStats.averageConsultationTimeMinutes,
+      totalFromStats: consultationTimeStats.totalCompletedConsultations
+    });
+    
+    return chartData;
+  }, [appointments, referrals, consultationTimeStats]);
 
   // Show loading state
-  if (dashboardLoading || specialistsLoading) {
+  if (dashboardLoading || specialistsLoading || appointmentsLoading || referralsLoading) {
     return (
       <DashboardLayout title="">
         <LoadingSpinner size="lg" text="Loading dashboard data..." />
@@ -538,7 +702,19 @@ export default function DashboardPage() {
     );
   }
 
-  // Calculate stats from cached data
+  // Debug: Log the data to see what we're working with
+  console.log('=== DASHBOARD DATA DEBUG ===');
+  console.log('Appointments loading:', appointmentsLoading);
+  console.log('Referrals loading:', referralsLoading);
+  console.log('Real Appointments count:', realAppointments?.length || 0);
+  console.log('Real Referrals count:', realReferrals?.length || 0);
+  console.log('Using appointments:', appointments.length);
+  console.log('Using referrals:', referrals.length);
+  console.log('Using sample data:', !realAppointments || realAppointments.length === 0);
+  console.log('Completed Appointments:', appointments.filter(a => a.status === 'completed'));
+  console.log('Completed Referrals:', referrals.filter(r => r.status === 'completed'));
+
+    // Calculate stats from cached data
   const stats = dashboardData ? [
     {
       title: "Total Specialists",
@@ -557,10 +733,10 @@ export default function DashboardPage() {
       icon: UserCheck,
        isClickable: true,
        href: "/doctors?status=verified" as const,
-     },
+      },
     {
       title: "Total Appointments",
-      value: appointments.length,
+      value: appointments.length + referrals.length,
       change: "+15%",
       changeType: "positive" as const,
       icon: Calendar,
@@ -568,13 +744,12 @@ export default function DashboardPage() {
       href: "/appointments" as const,
     },
     {
-      title: "Active Referrals",
-      value: referrals.filter(r => r.status === 'pending' || r.status === 'pending_acceptance' || r.status === 'confirmed').length,
-      change: "+5%",
+      title: "Avg Consultation Time",
+      value: `${Math.round(consultationTimeStats.averageConsultationTimeMinutes)} min`,
+      change: `${consultationTimeStats.totalCompletedConsultations} completed`,
       changeType: "positive" as const,
-      icon: ArrowRight,
-      isClickable: true,
-      href: "/appointments?tab=referrals" as const,
+      icon: Clock,
+      isClickable: false,
     },
   ] : [];
 
@@ -643,17 +818,28 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts Section */}
-        <div className="flex gap-6">
-          <AppointmentTrendsChart 
-            appointments={appointments} 
-            className="w-3/5"
-          />
-          <PatientVolumeChart 
-            feedback={feedback || []}
-            appointments={appointments} 
-            className="w-2/5"
-          />
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <AppointmentTrendsChart 
+              appointments={appointments} 
+              referrals={referrals}
+              className="w-full"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <ConsultationTimeChart 
+              data={consultationTimeData}
+              className="w-full"
+              isSampleData={!realAppointments || realAppointments.length === 0}
+            />
+          </div>
         </div>
+
+        {/* Individual Consultations Table */}
+        <IndividualConsultationsTable 
+          consultations={consultationTimeStats.individualConsultations}
+          limit={15}
+        />
       </div>
     </DashboardLayout>
   );

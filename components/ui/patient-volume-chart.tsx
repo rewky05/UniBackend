@@ -50,6 +50,7 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
     const cutoffDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     
     return safeFeedback.filter(feedback => {
+      if (!feedback.appointmentDate) return false;
       const feedbackDate = new Date(feedback.appointmentDate);
       return feedbackDate >= cutoffDate;
     });
@@ -57,6 +58,7 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
   const ratingDistribution = useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<1|2|3|4|5, number>;
     for (const item of filteredFeedback) {
+      if (!item.rating) continue;
       const r = Math.min(5, Math.max(1, Math.round(item.rating))) as 1|2|3|4|5;
       counts[r] += 1;
     }
@@ -96,6 +98,7 @@ export function PatientSatisfactionChart({ feedback, appointments, className }: 
     const cutoffCurrent = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     const cutoffPrevious = new Date(cutoffCurrent.getTime() - daysBack * 24 * 60 * 60 * 1000);
     return safeFeedback.filter((f) => {
+      if (!f.appointmentDate) return false;
       const d = new Date(f.appointmentDate);
       return d >= cutoffPrevious && d < cutoffCurrent;
     }).length;

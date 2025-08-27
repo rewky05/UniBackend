@@ -2,6 +2,7 @@ import { ref, get, onValue, query, orderByChild, equalTo, set, push, update } fr
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase/config';
 import { safeGetTimestamp, resolveAddress, resolveFullAddress, getAddressComponents, getStreetAddress, getLocationDetails } from '@/lib/utils';
+import { calculateAverageConsultationTime } from '@/lib/utils/consultation-time';
 import type { 
   Doctor, 
   Clinic, 
@@ -1089,6 +1090,9 @@ export class RealDataService {
       const completedAppointments = appointments.filter(a => a.status === 'completed').length;
       const pendingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'confirmed').length;
 
+      // Calculate consultation time statistics
+      const consultationTimeStats = calculateAverageConsultationTime(appointments, referrals);
+
       return {
         totalDoctors,
         verifiedDoctors,
@@ -1102,10 +1106,28 @@ export class RealDataService {
         completedAppointments,
         pendingAppointments,
         totalPatients: patients.length,
-        totalReferrals: referrals.length
+        totalReferrals: referrals.length,
+        consultationTimeStats
       };
     } catch (error) {
       console.error('Error calculating dashboard stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get consultation time statistics
+   */
+  async getConsultationTimeStats() {
+    try {
+      const [appointments, referrals] = await Promise.all([
+        this.getAppointments(),
+        this.getReferrals()
+      ]);
+
+      return calculateAverageConsultationTime(appointments, referrals);
+    } catch (error) {
+      console.error('Error calculating consultation time stats:', error);
       throw error;
     }
   }

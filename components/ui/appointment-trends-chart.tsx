@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, Clock, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle, XCircle, BarChart3, Users } from 'lucide-react';
 import {
   ChartContainer,
 } from '@/components/ui/chart';
@@ -17,10 +17,11 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import type { Appointment } from '@/lib/types/database';
+import type { Appointment, Referral } from '@/lib/types/database';
 
 interface AppointmentTrendsChartProps {
   appointments: Appointment[];
+  referrals: Referral[];
   className?: string;
 }
 
@@ -38,7 +39,7 @@ const chartConfig = {
   },
 };
 
-export function AppointmentTrendsChart({ appointments, className }: AppointmentTrendsChartProps) {
+export function AppointmentTrendsChart({ appointments, referrals, className }: AppointmentTrendsChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
   const [selectedClinic, setSelectedClinic] = useState<string>('all');
@@ -49,14 +50,18 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
     return value;
   };
 
-  // Get unique clinics for filtering
+  // Get unique clinics for filtering (from both appointments and referrals)
   const clinics = useMemo(() => {
-    const clinicSet = new Set(appointments.map(a => a.clinicName).filter(Boolean));
+    const clinicSet = new Set([
+      ...appointments.map(a => a.clinicName).filter(Boolean),
+      ...referrals.map(r => r.specialistClinicName).filter(Boolean),
+      ...referrals.map(r => r.referringClinicName).filter(Boolean)
+    ]);
     return Array.from(clinicSet).sort();
-  }, [appointments]);
+  }, [appointments, referrals]);
 
-  // Filter appointments based on time range and clinic
-  const filteredAppointments = useMemo(() => {
+  // Filter appointments and referrals based on time range and clinic
+  const filteredData = useMemo(() => {
     const now = new Date();
     const timeRangeMap = {
       '7d': 7,
@@ -68,20 +73,33 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
     const daysBack = timeRangeMap[timeRange];
     const cutoffDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     
-    return appointments.filter(appointment => {
+    const filteredAppointments = appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
       const matchesDate = appointmentDate >= cutoffDate;
       const matchesClinic = selectedClinic === 'all' || appointment.clinicName === selectedClinic;
       
       return matchesDate && matchesClinic;
     });
-  }, [appointments, timeRange, selectedClinic]);
 
-  // Process data for chart
+    const filteredReferrals = referrals.filter(referral => {
+      const appointmentDate = new Date(referral.appointmentDate);
+      const matchesDate = appointmentDate >= cutoffDate;
+      const matchesClinic = selectedClinic === 'all' || 
+        referral.specialistClinicName === selectedClinic || 
+        referral.referringClinicName === selectedClinic;
+      
+      return matchesDate && matchesClinic;
+    });
+
+    return { appointments: filteredAppointments, referrals: filteredReferrals };
+  }, [appointments, referrals, timeRange, selectedClinic]);
+
+  // Process data for chart - treat referrals as appointments
   const chartData = useMemo(() => {
     const dataMap = new Map<string, { completed: number; cancelled: number }>();
     
-    filteredAppointments.forEach(appointment => {
+    // Process appointments
+    filteredData.appointments.forEach(appointment => {
       const date = new Date(appointment.appointmentDate);
       let key: string;
       
@@ -105,6 +123,33 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
       }
       dataMap.set(key, existing);
     });
+
+    // Process referrals as appointments - only count completed ones
+    filteredData.referrals.forEach(referral => {
+      // Only count referrals that are actually completed
+      if (referral.status !== 'completed') {
+        return;
+      }
+      
+      const date = new Date(referral.appointmentDate);
+      let key: string;
+      
+      if (groupBy === 'day') {
+        key = date.toISOString().split('T')[0];
+      } else if (groupBy === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      const existing = dataMap.get(key) || { completed: 0, cancelled: 0 };
+      // Only count completed referrals
+      existing.completed++;
+      dataMap.set(key, existing);
+    });
     
     // Convert to array and sort by date
     return Array.from(dataMap.entries())
@@ -113,26 +158,26 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
         ...counts,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredAppointments, groupBy]);
+  }, [filteredData, groupBy]);
 
-  // Calculate enhanced summary stats
+  // Calculate enhanced summary stats - only count completed referrals
   const summaryStats = useMemo(() => {
-    const completed = filteredAppointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'completed').length;
-    const cancelled = filteredAppointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'cancelled').length;
-    const total = completed + cancelled;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
-    const avgPerPeriod = total / Math.max(1, chartData.length);
+    const completedAppointments = filteredData.appointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'completed').length;
+    const cancelledAppointments = filteredData.appointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'cancelled').length;
+    const completedReferrals = filteredData.referrals.filter(r => r.status === 'completed').length;
+    
+    const totalAppointments = filteredData.appointments.length; // Count ALL appointments regardless of status
+    const totalCompleted = completedAppointments + completedReferrals; // Only include completed referrals
+    const totalCancelled = cancelledAppointments;
+    
+    const totalConsultations = totalAppointments + completedReferrals; // Only count completed referrals in total
     
     return {
-      completed,
-      cancelled,
-      total,
-      completionRate,
-      cancellationRate,
-      avgPerPeriod: Math.round(avgPerPeriod * 10) / 10,
+      completed: totalCompleted,
+      cancelled: totalCancelled,
+      total: totalConsultations,
     };
-  }, [filteredAppointments, chartData]);
+  }, [filteredData, chartData]);
 
   return (
     <div className={className}>
@@ -197,8 +242,8 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
         </CardHeader>
         
         <CardContent className="pb-4">
-          {/* Enhanced Summary Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 mt-2">
+          {/* Enhanced Summary Stats - Fused Data */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 mt-2">
             <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
               <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mb-1" />
               <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
@@ -207,28 +252,12 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
               <span className="text-xs text-blue-700 dark:text-blue-300">Completed</span>
             </div>
             
-            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-              <XCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mb-1" />
-              <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-red-50/50 to-pink-50/50 dark:from-red-950/30 dark:to-pink-950/30 rounded-lg border border-red-200/50 dark:border-red-800/50">
+              <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 mb-1" />
+              <span className="text-lg font-semibold text-red-900 dark:text-red-100">
                 {summaryStats.cancelled}
               </span>
-              <span className="text-xs text-blue-700 dark:text-blue-300">Cancelled</span>
-            </div>
-            
-            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-              <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400 mb-1" />
-              <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                {summaryStats.completionRate}%
-              </span>
-              <span className="text-xs text-blue-700 dark:text-blue-300">Success Rate</span>
-            </div>
-            
-            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-              <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400 mb-1" />
-              <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                {summaryStats.avgPerPeriod}
-              </span>
-              <span className="text-xs text-blue-700 dark:text-blue-300">Avg/Period</span>
+              <span className="text-xs text-red-700 dark:text-red-300">Cancelled</span>
             </div>
             
             <div className="flex flex-col items-center p-2 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
@@ -254,6 +283,7 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
                       <stop offset="5%" stopColor="#fca5a5" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#fca5a5" stopOpacity={0.3}/>
                     </linearGradient>
+
                   </defs>
                   
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
@@ -315,7 +345,7 @@ export function AppointmentTrendsChart({ appointments, className }: AppointmentT
                                       </span>
                                     </div>
                                     <span className="font-semibold text-sm" style={{ color: entry.color }}>
-                                      {entry.value} appointments
+                                      {entry.value} {entry.dataKey === 'referrals' ? 'referrals' : 'appointments'}
                                     </span>
                                   </div>
                                 ))}

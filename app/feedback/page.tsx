@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRealFeedback } from '@/hooks/useRealData';
+import { useRealFeedback, useRealAppointments } from '@/hooks/useRealData';
 import { useClinicsWithRatings, useFeedbackActions } from '@/hooks/useFeedback';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -48,6 +48,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { PatientSatisfactionChart } from '@/components/ui/patient-volume-chart';
 
 
 const ratings = ['All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'];
@@ -70,6 +71,7 @@ export default function FeedbackPage() {
   const [selectedClinic, setSelectedClinic] = useState('All');
   const [selectedSort, setSelectedSort] = useState('date-desc');
   const { feedback, loading, error } = useRealFeedback();
+  const { appointments: realAppointments, loading: appointmentsLoading } = useRealAppointments();
   const { clinics: clinicsWithRatings, loading: clinicsLoading } = useClinicsWithRatings();
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
   const { updateFeedbackStatus, loading: actionLoading, error: actionError } = useFeedbackActions();
@@ -171,7 +173,7 @@ export default function FeedbackPage() {
   };
 
   // Show loading state
-  if (loading) {
+  if (loading || appointmentsLoading) {
     return (
       <DashboardLayout title="">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -384,6 +386,12 @@ export default function FeedbackPage() {
           </Card>
         </div>
 
+        {/* Patient Satisfaction Chart */}
+        {/* <PatientSatisfactionChart 
+          feedback={feedback || []}
+          appointments={realAppointments || []}
+          className="w-full"
+        /> */}
 
 
         {/* Filters */}

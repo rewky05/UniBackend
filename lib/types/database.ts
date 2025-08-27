@@ -257,6 +257,13 @@ export interface DashboardStats {
   pendingAppointments: number;
   totalPatients: number;
   totalReferrals: number;
+  consultationTimeStats?: {
+    averageConsultationTimeMinutes: number;
+    totalCompletedConsultations: number;
+    shortestConsultationMinutes: number;
+    longestConsultationMinutes: number;
+    averageBySpecialty: Record<string, number>;
+  };
 }
 
 // API Response wrapper

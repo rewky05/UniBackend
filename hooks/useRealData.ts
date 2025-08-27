@@ -157,6 +157,37 @@ export function useRealDashboard() {
   };
 }
 
+// Hook for consultation time statistics
+export function useRealConsultationTime() {
+  const [consultationTimeStats, setConsultationTimeStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchConsultationTimeStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      const stats = await realDataService.getConsultationTimeStats();
+      setConsultationTimeStats(stats);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConsultationTimeStats();
+  }, [fetchConsultationTimeStats]);
+
+  return {
+    consultationTimeStats,
+    loading,
+    error,
+    refresh: fetchConsultationTimeStats
+  };
+}
+
 // Hook for appointments data
 export function useRealAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);

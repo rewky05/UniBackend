@@ -377,9 +377,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       // Professional Information
       specialty: requiredFields.specialty,
       subSpecialty: '',
-      medicalLicense: requiredFields.medicalLicense,
+      medicalLicenseNumber: requiredFields.medicalLicense, // ✅ Fixed: Map medicalLicense to medicalLicenseNumber
       prcId: requiredFields.prcId,
-      prcExpiry: requiredFields.prcExpiry,
+      prcExpiryDate: requiredFields.prcExpiry, // ✅ Fixed: Map prcExpiry to prcExpiryDate
       professionalFee: requiredFields.professionalFee,
       isSpecialist: true,
       isGeneralist: false,

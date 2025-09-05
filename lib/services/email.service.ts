@@ -188,99 +188,242 @@ export class EmailService {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Account Verified - UniHealth</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f8fafc; }
-          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-          .header { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 40px 30px; text-align: center; }
-          .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
-          .content { padding: 40px 30px; }
-          .success-icon { width: 80px; height: 80px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; }
-          .success-icon svg { width: 40px; height: 40px; color: white; }
-          .greeting { font-size: 18px; margin-bottom: 20px; color: #1f2937; }
-          .message { font-size: 16px; margin-bottom: 30px; color: #4b5563; }
-          .details { background: #f8fafc; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #3b82f6; }
-          .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-          .detail-row:last-child { border-bottom: none; margin-bottom: 0; }
-          .detail-label { font-weight: 600; color: #374151; }
-          .detail-value { color: #6b7280; }
-          .cta-button { display: inline-block; background: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 30px 0; transition: background-color 0.2s; }
-          .cta-button:hover { background: #2563eb; }
-          .footer { background: #f8fafc; padding: 30px; text-align: center; color: #6b7280; font-size: 14px; }
-          .footer a { color: #3b82f6; text-decoration: none; }
-          .footer a:hover { text-decoration: underline; }
-          .verification-badge { background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin: 20px 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #1f2937; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+          }
+          .email-wrapper { 
+            padding: 20px; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+          }
+          .container { 
+            max-width: 640px; 
+            width: 100%; 
+            background: white; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e5e7eb;
+          }
+          .header { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%); 
+            color: white; 
+            padding: 48px 32px; 
+            text-align: center; 
+            position: relative;
+            overflow: hidden;
+          }
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+          }
+          .header-content { position: relative; z-index: 1; }
+          .header h1 { 
+            margin: 0; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -0.025em;
+            margin-bottom: 8px;
+          }
+          .header p { 
+            margin: 0; 
+            opacity: 0.95; 
+            font-size: 18px; 
+            font-weight: 500;
+            letter-spacing: -0.01em;
+          }
+          .content { padding: 48px 32px; }
+          .greeting { 
+            font-size: 24px; 
+            font-weight: 700; 
+            margin-bottom: 24px; 
+            color: #111827; 
+            letter-spacing: -0.025em;
+          }
+          .message { 
+            font-size: 16px; 
+            margin-bottom: 32px; 
+            color: #4b5563; 
+            line-height: 1.7;
+            font-weight: 400;
+          }
+          .verification-badge { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 50px; 
+            font-size: 14px; 
+            font-weight: 700; 
+            display: inline-block; 
+            margin: 24px 0; 
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+          }
+          .details { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+            border-radius: 12px; 
+            padding: 32px; 
+            margin: 32px 0; 
+            border-left: 4px solid #3b82f6; 
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+          }
+          .detail-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 16px; 
+            padding: 12px 0; 
+            border-bottom: 1px solid #e5e7eb; 
+          }
+          .detail-row:last-child { 
+            border-bottom: none; 
+            margin-bottom: 0; 
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #374151; 
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-right: 10px;
+          }
+          .detail-value { 
+            color: #1f2937; 
+            font-weight: 500;
+            font-size: 15px;
+            text-align: right;
+          }
+          .footer { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+            padding: 32px; 
+            text-align: center; 
+            color: #6b7280; 
+            font-size: 14px; 
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer p { margin-bottom: 8px; }
+          .footer a { 
+            color: #3b82f6; 
+            text-decoration: none; 
+            font-weight: 500;
+            transition: color 0.2s ease;
+          }
+          .footer a:hover { 
+            color: #1d4ed8; 
+            text-decoration: underline; 
+          }
+          .footer-links {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer-links a {
+            margin: 0 8px;
+            font-size: 13px;
+          }
+          .highlight-text {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #92400e;
+          }
+          @media (max-width: 640px) {
+            .email-wrapper { padding: 12px; }
+            .container { border-radius: 12px; }
+            .header { padding: 32px 24px; }
+            .header h1 { font-size: 28px; }
+            .content { padding: 32px 24px; }
+            .details { padding: 24px; }
+            .detail-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .detail-value { text-align: left; }
+            .footer { padding: 24px; }
+          }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Account Verified!</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to UniHealth Medical System</p>
-          </div>
-          
-          <div class="content">
-            <div class="success-icon">
-              <svg fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-              </svg>
-            </div>
-            
-            <div class="greeting">Hello Dr. ${data.doctorName},</div>
-            
-            <div class="message">
-              Congratulations! Your medical practitioner account has been successfully verified and approved by our administration team. You now have full access to the UniHealth Medical System.
-            </div>
-            
-            <div class="verification-badge">✅ VERIFIED ACCOUNT</div>
-            
-            <div class="details">
-              <div class="detail-row">
-                <span class="detail-label">Doctor Name:</span>
-                <span class="detail-value">Dr. ${data.doctorName}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Specialty:</span>
-                <span class="detail-value">${data.specialty}</span>
-              </div>
-              ${data.clinicName ? `
-              <div class="detail-row">
-                <span class="detail-label">Clinic:</span>
-                <span class="detail-value">${data.clinicName}</span>
-              </div>
-              ` : ''}
-              <div class="detail-row">
-                <span class="detail-label">Verified By:</span>
-                <span class="detail-value">${data.adminName}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Verification Date:</span>
-                <span class="detail-value">${verificationDate}</span>
+        <div class="email-wrapper">
+          <div class="container">
+            <div class="header">
+              <div class="header-content">
+                <h1>Account Verified!</h1>
+                <p>Welcome to UniHealth</p>
               </div>
             </div>
             
-            <div class="message">
-              <strong>What's Next?</strong><br>
-              You can now log in to your account and start managing your appointments, viewing patient information, and accessing all the features available to verified medical practitioners.
+            <div class="content">
+              <div class="greeting">Hello Dr. ${data.doctorName},</div>
+              
+              <div class="message">
+                Congratulations! Your medical practitioner account has been successfully verified and approved by our administration team. You now have full access to the <span class="highlight-text">UniHealth</span> platform.
+              </div>
+              
+              <div class="verification-badge">VERIFIED ACCOUNT</div>
+              
+              <div class="details">
+                <div class="detail-row">
+                  <span class="detail-label">Doctor Name</span>
+                  <span class="detail-value">Dr. ${data.doctorName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Specialty</span>
+                  <span class="detail-value">${data.specialty}</span>
+                </div>
+                ${data.clinicName ? `
+                <div class="detail-row">
+                  <span class="detail-label">Clinic</span>
+                  <span class="detail-value">${data.clinicName}</span>
+                </div>
+                ` : ''}
+                <div class="detail-row">
+                  <span class="detail-label">Verified By</span>
+                  <span class="detail-value">${data.adminName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Verification Date</span>
+                  <span class="detail-value">${verificationDate}</span>
+                </div>
+              </div>
+              
+              <div class="message">
+                <strong>What's Next?</strong><br><br>
+                You can now log in to your account and start managing your appointments, viewing patient information, and accessing all the features available to verified medical practitioners.
+              </div>
+              
+              <div class="message">
+                If you have any questions or need assistance, please don't hesitate to contact our support team.
+              </div>
             </div>
             
-            <div style="text-align: center;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" class="cta-button">
-                Access Your Account
-              </a>
+            <div class="footer">
+              <p><strong>UniHealth</strong></p>
+              <p>This is an automated message. Please do not reply to this email.</p>
+              <div class="footer-links">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}">Visit our website</a>
+                <span>|</span>
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/support">Support</a>
+              </div>
             </div>
-            
-            <div class="message">
-              If you have any questions or need assistance, please don't hesitate to contact our support team.
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p><strong>UniHealth Medical System</strong></p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-            <p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}">Visit our website</a> | 
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/support">Support</a>
-            </p>
           </div>
         </div>
       </body>
@@ -288,11 +431,11 @@ export class EmailService {
     `;
 
     const text = `
-      ACCOUNT VERIFIED - UniHealth Medical System
+      ACCOUNT VERIFIED - UniHealth
       
       Hello Dr. ${data.doctorName},
       
-      Congratulations! Your medical practitioner account has been successfully verified and approved by our administration team. You now have full access to the UniHealth Medical System.
+      Congratulations! Your medical practitioner account has been successfully verified and approved by our administration team. You now have full access to the UniHealth platform.
       
       ACCOUNT DETAILS:
       - Doctor Name: Dr. ${data.doctorName}
@@ -309,14 +452,14 @@ export class EmailService {
       If you have any questions or need assistance, please contact our support team.
       
       Best regards,
-      UniHealth Medical System
+      UniHealth
       
       This is an automated message. Please do not reply to this email.
     `;
 
     return {
       to: data.doctorEmail,
-      subject: `🎉 Account Verified - Welcome to UniHealth, Dr. ${data.doctorName}`,
+      subject: `Account Verified - Welcome to UniHealth, Dr. ${data.doctorName}`,
       html,
       text
     };
@@ -366,103 +509,243 @@ export class EmailService {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${config.title} - UniHealth</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f8fafc; }
-          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-          .header { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 40px 30px; text-align: center; }
-          .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
-          .content { padding: 40px 30px; }
-          .status-icon { width: 80px; height: 80px; background: ${config.color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; }
-          .status-icon svg { width: 40px; height: 40px; color: white; }
-          .greeting { font-size: 18px; margin-bottom: 20px; color: #1f2937; }
-          .message { font-size: 16px; margin-bottom: 30px; color: #4b5563; }
-          .details { background: #f8fafc; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid ${config.color}; }
-          .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-          .detail-row:last-child { border-bottom: none; margin-bottom: 0; }
-          .detail-label { font-weight: 600; color: #374151; }
-          .detail-value { color: #6b7280; }
-          .status-badge { background: ${config.color}; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin: 20px 0; }
-          .footer { background: #f8fafc; padding: 30px; text-align: center; color: #6b7280; font-size: 14px; }
-          .footer a { color: #3b82f6; text-decoration: none; }
-          .footer a:hover { text-decoration: underline; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #1f2937; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+          }
+          .email-wrapper { 
+            padding: 20px; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+          }
+          .container { 
+            max-width: 640px; 
+            width: 100%; 
+            background: white; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e5e7eb;
+          }
+          .header { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%); 
+            color: white; 
+            padding: 48px 32px; 
+            text-align: center; 
+            position: relative;
+            overflow: hidden;
+          }
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+          }
+          .header-content { position: relative; z-index: 1; }
+          .header h1 { 
+            margin: 0; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -0.025em;
+            margin-bottom: 8px;
+          }
+          .header p { 
+            margin: 0; 
+            opacity: 0.95; 
+            font-size: 18px; 
+            font-weight: 500;
+            letter-spacing: -0.01em;
+          }
+          .content { padding: 48px 32px; }
+          .greeting { 
+            font-size: 24px; 
+            font-weight: 700; 
+            margin-bottom: 24px; 
+            color: #111827; 
+            letter-spacing: -0.025em;
+          }
+          .message { 
+            font-size: 16px; 
+            margin-bottom: 32px; 
+            color: #4b5563; 
+            line-height: 1.7;
+            font-weight: 400;
+          }
+          .status-badge { 
+            background: linear-gradient(135deg, ${config.color} 0%, ${config.color}dd 100%); 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 50px; 
+            font-size: 14px; 
+            font-weight: 700; 
+            display: inline-block; 
+            margin: 24px 0; 
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 14px 0 ${config.color}40;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+          }
+          .details { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+            border-radius: 12px; 
+            padding: 32px; 
+            margin: 32px 0; 
+            border-left: 4px solid ${config.color}; 
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+          }
+          .detail-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 16px; 
+            padding: 12px 0; 
+            border-bottom: 1px solid #e5e7eb; 
+          }
+          .detail-row:last-child { 
+            border-bottom: none; 
+            margin-bottom: 0; 
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #374151; 
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-right: 10px;
+          }
+          .detail-value { 
+            color: #1f2937; 
+            font-weight: 500;
+            font-size: 15px;
+            text-align: right;
+          }
+          .footer { 
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+            padding: 32px; 
+            text-align: center; 
+            color: #6b7280; 
+            font-size: 14px; 
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer p { margin-bottom: 8px; }
+          .footer a { 
+            color: #3b82f6; 
+            text-decoration: none; 
+            font-weight: 500;
+            transition: color 0.2s ease;
+          }
+          .footer a:hover { 
+            color: #1d4ed8; 
+            text-decoration: underline; 
+          }
+          .footer-links {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer-links a {
+            margin: 0 8px;
+            font-size: 13px;
+          }
+          .highlight-text {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #92400e;
+          }
+          @media (max-width: 640px) {
+            .email-wrapper { padding: 12px; }
+            .container { border-radius: 12px; }
+            .header { padding: 32px 24px; }
+            .header h1 { font-size: 28px; }
+            .content { padding: 32px 24px; }
+            .details { padding: 24px; }
+            .detail-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .detail-value { text-align: left; }
+            .footer { padding: 24px; }
+          }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>${config.emoji} ${config.title}</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">UniHealth Medical System</p>
-          </div>
-          
-          <div class="content">
-            <div class="status-icon">
-              <svg fill="currentColor" viewBox="0 0 20 20">
-                ${data.newStatus === 'verified' ? 
-                  '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>' :
-                  data.newStatus === 'suspended' ?
-                  '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>' :
-                  '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>'
-                }
-              </svg>
-            </div>
-            
-            <div class="greeting">Hello Dr. ${data.doctorName},</div>
-            
-            <div class="message">
-              ${config.message}
-              ${data.reason ? `<br><br><strong>Reason:</strong> ${data.reason}` : ''}
-            </div>
-            
-            <div class="status-badge">${data.newStatus.toUpperCase()}</div>
-            
-            <div class="details">
-              <div class="detail-row">
-                <span class="detail-label">Doctor Name:</span>
-                <span class="detail-value">Dr. ${data.doctorName}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Specialty:</span>
-                <span class="detail-value">${data.specialty}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Status:</span>
-                <span class="detail-value">${data.newStatus.charAt(0).toUpperCase() + data.newStatus.slice(1)}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Updated By:</span>
-                <span class="detail-value">${data.adminName}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Date:</span>
-                <span class="detail-value">${verificationDate}</span>
+        <div class="email-wrapper">
+          <div class="container">
+            <div class="header">
+              <div class="header-content">
+                <h1>${config.title}</h1>
+                <p>UniHealth</p>
               </div>
             </div>
             
-            ${data.newStatus === 'verified' ? `
-            <div class="message">
-              <strong>What's Next?</strong><br>
-              You can now log in to your account and start managing your appointments, viewing patient information, and accessing all the features available to verified medical practitioners.
+            <div class="content">
+              <div class="greeting">Hello Dr. ${data.doctorName},</div>
+              
+              <div class="message">
+                ${config.message}
+                ${data.reason ? `<br><br><strong>Reason:</strong> ${data.reason}` : ''}
+              </div>
+              
+              <div class="status-badge">${data.newStatus.toUpperCase()}</div>
+              
+              <div class="details">
+                <div class="detail-row">
+                  <span class="detail-label">Doctor Name</span>
+                  <span class="detail-value">Dr. ${data.doctorName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Specialty</span>
+                  <span class="detail-value">${data.specialty}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Status</span>
+                  <span class="detail-value">${data.newStatus.charAt(0).toUpperCase() + data.newStatus.slice(1)}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Updated By</span>
+                  <span class="detail-value">${data.adminName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Date</span>
+                  <span class="detail-value">${verificationDate}</span>
+                </div>
+              </div>
+              
+              ${data.newStatus === 'verified' ? `
+              <div class="message">
+                <strong>What's Next?</strong><br><br>
+                You can now log in to your account and start managing your appointments, viewing patient information, and accessing all the features available to verified medical practitioners.
+              </div>
+              ` : ''}
+              
+              <div class="message">
+                If you have any questions or need assistance, please don't hesitate to contact our support team.
+              </div>
             </div>
             
-            <div style="text-align: center;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" class="cta-button" style="display: inline-block; background: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 30px 0;">
-                Access Your Account
-              </a>
+            <div class="footer">
+              <p><strong>UniHealth</strong></p>
+              <p>This is an automated message. Please do not reply to this email.</p>
+              <div class="footer-links">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}">Visit our website</a>
+                <span>|</span>
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/support">Support</a>
+              </div>
             </div>
-            ` : ''}
-            
-            <div class="message">
-              If you have any questions or need assistance, please don't hesitate to contact our support team.
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p><strong>UniHealth Medical System</strong></p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-            <p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}">Visit our website</a> | 
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/support">Support</a>
-            </p>
           </div>
         </div>
       </body>
@@ -470,7 +753,7 @@ export class EmailService {
     `;
 
     const text = `
-      ${config.title.toUpperCase()} - UniHealth Medical System
+      ${config.title.toUpperCase()} - UniHealth
       
       Hello Dr. ${data.doctorName},
       
@@ -494,14 +777,14 @@ export class EmailService {
       If you have any questions or need assistance, please contact our support team.
       
       Best regards,
-      UniHealth Medical System
+      UniHealth
       
       This is an automated message. Please do not reply to this email.
     `;
 
     return {
       to: data.doctorEmail,
-      subject: `${config.emoji} ${config.title} - UniHealth, Dr. ${data.doctorName}`,
+      subject: `${config.title} - UniHealth, Dr. ${data.doctorName}`,
       html,
       text
     };

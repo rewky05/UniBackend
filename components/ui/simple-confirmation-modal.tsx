@@ -110,7 +110,7 @@ export function SimpleConfirmationModal({
           </div>
 
           {/* Notes Section */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="verification-notes">
               Notes (Optional)
             </Label>
@@ -122,7 +122,7 @@ export function SimpleConfirmationModal({
               className="min-h-[80px]"
               disabled={isSubmitting}
             />
-          </div>
+          </div> */}
 
           {/* Warning */}
           <Alert>

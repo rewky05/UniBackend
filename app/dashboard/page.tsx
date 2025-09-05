@@ -52,8 +52,6 @@ import {
 import { AppointmentTrendsChart } from '@/components/ui/appointment-trends-chart';
 import type { Appointment } from '@/lib/types/database';
 
-
-
 export default function DashboardPage() {
   // ✅ OPTIMIZED - Using React Query hooks with caching
   const { 

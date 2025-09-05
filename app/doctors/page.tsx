@@ -15,6 +15,9 @@ import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
 import { ScheduleCard } from "@/components/schedules/schedule-card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { SimpleConfirmationModal } from "@/components/ui/simple-confirmation-modal";
+import { ResultModal } from "@/components/ui/result-modal";
+// Email service is now handled via API route
 import {
   Card,
   CardContent,
@@ -160,10 +163,18 @@ export default function DoctorsPage() {
   const [verificationStatus, setVerificationStatus] = useState("");
   const [verificationNotes, setVerificationNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>("");
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultData, setResultData] = useState<{
+    success: boolean;
+    emailSent: boolean;
+    emailError?: string;
+    doctorName: string;
+    newStatus: string;
+  } | null>(null);
   const { referrals, loading: referralsLoading } = useRealReferrals();
   
   // Inline editing state
@@ -220,29 +231,109 @@ export default function DoctorsPage() {
     setPendingStatus(newStatus);
   };
 
-  const handleConfirmStatusChange = async () => {
-    if (!pendingStatus || !user || !selectedDoctor) return;
+  const handleConfirmStatusChange = async (notes: string): Promise<{ success: boolean; emailSent?: boolean; emailError?: string }> => {
+    if (!pendingStatus || !user || !selectedDoctor) {
+      return { success: false, emailError: 'Missing required data' };
+    }
     
     setIsSaving(true);
     try {
+      // Update doctor status in database
       await updateDoctorStatus(
         selectedDoctor.id, 
         pendingStatus as 'pending' | 'verified' | 'suspended',
         user.email,
-        verificationNotes
+        notes
       );
+      
+      // Send email notification via API route
+      let emailSent = false;
+      let emailError: string | undefined;
+      
+      try {
+        const emailData = {
+          doctorName: `${selectedDoctor.firstName} ${selectedDoctor.lastName}`,
+          doctorEmail: selectedDoctor.email,
+          verificationDate: new Date().toISOString(),
+          adminName: user.email,
+          clinicName: selectedDoctor.clinicName || 'UniHealth Medical System',
+          specialty: selectedDoctor.specialty || 'General Medicine',
+          newStatus: pendingStatus as 'verified' | 'suspended' | 'pending',
+          reason: notes || undefined
+        };
+
+        console.log('📧 [CLIENT] Sending email request:', {
+          doctorName: emailData.doctorName,
+          doctorEmail: emailData.doctorEmail,
+          newStatus: emailData.newStatus,
+          apiUrl: '/api/send-verification-email'
+        });
+
+        const response = await fetch('/api/send-verification-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(emailData),
+        });
+
+        console.log('📧 [CLIENT] API Response status:', response.status);
+        console.log('📧 [CLIENT] API Response headers:', Object.fromEntries(response.headers.entries()));
+
+        let result;
+        try {
+          result = await response.json();
+          console.log('📧 [CLIENT] API Response body:', result);
+        } catch (jsonError) {
+          console.error('❌ [CLIENT] Failed to parse JSON response:', jsonError);
+          console.error('❌ [CLIENT] Response status:', response.status);
+          console.error('❌ [CLIENT] Response text:', await response.text());
+          throw new Error(`Invalid response format from server. Status: ${response.status}`);
+        }
+
+        if (response.ok && result.success) {
+          emailSent = true;
+          console.log('✅ [CLIENT] Email sent successfully:', result.messageId);
+        } else {
+          emailError = result.error || 'Failed to send email';
+          console.error('❌ [CLIENT] Email failed:', emailError);
+          console.error('❌ [CLIENT] Full error response:', result);
+        }
+      } catch (error) {
+        console.error('❌ [CLIENT] Error sending email notification:', error);
+        emailError = error instanceof Error ? error.message : 'Failed to send email';
+      }
       
       // Update local state
       setVerificationStatus(pendingStatus);
-      setShowConfirmDialog(false);
       setPendingStatus("");
       setVerificationNotes("");
       
-      // Show success message
-      alert(`Doctor status successfully updated to ${pendingStatus}`);
+      // Show result modal
+      setResultData({
+        success: true,
+        emailSent,
+        emailError,
+        doctorName: `${selectedDoctor.firstName} ${selectedDoctor.lastName}`,
+        newStatus: pendingStatus
+      });
+      setShowResultModal(true);
+
+      return { success: true, emailSent, emailError };
     } catch (error) {
       console.error('Error updating doctor status:', error);
-      alert('Failed to update doctor status. Please try again.');
+      
+      // Show error result modal
+      setResultData({
+        success: false,
+        emailSent: false,
+        emailError: error instanceof Error ? error.message : 'Failed to update doctor status',
+        doctorName: `${selectedDoctor.firstName} ${selectedDoctor.lastName}`,
+        newStatus: pendingStatus
+      });
+      setShowResultModal(true);
+      
+      return { success: false, emailError: error instanceof Error ? error.message : 'Failed to update doctor status' };
     } finally {
       setIsSaving(false);
     }
@@ -1189,7 +1280,7 @@ export default function DoctorsPage() {
                         )}
                         {pendingStatus && (
                           <div className="flex justify-end">
-                            <Button onClick={() => setShowConfirmDialog(true)} disabled={isSaving || actionLoading}>
+                            <Button onClick={() => setShowVerificationModal(true)} disabled={isSaving || actionLoading}>
                               {isSaving || actionLoading ? "Updating..." : "Update Status"}
                             </Button>
                           </div>
@@ -1208,38 +1299,41 @@ export default function DoctorsPage() {
           </SheetContent>
         </Sheet>
       )}
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
-            <AlertDialogDescription>
-              {getStatusConfirmationMessage(pendingStatus)}
-              {verificationNotes && (
-                <div className="mt-3 p-3 bg-muted rounded-md">
-                  <p className="text-sm font-medium mb-1">Verification Notes:</p>
-                  <p className="text-sm text-muted-foreground">{verificationNotes}</p>
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowConfirmDialog(false);
-              setPendingStatus("");
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmStatusChange}
-              disabled={isSaving || actionLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isSaving || actionLoading ? "Updating..." : "Confirm Change"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Simple Confirmation Modal */}
+      {selectedDoctor && (
+        <SimpleConfirmationModal
+          isOpen={showVerificationModal}
+          onClose={() => {
+            setShowVerificationModal(false);
+            setPendingStatus("");
+          }}
+          onConfirm={handleConfirmStatusChange}
+          doctor={{
+            firstName: selectedDoctor.firstName,
+            lastName: selectedDoctor.lastName,
+            email: selectedDoctor.email,
+            currentStatus: selectedDoctor.status || 'pending',
+            newStatus: pendingStatus as 'pending' | 'verified' | 'suspended'
+          }}
+          isLoading={isSaving || actionLoading}
+        />
+      )}
+
+      {/* Result Modal */}
+      {resultData && (
+        <ResultModal
+          isOpen={showResultModal}
+          onClose={() => {
+            setShowResultModal(false);
+            setResultData(null);
+          }}
+          success={resultData.success}
+          emailSent={resultData.emailSent}
+          emailError={resultData.emailError}
+          doctorName={resultData.doctorName}
+          newStatus={resultData.newStatus}
+        />
+      )}
 
              {/* Bulk Import Dialog */}
        <BulkImportDialog

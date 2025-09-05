@@ -140,13 +140,13 @@ export default function RealDataDemo() {
                     <div>
                       <div className="font-medium">{fb.patientFirstName} {fb.patientLastName}</div>
                       <div className="text-sm text-muted-foreground">
-                        for {fb.providerFirstName} {fb.providerLastName}
+                        for {fb.doctorFirstName} {fb.doctorLastName}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className={i < fb.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                          <span key={i} className={i < (fb.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
                             ⭐
                           </span>
                         ))}
@@ -158,7 +158,7 @@ export default function RealDataDemo() {
                   </div>
                   <p className="text-sm">{fb.comments}</p>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {fb.clinicName} • {formatDateToText(fb.timestamp)}
+                    {fb.clinicName} • {formatDateToText(fb.timestamp || new Date())}
                   </div>
                 </div>
               ))}

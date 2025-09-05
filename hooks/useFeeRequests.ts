@@ -26,6 +26,11 @@ export function useFeeRequests() {
             status: req.status,
             previousFee: req.previousFee,
             requestedFee: req.requestedFee
+          })) || [],
+          allRequests: requestsData?.map(req => ({
+            id: req.id,
+            doctorName: req.doctorName,
+            status: req.status
           })) || []
         });
         
@@ -60,23 +65,30 @@ export function useFeeRequests() {
   };
 }
 
-// Hook for getting pending fee change requests only
+// Hook for getting pending fee change requests only (real-time)
 export function usePendingFeeRequests() {
   const [requests, setRequests] = useState<FeeChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPendingRequests = async () => {
-      try {
-        console.log('🔍 [usePendingFeeRequests] Fetching pending requests...');
-        setLoading(true);
-        setError(null);
-        const pendingRequests = await feeRequestsService.getPendingFeeRequests();
+    console.log('🔍 [usePendingFeeRequests] Setting up real-time subscription...');
+    
+    const unsubscribe = feeRequestsService.subscribeToFeeRequests(
+      (allRequests) => {
+        // Filter for pending requests only
+        const pendingRequests = allRequests.filter(req => req.status === 'pending');
         
-        console.log('📊 [usePendingFeeRequests] Received pending requests:', {
-          count: pendingRequests?.length || 0,
-          data: pendingRequests?.map(req => ({
+        console.log('📊 [usePendingFeeRequests] Received real-time data:', {
+          totalRequests: allRequests?.length || 0,
+          pendingCount: pendingRequests?.length || 0,
+          allRequests: allRequests?.map(req => ({
+            id: req.id,
+            doctorName: req.doctorName,
+            status: req.status,
+            professionalFeeStatus: req.status
+          })) || [],
+          pendingRequests: pendingRequests?.map(req => ({
             id: req.id,
             doctorName: req.doctorName,
             status: req.status,
@@ -86,44 +98,25 @@ export function usePendingFeeRequests() {
         });
         
         setRequests(pendingRequests || []);
-      } catch (err: any) {
-        console.error('❌ [usePendingFeeRequests] Error fetching pending fee requests:', err);
-        setError(err.message || 'Failed to load pending requests');
-        setRequests([]);
-      } finally {
         setLoading(false);
+        setError(null);
+      },
+      (error) => {
+        console.error('❌ [usePendingFeeRequests] Subscription error:', error);
+        setError(error.message || 'Failed to load pending requests');
+        setLoading(false);
+        setRequests([]);
       }
-    };
+    );
 
-    fetchPendingRequests();
+    return unsubscribe;
   }, []);
 
   const refresh = useCallback(async () => {
-    try {
-      console.log('🔄 [usePendingFeeRequests] Refreshing pending requests...');
-      setLoading(true);
-      setError(null);
-      const pendingRequests = await feeRequestsService.getPendingFeeRequests();
-      
-      console.log('📊 [usePendingFeeRequests] Refreshed pending requests:', {
-        count: pendingRequests?.length || 0,
-        data: pendingRequests?.map(req => ({
-          id: req.id,
-          doctorName: req.doctorName,
-          status: req.status,
-          previousFee: req.previousFee,
-          requestedFee: req.requestedFee
-        })) || []
-      });
-      
-      setRequests(pendingRequests || []);
-    } catch (err: any) {
-      console.error('❌ [usePendingFeeRequests] Error refreshing pending fee requests:', err);
-      setError(err.message || 'Failed to refresh requests');
-      setRequests([]);
-    } finally {
-      setLoading(false);
-    }
+    console.log('🔄 [usePendingFeeRequests] Refreshing data...');
+    setLoading(true);
+    setError(null);
+    // The subscription will handle the update
   }, []);
 
   return { 

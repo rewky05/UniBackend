@@ -109,6 +109,21 @@ export function FeeRequestsDialog({
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkReviewNotes, setBulkReviewNotes] = useState("");
   const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
+  
+  // Confirmation and success modals
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<{
+    type: 'approve' | 'reject';
+    requestId: string;
+    doctorName: string;
+    reviewNotes?: string;
+  } | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    type: 'approve' | 'reject';
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Filter configuration
   const filters: FeeChangeRequestFilters = useMemo(() => ({
@@ -168,105 +183,184 @@ export function FeeRequestsDialog({
   };
 
   // Handle individual request approval
-  const handleApproveRequest = async (requestId: string, reviewNotes?: string) => {
-    if (!user?.email) return;
+  const handleApproveRequest = (requestId: string, reviewNotes?: string) => {
+    const request = requests.find(req => req.id === requestId);
+    if (!request) return;
+
+    setConfirmationData({
+      type: 'approve',
+      requestId,
+      doctorName: request.doctorName,
+      reviewNotes
+    });
+    setShowConfirmationDialog(true);
+  };
+
+  // Execute approval after confirmation
+  const executeApproval = async () => {
+    if (!user?.email || !confirmationData) return;
 
     try {
-      await updateRequestStatus(requestId, {
+      await updateRequestStatus(confirmationData.requestId, {
         status: "approved",
         reviewedBy: user.email,
-        reviewNotes
+        reviewNotes: confirmationData.reviewNotes
       }, user.email);
 
-      toast({
-        title: "Request Approved",
-        description: "Fee change request has been approved successfully.",
+      setSuccessData({
+        type: 'approve',
+        success: true,
+        message: "Fee change request has been approved successfully."
       });
+      setShowSuccessDialog(true);
 
       // Remove from selected if it was selected
-      setSelectedRequests(prev => prev.filter(id => id !== requestId));
+      setSelectedRequests(prev => prev.filter(id => id !== confirmationData.requestId));
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to approve request. Please try again.",
-        variant: "destructive",
+      setSuccessData({
+        type: 'approve',
+        success: false,
+        message: "Failed to approve request. Please try again."
       });
+      setShowSuccessDialog(true);
+    } finally {
+      setShowConfirmationDialog(false);
+      setConfirmationData(null);
     }
   };
 
   // Handle individual request rejection
-  const handleRejectRequest = async (requestId: string, reviewNotes: string) => {
-    if (!user?.email) return;
+  const handleRejectRequest = (requestId: string, reviewNotes: string) => {
+    const request = requests.find(req => req.id === requestId);
+    if (!request) return;
+
+    setConfirmationData({
+      type: 'reject',
+      requestId,
+      doctorName: request.doctorName,
+      reviewNotes
+    });
+    setShowConfirmationDialog(true);
+  };
+
+  // Execute rejection after confirmation
+  const executeRejection = async () => {
+    if (!user?.email || !confirmationData) return;
 
     try {
-      await updateRequestStatus(requestId, {
+      await updateRequestStatus(confirmationData.requestId, {
         status: "rejected",
         reviewedBy: user.email,
-        reviewNotes
+        reviewNotes: confirmationData.reviewNotes
       }, user.email);
 
-      toast({
-        title: "Request Rejected",
-        description: "Fee change request has been rejected.",
+      setSuccessData({
+        type: 'reject',
+        success: true,
+        message: "Fee change request has been rejected."
       });
+      setShowSuccessDialog(true);
 
       // Remove from selected if it was selected
-      setSelectedRequests(prev => prev.filter(id => id !== requestId));
+      setSelectedRequests(prev => prev.filter(id => id !== confirmationData.requestId));
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reject request. Please try again.",
-        variant: "destructive",
+      setSuccessData({
+        type: 'reject',
+        success: false,
+        message: "Failed to reject request. Please try again."
       });
+      setShowSuccessDialog(true);
+    } finally {
+      setShowConfirmationDialog(false);
+      setConfirmationData(null);
     }
   };
 
   // Handle bulk approval
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = () => {
+    if (!user?.email || selectedRequests.length === 0) return;
+
+    setConfirmationData({
+      type: 'approve',
+      requestId: 'bulk',
+      doctorName: `${selectedRequests.length} requests`,
+      reviewNotes: bulkReviewNotes
+    });
+    setShowConfirmationDialog(true);
+  };
+
+  // Execute bulk approval after confirmation
+  const executeBulkApproval = async () => {
     if (!user?.email || selectedRequests.length === 0) return;
 
     try {
       await bulkApproveRequests(selectedRequests, user.email, bulkReviewNotes);
       
-      toast({
-        title: "Bulk Approval Complete",
-        description: `${selectedRequests.length} requests have been approved successfully.`,
+      setSuccessData({
+        type: 'approve',
+        success: true,
+        message: `${selectedRequests.length} requests have been approved successfully.`
       });
+      setShowSuccessDialog(true);
 
       setSelectedRequests([]);
       setShowBulkActions(false);
       setBulkReviewNotes("");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to approve requests. Please try again.",
-        variant: "destructive",
+      setSuccessData({
+        type: 'approve',
+        success: false,
+        message: "Failed to approve requests. Please try again."
       });
+      setShowSuccessDialog(true);
+    } finally {
+      setShowConfirmationDialog(false);
+      setConfirmationData(null);
     }
   };
 
   // Handle bulk rejection
-  const handleBulkReject = async () => {
+  const handleBulkReject = () => {
+    if (!user?.email || selectedRequests.length === 0) return;
+
+    setConfirmationData({
+      type: 'reject',
+      requestId: 'bulk',
+      doctorName: `${selectedRequests.length} requests`,
+      reviewNotes: bulkReviewNotes
+    });
+    setShowConfirmationDialog(true);
+    setShowBulkRejectDialog(false); // Close the bulk reject dialog
+  };
+
+  // Execute bulk rejection after confirmation
+  const executeBulkRejection = async () => {
     if (!user?.email || selectedRequests.length === 0) return;
 
     try {
       await bulkRejectRequests(selectedRequests, user.email, bulkReviewNotes);
       
-      toast({
-        title: "Bulk Rejection Complete",
-        description: `${selectedRequests.length} requests have been rejected.`,
+      setSuccessData({
+        type: 'reject',
+        success: true,
+        message: `${selectedRequests.length} requests have been rejected.`
       });
+      setShowSuccessDialog(true);
 
       setSelectedRequests([]);
       setShowBulkActions(false);
       setBulkReviewNotes("");
       setShowBulkRejectDialog(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reject requests. Please try again.",
-        variant: "destructive",
+      setSuccessData({
+        type: 'reject',
+        success: false,
+        message: "Failed to reject requests. Please try again."
       });
+      setShowSuccessDialog(true);
+    } finally {
+      setShowConfirmationDialog(false);
+      setConfirmationData(null);
     }
   };
 
@@ -314,7 +408,7 @@ export function FeeRequestsDialog({
               Professional Fee Change
               {pendingCount > 0 && (
                 <Badge variant="destructive" className="ml-2">
-                  {pendingCount} Pending
+                  {pendingCount} <span className="ml-1">pending</span>
                 </Badge>
               )}
             </DialogTitle>
@@ -574,6 +668,7 @@ export function FeeRequestsDialog({
             <div>
               <Label htmlFor="reject-reason">Reason for Rejection</Label>
               <Textarea
+              className="mt-2"
                 id="reject-reason"
                 placeholder="Enter reason for rejection..."
                 value={bulkReviewNotes}
@@ -602,6 +697,94 @@ export function FeeRequestsDialog({
                 Reject All
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmationData?.type === 'approve' ? (
+                <Check className="h-5 w-5 text-green-600" />
+              ) : (
+                <X className="h-5 w-5 text-red-600" />
+              )}
+              Confirm {confirmationData?.type === 'approve' ? 'Approval' : 'Rejection'}
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {confirmationData?.type === 'approve' ? 'approve' : 'reject'} the fee change request for{' '}
+              <span className="font-semibold">{confirmationData?.doctorName}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {confirmationData?.reviewNotes && (
+              <div>
+                <Label>Review Notes:</Label>
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  {confirmationData.reviewNotes}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowConfirmationDialog(false);
+                  setConfirmationData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant={confirmationData?.type === 'approve' ? 'default' : 'destructive'}
+                onClick={confirmationData?.requestId === 'bulk' 
+                  ? (confirmationData?.type === 'approve' ? executeBulkApproval : executeBulkRejection)
+                  : (confirmationData?.type === 'approve' ? executeApproval : executeRejection)
+                }
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : confirmationData?.type === 'approve' ? (
+                  <Check className="h-4 w-4 mr-2" />
+                ) : (
+                  <X className="h-4 w-4 mr-2" />
+                )}
+                {confirmationData?.type === 'approve' ? 'Approve' : 'Reject'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {successData?.success ? (
+                <Check className="h-5 w-5 text-green-600" />
+              ) : (
+                <X className="h-5 w-5 text-red-600" />
+              )}
+              {successData?.success ? 'Success' : 'Error'}
+            </DialogTitle>
+            <DialogDescription>
+              {successData?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                setSuccessData(null);
+              }}
+            >
+              OK
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

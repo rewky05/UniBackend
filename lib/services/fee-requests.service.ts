@@ -1,12 +1,12 @@
 import { query, orderByChild, equalTo, get, onValue, off, ref, set } from 'firebase/database';
 import { db } from '@/lib/firebase/config';
 import { BaseFirebaseService } from './base.service';
+import { activityLogsService } from './activity-logs.service';
 import type { 
   FeeChangeRequest, 
   CreateFeeChangeRequestDto, 
   UpdateFeeChangeRequestDto,
   FeeChangeRequestFilters,
-  ActivityLog,
   CreateActivityLogDto
 } from '@/lib/types';
 
@@ -43,7 +43,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
 
       // Log the activity
       if (createdBy) {
-        await this.logActivity({
+        await activityLogsService.createActivityLog({
           userId: createdBy,
           userEmail: createdBy,
           action: 'Fee change request submitted',
@@ -90,19 +90,30 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
       }
 
       const doctor = snapshot.val();
+      // Determine the new professional fee based on approval/rejection
+      let newProfessionalFee = doctor.professionalFee;
+      if (updates.status === 'approved') {
+        // If approved, set to requested fee
+        newProfessionalFee = doctor.feeChangeRequest?.requestedFee || doctor.professionalFee;
+      } else if (updates.status === 'rejected') {
+        // If rejected, set to previous fee (revert to original)
+        newProfessionalFee = doctor.feeChangeRequest?.previousFee || doctor.previousFee || doctor.professionalFee;
+      }
+
       const updateData = {
         professionalFeeStatus: updates.status === 'approved' ? 'approved' : updates.status === 'rejected' ? 'rejected' : 'pending',
-        professionalFee: updates.status === 'approved' ? doctor.feeChangeRequest?.requestedFee : doctor.professionalFee,
-        previousFee: doctor.previousFee || doctor.professionalFee,
-        reviewedBy: reviewedBy || '',
-        reviewedAt: new Date().toISOString(),
-        reviewNotes: updates.reviewNotes || '',
+        professionalFee: newProfessionalFee,
         lastUpdated: new Date().toISOString()
       };
 
-      // If approved or rejected, clear the fee change request object
+      // Update feeChangeRequest with review information
       if (updates.status === 'approved' || updates.status === 'rejected') {
-        updateData.feeChangeRequest = null;
+        updateData.feeChangeRequest = {
+          ...doctor.feeChangeRequest,
+          reviewedBy: reviewedBy || '',
+          reviewedAt: new Date().toISOString(),
+          reviewNotes: updates.reviewNotes || ''
+        };
       }
 
       console.log('📝 [FeeRequestsService] Updating doctor record:', {
@@ -114,7 +125,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
 
       // Log the activity
       if (reviewedBy) {
-        await this.logActivity({
+        await activityLogsService.createActivityLog({
           userId: reviewedBy,
           userEmail: reviewedBy,
           action: `Fee change request ${updates.status}`,
@@ -207,7 +218,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                 hasPreviousFee: doctor?.previousFee
               });
               
-              // Check multiple possible field names for fee change request status
+              // Check if doctor has pending fee change request (not yet processed)
               const hasPendingRequest = 
                 doctor?.professionalFeeStatus === 'pending' ||
                 doctor?.professionalChangeRequest === 'pending' ||
@@ -238,7 +249,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                   previousFee: doctor.feeChangeRequest?.previousFee || doctor.previousFee || doctor.professionalFee || 0,
                   requestedFee: doctor.feeChangeRequest?.requestedFee || doctor.requestedFee || doctor.professionalFee || 0,
                   requestDate: doctor.feeChangeRequest?.requestDate || doctor.requestDate || doctor.lastUpdated || new Date().toISOString(),
-                  status: 'pending',
+                  status: doctor.professionalFeeStatus || 'pending',
                   reason: doctor.feeChangeRequest?.reason || doctor.reason || '',
                   createdAt: doctor.createdAt || new Date().toISOString(),
                   lastUpdated: doctor.lastUpdated || new Date().toISOString()
@@ -316,11 +327,16 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
           professionalFee: doctor?.professionalFee
         });
         
-        // Check if doctor is specialist and has pending fee change request
+        // Check if doctor is specialist and has pending fee change request (not yet processed)
+        const hasPendingRequest = 
+          doctor?.professionalFeeStatus === 'pending' ||
+          doctor?.professionalChangeRequest === 'pending' ||
+          doctor?.feeChangeRequest === 'pending';
+        
         if (doctor && 
             typeof doctor === 'object' && 
             doctor.isSpecialist === true && 
-            doctor.professionalChangeRequest === 'pending') {
+            hasPendingRequest) {
           
           const request: FeeChangeRequest = {
             id: doctorId,
@@ -330,7 +346,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
             previousFee: doctor.previousFee || doctor.professionalFee || 0,
             requestedFee: doctor.requestedFee || doctor.professionalFee || 0,
             requestDate: doctor.requestDate || doctor.lastUpdated || new Date().toISOString(),
-            status: 'pending',
+            status: doctor.professionalFeeStatus || 'pending',
             reason: doctor.reason || '',
             createdAt: doctor.createdAt || new Date().toISOString(),
             lastUpdated: doctor.lastUpdated || new Date().toISOString()
@@ -440,7 +456,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                     hasPreviousFee: doctor?.previousFee
                   });
                   
-                  // Check multiple possible field names for fee change request status
+                  // Check if doctor has pending fee change request (not yet processed)
                   const hasPendingRequest = 
                     doctor?.professionalFeeStatus === 'pending' ||
                     doctor?.professionalChangeRequest === 'pending' ||
@@ -471,7 +487,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                       previousFee: doctor.feeChangeRequest?.previousFee || doctor.previousFee || doctor.professionalFee || 0,
                       requestedFee: doctor.feeChangeRequest?.requestedFee || doctor.requestedFee || doctor.professionalFee || 0,
                       requestDate: doctor.feeChangeRequest?.requestDate || doctor.requestDate || doctor.lastUpdated || new Date().toISOString(),
-                      status: 'pending',
+                      status: doctor.professionalFeeStatus || 'pending',
                       reason: doctor.feeChangeRequest?.reason || doctor.reason || '',
                       createdAt: doctor.createdAt || new Date().toISOString(),
                       lastUpdated: doctor.lastUpdated || new Date().toISOString()
@@ -516,7 +532,10 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
               previousFee: req.previousFee,
               requestedFee: req.requestedFee,
               requestDate: req.requestDate
-            }))
+            })),
+            pendingCount: sortedRequests.filter(req => req.status === 'pending').length,
+            approvedCount: sortedRequests.filter(req => req.status === 'approved').length,
+            rejectedCount: sortedRequests.filter(req => req.status === 'rejected').length
           });
           
           onUpdate(sortedRequests);
@@ -558,7 +577,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
       await Promise.all(promises);
 
       // Log bulk activity
-      await this.logActivity({
+      await activityLogsService.createActivityLog({
         userId: reviewedBy,
         userEmail: reviewedBy,
         action: 'Bulk approved fee change requests',
@@ -601,7 +620,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
       await Promise.all(promises);
 
       // Log bulk activity
-      await this.logActivity({
+      await activityLogsService.createActivityLog({
         userId: reviewedBy,
         userEmail: reviewedBy,
         action: 'Bulk rejected fee change requests',

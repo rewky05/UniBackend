@@ -381,3 +381,7 @@ export type ClinicType = Clinic['type'];
 export type DocumentType = Document['type'];
 export type DocumentStatus = Document['status'];
 export type FeeChangeRequestStatus = FeeChangeRequest['status'];
+
+// Notification types
+export type NotificationType = 'referral' | 'appointment' | 'fee_change' | 'verification' | 'system';
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';

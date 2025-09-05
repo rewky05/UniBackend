@@ -266,6 +266,32 @@ export interface DashboardStats {
   };
 }
 
+// Notification types
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'referral' | 'appointment' | 'fee_change' | 'verification' | 'system';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  read: boolean;
+  timestamp: number;
+  expiresAt: number;
+  relatedId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateNotificationDto {
+  userId: string;
+  title: string;
+  message: string;
+  type: 'referral' | 'appointment' | 'fee_change' | 'verification' | 'system';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  relatedId?: string;
+  expiresInDays?: number;
+}
+
 // API Response wrapper
 export interface ApiResponse<T> {
   success: boolean;

@@ -2,6 +2,7 @@ import { query, orderByChild, equalTo, get, onValue, off, ref, set } from 'fireb
 import { db } from '@/lib/firebase/config';
 import { BaseFirebaseService } from './base.service';
 import { activityLogsService } from './activity-logs.service';
+import { notificationsService } from './notifications.service';
 import type { 
   FeeChangeRequest, 
   CreateFeeChangeRequestDto, 
@@ -140,6 +141,27 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
             newFee: updates.status === 'approved' ? doctor.feeChangeRequest?.requestedFee : doctor.professionalFee
           }
         });
+      }
+
+      // Create notification for the doctor
+      if (updates.status === 'approved' || updates.status === 'rejected') {
+        try {
+          const previousFee = doctor.feeChangeRequest?.previousFee || doctor.previousFee || doctor.professionalFee;
+          const requestedFee = doctor.feeChangeRequest?.requestedFee || doctor.professionalFee;
+          
+          await notificationsService.createFeeChangeNotification(
+            requestId, // doctorId
+            updates.status,
+            previousFee,
+            requestedFee,
+            updates.reviewNotes
+          );
+          
+          console.log('🔔 [FeeRequestsService] Notification created for doctor:', requestId);
+        } catch (notificationError) {
+          console.error('❌ [FeeRequestsService] Failed to create notification:', notificationError);
+          // Don't throw error to prevent breaking the main operation
+        }
       }
 
       console.log('✅ [FeeRequestsService] Fee change request status updated successfully');

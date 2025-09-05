@@ -327,6 +327,52 @@ export interface FirebaseError {
   message: string;
 }
 
+// Fee Change Request types
+export interface FeeChangeRequest {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  doctorEmail: string;
+  previousFee: number;
+  requestedFee: number;
+  requestDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+  createdAt: string;
+  lastUpdated: string;
+}
+
+export interface CreateFeeChangeRequestDto {
+  doctorId: string;
+  doctorName: string;
+  doctorEmail: string;
+  previousFee: number;
+  requestedFee: number;
+  reason?: string;
+}
+
+export interface UpdateFeeChangeRequestDto {
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  reviewNotes?: string;
+}
+
+export interface FeeChangeRequestFilters {
+  status?: 'pending' | 'approved' | 'rejected' | 'all';
+  doctorName?: string;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  feeRange?: {
+    min: number;
+    max: number;
+  };
+}
+
 // Utility types
 export type DoctorStatus = Doctor['status'];
 export type FeedbackStatus = Feedback['status'];
@@ -334,3 +380,4 @@ export type ActivityCategory = ActivityLog['category'];
 export type ClinicType = Clinic['type'];
 export type DocumentType = Document['type'];
 export type DocumentStatus = Document['status'];
+export type FeeChangeRequestStatus = FeeChangeRequest['status'];

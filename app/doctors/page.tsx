@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useRealDoctors, useRealClinics, useRealReferrals } from "@/hooks/useRealData";
 import { realDataService } from "@/lib/services/real-data.service";
 import { ProfessionalFeeStats } from "@/components/doctors/professional-fee-stats";
+import { FeeRequestNotificationButton } from "@/components/fee-requests/fee-request-notification-button";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatPhilippinePeso, formatDateToText, formatDateTimeToText, safeGetTimestamp } from "@/lib/utils";
 import { useDoctorActions } from "@/hooks/useDoctors";
@@ -799,14 +800,17 @@ export default function DoctorsPage() {
                       Comprehensive list of specialist healthcare professionals
                     </CardDescription>
                   </div>
-                  <ReportActions
-                    title="Specialist Doctors Report"
-                    subtitle={`${filteredDoctors.length} specialists found`}
-                    data={sortedDoctors}
-                    columns={pdfColumns}
-                    filters={pdfFilters}
-                    filename={`specialist_doctors_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
-                  />
+                  <div className="flex items-center gap-2">
+                    <FeeRequestNotificationButton />
+                    <ReportActions
+                      title="Specialist Doctors Report"
+                      subtitle={`${filteredDoctors.length} specialists found`}
+                      data={sortedDoctors}
+                      columns={pdfColumns}
+                      filters={pdfFilters}
+                      filename={`specialist_doctors_report_${formatDateToText(new Date().toISOString()).replace(/\s+/g, '_')}.pdf`}
+                    />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

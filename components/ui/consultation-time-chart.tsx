@@ -110,14 +110,27 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
       };
     }
 
-    const durations = filteredData.map(item => item.duration);
-    const averageDuration = Math.round(
-      durations.reduce((sum, duration) => sum + duration, 0) / durations.length
-    );
+    // Only include items with valid consultation times (> 0) for average calculation
+    // This ensures consistency with the consultation time stats calculation
+    const validDurations = filteredData
+      .filter(item => item.duration > 0)
+      .map(item => item.duration);
+    
+    const averageDuration = validDurations.length > 0 
+      ? Math.round(validDurations.reduce((sum, duration) => sum + duration, 0) / validDurations.length)
+      : 0;
+
+    console.log('Consultation Time Chart Summary Stats:', {
+      totalFilteredData: filteredData.length,
+      validDurationsCount: validDurations.length,
+      validDurations: validDurations,
+      averageDuration,
+      allDurations: filteredData.map(item => item.duration)
+    });
 
     return {
       averageDuration,
-      totalConsultations: filteredData.length,
+      totalConsultations: filteredData.length, // Still show total count including 0-duration items
     };
   }, [filteredData]);
 

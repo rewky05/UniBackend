@@ -33,10 +33,10 @@ interface FilterState {
 export function IndividualConsultationsTable({ 
   consultations, 
   className, 
-  limit = 10 
+  limit = 5 
 }: IndividualConsultationsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     searchTerm: '',
@@ -255,7 +255,7 @@ export function IndividualConsultationsTable({
             </div>
 
             {/* Specialty Filter */}
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <label className="text-sm font-medium">Specialty</label>
               <Select value={filters.specialty} onValueChange={(value) => handleFilterChange('specialty', value)}>
                 <SelectTrigger>
@@ -270,7 +270,7 @@ export function IndividualConsultationsTable({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
 
             {/* Doctor Name Filter */}
             <div className="space-y-2">
@@ -356,7 +356,7 @@ export function IndividualConsultationsTable({
                 <TableHead className="w-[100px]">Type</TableHead>
                 <TableHead>Patient</TableHead>
                 <TableHead>Doctor</TableHead>
-                <TableHead>Specialty</TableHead>
+                {/* <TableHead>Specialty</TableHead> */}
                 <TableHead>Date</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
@@ -390,7 +390,7 @@ export function IndividualConsultationsTable({
                       <span>{consultation.doctorName}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     {consultation.specialty ? (
                       <Badge variant="outline" className="text-xs">
                         {consultation.specialty}
@@ -398,7 +398,7 @@ export function IndividualConsultationsTable({
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     <div className="text-sm">
                       {formatDateToText(consultation.appointmentDate)}

@@ -142,7 +142,7 @@ export function calculateAverageConsultationTime(
   const specialtyTimes: Record<string, number[]> = {};
   const individualConsultations: IndividualConsultation[] = [];
   
-  // Process completed appointments
+  // Process completed appointments with validation
   appointments.forEach((appointment, index) => {
     console.log(`Appointment ${index}:`, {
       id: appointment.id,
@@ -154,7 +154,7 @@ export function calculateAverageConsultationTime(
       isCompleted: appointment.status === 'completed'
     });
     
-    if (appointment.status === 'completed' && appointment.lastUpdated) {
+    if (appointment.status === 'completed' && appointment.lastUpdated && appointment.appointmentDate && appointment.appointmentTime) {
       const consultationTime = calculateConsultationTime(
         appointment.appointmentDate,
         appointment.appointmentTime,
@@ -163,10 +163,14 @@ export function calculateAverageConsultationTime(
       
       console.log(`Appointment ${index} consultation time:`, consultationTime);
       
-      if (consultationTime > 0) {
-        consultationTimes.push(consultationTime);
+      // Count all completed appointments, even if consultation time is 0 or invalid
+      // This ensures consistency with appointment trends counting
+      if (consultationTime >= 0) { // Changed from > 0 to >= 0
+        if (consultationTime > 0) {
+          consultationTimes.push(consultationTime);
+        }
         
-        // Add to individual consultations
+        // Add to individual consultations (even with 0 consultation time)
         individualConsultations.push({
           id: appointment.id || 'unknown',
           type: 'appointment',
@@ -179,12 +183,12 @@ export function calculateAverageConsultationTime(
           specialty: appointment.specialty,
           appointmentDate: appointment.appointmentDate,
           appointmentTime: appointment.appointmentTime,
-          consultationTimeMinutes: consultationTime,
+          consultationTimeMinutes: Math.max(0, consultationTime), // Ensure non-negative
           status: appointment.status
         });
         
-        // Group by specialty
-        if (appointment.specialty) {
+        // Group by specialty (only for valid consultation times)
+        if (appointment.specialty && consultationTime > 0) {
           if (!specialtyTimes[appointment.specialty]) {
             specialtyTimes[appointment.specialty] = [];
           }
@@ -194,7 +198,7 @@ export function calculateAverageConsultationTime(
     }
   });
   
-  // Process completed referrals
+  // Process completed referrals with validation
   referrals.forEach((referral, index) => {
     console.log(`Referral ${index}:`, {
       id: referral.id,
@@ -206,7 +210,7 @@ export function calculateAverageConsultationTime(
       isCompleted: referral.status === 'completed'
     });
     
-    if (referral.status === 'completed' && referral.lastUpdated) {
+    if (referral.status === 'completed' && referral.lastUpdated && referral.appointmentDate && referral.appointmentTime) {
       const consultationTime = calculateConsultationTime(
         referral.appointmentDate,
         referral.appointmentTime,
@@ -215,10 +219,14 @@ export function calculateAverageConsultationTime(
       
       console.log(`Referral ${index} consultation time:`, consultationTime);
       
-      if (consultationTime > 0) {
-        consultationTimes.push(consultationTime);
+      // Count all completed referrals, even if consultation time is 0 or invalid
+      // This ensures consistency with appointment trends counting
+      if (consultationTime >= 0) { // Changed from > 0 to >= 0
+        if (consultationTime > 0) {
+          consultationTimes.push(consultationTime);
+        }
         
-        // Add to individual consultations
+        // Add to individual consultations (even with 0 consultation time)
         individualConsultations.push({
           id: referral.id || 'unknown',
           type: 'referral',
@@ -231,7 +239,7 @@ export function calculateAverageConsultationTime(
           specialty: undefined, // Referrals might not have specialty in the same way
           appointmentDate: referral.appointmentDate,
           appointmentTime: referral.appointmentTime,
-          consultationTimeMinutes: consultationTime,
+          consultationTimeMinutes: Math.max(0, consultationTime), // Ensure non-negative
           status: referral.status
         });
       }
@@ -242,16 +250,16 @@ export function calculateAverageConsultationTime(
   individualConsultations.sort((a, b) => b.consultationTimeMinutes - a.consultationTimeMinutes);
   
   // Calculate statistics
-  const totalCompletedConsultations = consultationTimes.length;
-  const averageConsultationTimeMinutes = totalCompletedConsultations > 0 
-    ? Math.round(consultationTimes.reduce((sum, time) => sum + time, 0) / totalCompletedConsultations)
+  const totalCompletedConsultations = individualConsultations.length; // Use individual consultations count
+  const averageConsultationTimeMinutes = consultationTimes.length > 0 
+    ? Math.round(consultationTimes.reduce((sum, time) => sum + time, 0) / consultationTimes.length)
     : 0;
   
-  const shortestConsultationMinutes = totalCompletedConsultations > 0 
+  const shortestConsultationMinutes = consultationTimes.length > 0 
     ? Math.min(...consultationTimes)
     : 0;
   
-  const longestConsultationMinutes = totalCompletedConsultations > 0 
+  const longestConsultationMinutes = consultationTimes.length > 0 
     ? Math.max(...consultationTimes)
     : 0;
   
@@ -266,7 +274,10 @@ export function calculateAverageConsultationTime(
   console.log('Final results:', {
     totalCompletedConsultations,
     averageConsultationTimeMinutes,
-    individualConsultationsCount: individualConsultations.length
+    individualConsultationsCount: individualConsultations.length,
+    consultationTimesCount: consultationTimes.length,
+    consultationTimes: consultationTimes,
+    individualConsultationsDurations: individualConsultations.map(c => c.consultationTimeMinutes)
   });
   
   return {

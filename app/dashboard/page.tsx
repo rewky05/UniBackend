@@ -4,13 +4,14 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
 import { useRealAppointments, useRealReferrals, useRealFeedback } from "@/hooks/useRealData";
+import { useUnifiedAppointmentData } from "@/hooks/useUnifiedAppointmentData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatDateToText } from "@/lib/utils";
 import { LoadingSpinner, ErrorState } from "@/components/ui/loading-states";
-import { ConsultationTimeStats } from "@/components/ui/consultation-time-stats";
 import { IndividualConsultationsTable } from "@/components/ui/individual-consultations-table";
 import { useConsultationTime } from "@/hooks/useConsultationTime";
 import { formatConsultationTime, calculateConsultationTime } from "@/lib/utils/consultation-time";
+import { getValidationSummary } from "@/lib/utils/data-validation";
 import { ConsultationTimeChart } from "@/components/ui/consultation-time-chart";
 import {
   Card,
@@ -593,91 +594,40 @@ export default function DashboardPage() {
   const appointments = realAppointments && realAppointments.length > 0 ? realAppointments : sampleAppointments;
   const referrals = realReferrals && realReferrals.length > 0 ? realReferrals : sampleReferrals;
 
+  // Use unified appointment data for consistent counting across all components
+  const unifiedData = useUnifiedAppointmentData(appointments, referrals);
+
   // Calculate consultation time statistics using custom hook - including referrals
   const { consultationTimeStats } = useConsultationTime(appointments, referrals);
 
-  // Transform appointment and referral data for the consultation time chart
-  // Use the same data processing logic as the consultation time calculation
+  // Transform consultation time stats data for the chart
+  // Use the same data as the stats calculation for consistency
   const consultationTimeData = useMemo(() => {
-    const chartData: Array<{
-      id: string;
-      date: string;
-      duration: number;
-      specialty?: string;
-      doctorName?: string;
-      patientName?: string;
-      status: 'completed' | 'cancelled' | 'no-show';
-    }> = [];
-    
-    // Use the same logic as calculateAverageConsultationTime function
-    // Add appointments data
-    appointments.forEach(appointment => {
-      if (appointment.status === 'completed' && appointment.lastUpdated) {
-        // Use the same calculation method as the stats
-        const consultationTime = calculateConsultationTime(
-          appointment.appointmentDate,
-          appointment.appointmentTime,
-          appointment.lastUpdated
-        );
-        
-        if (consultationTime > 0 && appointment.appointmentDate) {
-          chartData.push({
-            id: appointment.id || 'unknown',
-            date: appointment.appointmentDate,
-            duration: consultationTime,
-            specialty: appointment.specialty || 'General Medicine',
-            doctorName: `${appointment.doctorFirstName || ''} ${appointment.doctorLastName || ''}`.trim() || 'Unknown Doctor',
-            patientName: `${appointment.patientFirstName || ''} ${appointment.patientLastName || ''}`.trim() || 'Unknown Patient',
-            status: appointment.status as 'completed' | 'cancelled' | 'no-show',
-          });
-        }
-      }
-    });
-    
-    // Add referrals data
-    referrals.forEach(referral => {
-      if (referral.status === 'completed' && referral.lastUpdated) {
-        // Use the same calculation method as the stats
-        const consultationTime = calculateConsultationTime(
-          referral.appointmentDate,
-          referral.appointmentTime,
-          referral.lastUpdated
-        );
-        
-        if (consultationTime > 0 && referral.appointmentDate) {
-          chartData.push({
-            id: referral.id || 'unknown',
-            date: referral.appointmentDate,
-            duration: consultationTime,
-            specialty: referral.initialReasonForReferral?.includes('Cardiac') ? 'Cardiology' : 
-                     referral.initialReasonForReferral?.includes('Neurological') ? 'Neurology' : 
-                     referral.initialReasonForReferral?.includes('Orthopedic') ? 'Orthopedics' : 'General Medicine',
-            doctorName: `Specialist ${referral.assignedSpecialistId}`,
-            patientName: `Patient ${referral.patientId}`,
-            status: referral.status as 'completed' | 'cancelled' | 'no-show',
-          });
-        }
-      }
-    });
+    // Convert individualConsultations to chart data format
+    const chartData = consultationTimeStats.individualConsultations.map(consultation => ({
+      id: consultation.id,
+      date: consultation.appointmentDate,
+      duration: consultation.consultationTimeMinutes,
+      specialty: consultation.specialty,
+      doctorName: consultation.doctorName,
+      patientName: consultation.patientName,
+      status: 'completed' as const, // All individual consultations are completed
+    }));
     
     // Sort by date for better visualization
     chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    console.log('Consultation time chart data:', {
-      totalAppointments: appointments.length,
-      totalReferrals: referrals.length,
-      completedAppointments: appointments.filter(a => a.status === 'completed').length,
-      completedReferrals: referrals.filter(r => r.status === 'completed').length,
+    console.log('Consultation time chart data (unified):', {
+      totalFromStats: consultationTimeStats.totalCompletedConsultations,
       chartDataPoints: chartData.length,
+      averageFromStats: consultationTimeStats.averageConsultationTimeMinutes,
       usingRealData: realAppointments && realAppointments.length > 0,
       usingSampleData: !realAppointments || realAppointments.length === 0,
       chartData: chartData.slice(0, 5), // Log first 5 for debugging
-      averageFromStats: consultationTimeStats.averageConsultationTimeMinutes,
-      totalFromStats: consultationTimeStats.totalCompletedConsultations
     });
     
     return chartData;
-  }, [appointments, referrals, consultationTimeStats]);
+  }, [consultationTimeStats, realAppointments]);
 
   // Show loading state
   if (dashboardLoading || specialistsLoading || appointmentsLoading || referralsLoading) {
@@ -709,10 +659,27 @@ export default function DashboardPage() {
   console.log('Using appointments:', appointments.length);
   console.log('Using referrals:', referrals.length);
   console.log('Using sample data:', !realAppointments || realAppointments.length === 0);
-  console.log('Completed Appointments:', appointments.filter(a => a.status === 'completed'));
-  console.log('Completed Referrals:', referrals.filter(r => r.status === 'completed'));
+  
+  // Log unified data counts
+  console.log('=== UNIFIED DATA COUNTS ===');
+  console.log('Total Appointments + Referrals:', unifiedData.totalAppointmentsAndReferrals);
+  console.log('Total Completed:', unifiedData.totalCompleted);
+  console.log('Total Cancelled:', unifiedData.totalCancelled);
+  console.log('Consultation Time Eligible:', unifiedData.totalConsultationTimeEligible);
+  
+  // Log validation summary
+  const validationSummary = getValidationSummary(appointments, referrals);
+  console.log('=== DATA VALIDATION SUMMARY ===');
+  console.log('Valid for consultation time:', validationSummary.validForConsultationTime);
+  console.log('Invalid for consultation time:', validationSummary.invalidForConsultationTime);
+  if (validationSummary.validationErrors.length > 0) {
+    console.warn('Validation errors:', validationSummary.validationErrors);
+  }
+  if (validationSummary.validationWarnings.length > 0) {
+    console.warn('Validation warnings:', validationSummary.validationWarnings);
+  }
 
-    // Calculate stats from cached data
+    // Calculate stats from cached data using unified data
   const stats = dashboardData ? [
     {
       title: "Total Specialists",
@@ -734,7 +701,7 @@ export default function DashboardPage() {
       },
     {
       title: "Total Appointments",
-      value: appointments.length + referrals.length,
+      value: unifiedData.totalAppointmentsAndReferrals,
       change: "+15%",
       changeType: "positive" as const,
       icon: Calendar,
@@ -833,10 +800,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
+
         {/* Individual Consultations Table */}
         <IndividualConsultationsTable 
           consultations={consultationTimeStats.individualConsultations}
-          limit={15}
+          limit={5}
         />
       </div>
     </DashboardLayout>

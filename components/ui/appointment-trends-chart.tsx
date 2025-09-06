@@ -18,6 +18,7 @@ import {
   Legend,
 } from 'recharts';
 import type { Appointment, Referral } from '@/lib/types/database';
+import { useUnifiedAppointmentData } from '@/hooks/useUnifiedAppointmentData';
 
 interface AppointmentTrendsChartProps {
   appointments: Appointment[];
@@ -44,6 +45,9 @@ export function AppointmentTrendsChart({ appointments, referrals, className }: A
   const [groupBy, setGroupBy] = useState<GroupBy>('week');
   const [selectedClinic, setSelectedClinic] = useState<string>('all');
 
+  // Use unified data for consistent counting
+  const unifiedData = useUnifiedAppointmentData(appointments, referrals);
+
   const getNormalizedStatus = (status?: string) => {
     const value = (status || '').toLowerCase();
     if (value === 'canceled') return 'cancelled';
@@ -60,9 +64,8 @@ export function AppointmentTrendsChart({ appointments, referrals, className }: A
     return Array.from(clinicSet).sort();
   }, [appointments, referrals]);
 
-  // Filter appointments and referrals based on time range and clinic
+  // Filter appointments and referrals based on time range and clinic using unified data
   const filteredData = useMemo(() => {
-    const now = new Date();
     const timeRangeMap = {
       '7d': 7,
       '30d': 30,
@@ -71,28 +74,8 @@ export function AppointmentTrendsChart({ appointments, referrals, className }: A
     };
     
     const daysBack = timeRangeMap[timeRange];
-    const cutoffDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-    
-    const filteredAppointments = appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.appointmentDate);
-      const matchesDate = appointmentDate >= cutoffDate;
-      const matchesClinic = selectedClinic === 'all' || appointment.clinicName === selectedClinic;
-      
-      return matchesDate && matchesClinic;
-    });
-
-    const filteredReferrals = referrals.filter(referral => {
-      const appointmentDate = new Date(referral.appointmentDate);
-      const matchesDate = appointmentDate >= cutoffDate;
-      const matchesClinic = selectedClinic === 'all' || 
-        referral.specialistClinicName === selectedClinic || 
-        referral.referringClinicName === selectedClinic;
-      
-      return matchesDate && matchesClinic;
-    });
-
-    return { appointments: filteredAppointments, referrals: filteredReferrals };
-  }, [appointments, referrals, timeRange, selectedClinic]);
+    return unifiedData.getFilteredData(daysBack, selectedClinic);
+  }, [unifiedData, timeRange, selectedClinic]);
 
   // Process data for chart - treat referrals as appointments
   const chartData = useMemo(() => {
@@ -160,24 +143,14 @@ export function AppointmentTrendsChart({ appointments, referrals, className }: A
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [filteredData, groupBy]);
 
-  // Calculate enhanced summary stats - only count completed referrals
+  // Calculate enhanced summary stats using unified data
   const summaryStats = useMemo(() => {
-    const completedAppointments = filteredData.appointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'completed').length;
-    const cancelledAppointments = filteredData.appointments.filter(a => getNormalizedStatus(a.status as unknown as string) === 'cancelled').length;
-    const completedReferrals = filteredData.referrals.filter(r => r.status === 'completed').length;
-    
-    const totalAppointments = filteredData.appointments.length; // Count ALL appointments regardless of status
-    const totalCompleted = completedAppointments + completedReferrals; // Only include completed referrals
-    const totalCancelled = cancelledAppointments;
-    
-    const totalConsultations = totalAppointments + completedReferrals; // Only count completed referrals in total
-    
     return {
-      completed: totalCompleted,
-      cancelled: totalCancelled,
-      total: totalConsultations,
+      completed: filteredData.completedCount,
+      cancelled: filteredData.cancelledCount,
+      total: filteredData.totalCount,
     };
-  }, [filteredData, chartData]);
+  }, [filteredData]);
 
   return (
     <div className={className}>

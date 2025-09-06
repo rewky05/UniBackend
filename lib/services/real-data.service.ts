@@ -254,6 +254,169 @@ export class RealDataService {
   }
 
   /**
+   * Subscribe to real-time appointments updates
+   */
+  subscribeToAppointments(callback: (appointments: Appointment[]) => void): () => void {
+    const appointmentsRef = ref(db, 'appointments');
+    const patientsRef = ref(db, 'patients');
+    const doctorsRef = ref(db, 'doctors');
+    const clinicsRef = ref(db, 'clinics');
+    const usersRef = ref(db, 'users');
+    
+    const unsubscribe = onValue(appointmentsRef, async (appointmentsSnapshot) => {
+      try {
+        if (!appointmentsSnapshot.exists()) {
+          callback([]);
+          return;
+        }
+        
+        // Fetch related data in parallel
+        const [patientsSnapshot, doctorsSnapshot, clinicsSnapshot, usersSnapshot] = await Promise.all([
+          get(patientsRef),
+          get(doctorsRef),
+          get(clinicsRef),
+          get(usersRef)
+        ]);
+        
+        const appointments = appointmentsSnapshot.val();
+        const patients = patientsSnapshot.exists() ? patientsSnapshot.val() : {};
+        const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+        const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+        
+        // Create lookup maps for quick access
+        const patientNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+        const doctorNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+        const clinicNameMap: { [key: string]: string } = {};
+        const userNameMap: { [key: string]: { firstName: string; lastName: string } } = {};
+        
+        // Build patient name map
+        Object.keys(patients).forEach(patientId => {
+          const patient = patients[patientId];
+          if (patient && (patient.firstName || patient.lastName)) {
+            patientNameMap[patientId] = {
+              firstName: patient.firstName || 'Unknown',
+              lastName: patient.lastName || 'Patient'
+            };
+          }
+        });
+        
+        // Build doctor name map
+        Object.keys(doctors).forEach(doctorId => {
+          const doctor = doctors[doctorId];
+          if (doctor && (doctor.firstName || doctor.lastName)) {
+            doctorNameMap[doctorId] = {
+              firstName: doctor.firstName || 'Unknown',
+              lastName: doctor.lastName || 'Doctor'
+            };
+          }
+        });
+        
+        // Build clinic name map
+        Object.keys(clinics).forEach(clinicId => {
+          const clinic = clinics[clinicId];
+          if (clinic && clinic.name) {
+            clinicNameMap[clinicId] = clinic.name;
+          }
+        });
+        
+        // Build user name map
+        Object.keys(users).forEach(userId => {
+          const user = users[userId];
+          if (user && (user.firstName || user.lastName)) {
+            userNameMap[userId] = {
+              firstName: user.firstName || 'Unknown',
+              lastName: user.lastName || 'User'
+            };
+          }
+        });
+        
+        const processedAppointments = Object.keys(appointments).map(id => {
+          const appointment = appointments[id];
+          const patientId = appointment.patientId;
+          const doctorId = appointment.doctorId;
+          const clinicId = appointment.clinicId;
+          const bookedByUserId = appointment.bookedByUserId;
+          
+          const patientName = patientNameMap[patientId] || { firstName: 'Unknown', lastName: 'Patient' };
+          const doctorName = doctorNameMap[doctorId] || { firstName: 'Unknown', lastName: 'Doctor' };
+          const clinicName = clinicNameMap[clinicId] || 'Unknown Clinic';
+          const bookedByUserName = bookedByUserId ? userNameMap[bookedByUserId] : null;
+          
+          return {
+            id,
+            ...appointment,
+            patientFirstName: patientName.firstName,
+            patientLastName: patientName.lastName,
+            doctorFirstName: doctorName.firstName,
+            doctorLastName: doctorName.lastName,
+            clinicName,
+            bookedByUserFirstName: bookedByUserName?.firstName,
+            bookedByUserLastName: bookedByUserName?.lastName
+          };
+        });
+        
+        callback(processedAppointments);
+      } catch (error) {
+        console.error('Error processing appointments subscription:', error);
+        callback([]);
+      }
+    });
+    
+    return unsubscribe;
+  }
+
+  /**
+   * Subscribe to real-time referrals updates
+   */
+  subscribeToReferrals(callback: (referrals: Referral[]) => void): () => void {
+    const referralsRef = ref(db, 'referrals');
+    const clinicsRef = ref(db, 'clinics');
+    
+    const unsubscribe = onValue(referralsRef, async (referralsSnapshot) => {
+      try {
+        if (!referralsSnapshot.exists()) {
+          callback([]);
+          return;
+        }
+        
+        const clinicsSnapshot = await get(clinicsRef);
+        const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+        
+        // Create a map of clinic IDs to clinic names for quick lookup
+        const clinicNameMap: { [key: string]: string } = {};
+        Object.keys(clinics).forEach(clinicId => {
+          clinicNameMap[clinicId] = clinics[clinicId].name || 'Unknown Clinic';
+        });
+        
+        const referrals = referralsSnapshot.val();
+        const processedReferrals = Object.keys(referrals).map(id => {
+          const referral = referrals[id];
+          const specialistClinicId = referral.practiceLocation?.clinicId;
+          const referringClinicId = referral.referringClinicId;
+          
+          const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
+          const referringClinicName = referringClinicId ? clinicNameMap[referringClinicId] || referral.referringClinicName || 'Unknown Clinic' : referral.referringClinicName || 'Unknown Clinic';
+          
+          return {
+            id,
+            ...referral,
+            specialistClinicName,
+            referringClinicName
+          };
+        });
+        
+        callback(processedReferrals);
+      } catch (error) {
+        console.error('Error processing referrals subscription:', error);
+        callback([]);
+      }
+    });
+    
+    return unsubscribe;
+  }
+
+  /**
    * Subscribe to real-time specialist doctors updates
    */
   subscribeToDoctors(callback: (doctors: Doctor[]) => void): () => void {

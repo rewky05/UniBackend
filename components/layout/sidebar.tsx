@@ -25,32 +25,40 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNavigationLoading } from "@/hooks/useNavigationLoading";
 import { ModernSidebarLoader } from "@/components/ui/modern-sidebar-loader";
+import { useAllPendingCounts } from "@/hooks/usePendingCounts";
 
 const navigationItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: BarChart3,
+    showPendingCount: false,
   },
   {
     title: "Appointments Monitoring",
     href: "/appointments",
     icon: Calendar,
+    showPendingCount: true,
+    pendingKey: 'appointmentsPending',
   },
   {
     title: "Specialist Management",
     href: "/doctors",
     icon: Users,
+    showPendingCount: true,
+    pendingKey: 'specialistsPending',
   },
   {
     title: "Patient Management",
     href: "/patients",
     icon: Users,
+    showPendingCount: false,
   },
   {
     title: "Patient Feedback",
     href: "/feedback",
     icon: MessageSquare,
+    showPendingCount: false,
   },
   // {
   //   title: "Activity Logs",
@@ -61,6 +69,7 @@ const navigationItems = [
     title: "Settings",
     href: "/settings",
     icon: Settings,
+    showPendingCount: false,
   },
 ];
 
@@ -72,6 +81,9 @@ export function Sidebar() {
     loadingMessage: '', // No message for clean tab navigation
     delay: 1000, // Wait 1 second after navigation to ensure page is loaded
   });
+  
+  // Get pending counts for sidebar indicators
+  const { appointmentsPending, specialistsPending, loading: pendingCountsLoading } = useAllPendingCounts();
 
   // Get user display information
   const getUserDisplayName = () => {
@@ -178,12 +190,23 @@ export function Sidebar() {
             {navigationItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
               const isLoading = loadingPath === item.href;
+              
+              // Get pending count for this item
+              const getPendingCount = () => {
+                if (!item.showPendingCount || !item.pendingKey) return 0;
+                if (item.pendingKey === 'appointmentsPending') return appointmentsPending;
+                if (item.pendingKey === 'specialistsPending') return specialistsPending;
+                return 0;
+              };
+              
+              const pendingCount = getPendingCount();
+              
               return (
                 <button
                   key={item.href}
                   onClick={() => handleNavigation(item.href, item.title)}
                   className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full text-left",
+                    "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full text-left relative",
                     isActive
                       ? "bg-primary text-white shadow-lg"
                       : "text-slate-300 hover:bg-white/10 hover:text-white",
@@ -202,7 +225,21 @@ export function Sidebar() {
                       className={cn("h-5 w-5", !isCollapsed && "mr-3")}
                     />
                   )}
-                  {!isCollapsed && <span>{item.title}</span>}
+                  {!isCollapsed && (
+                    <div className="flex items-center justify-between w-full">
+                      <span>{item.title}</span>
+                      {item.showPendingCount && pendingCount > 0 && (
+                        <div className="ml-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          {pendingCount}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isCollapsed && item.showPendingCount && pendingCount > 0 && (
+                    <div className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full">
+                      {pendingCount}
+                    </div>
+                  )}
                 </button>
               );
             })}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useNavigationLoading } from "@/hooks/useNavigationLoading";
 import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
 import { useRealAppointments, useRealReferrals, useRealFeedback } from "@/hooks/useRealData";
 import { useUnifiedAppointmentData } from "@/hooks/useUnifiedAppointmentData";
@@ -54,6 +55,12 @@ import { AppointmentTrendsChart } from '@/components/ui/appointment-trends-chart
 import type { Appointment } from '@/lib/types/database';
 
 export default function DashboardPage() {
+  // Navigation loading hook
+  const { navigateWithLoading } = useNavigationLoading({
+    loadingMessage: '', // No message for clean navigation
+    delay: 1000,
+  });
+
   // ✅ OPTIMIZED - Using React Query hooks with caching
   const { 
     data: dashboardData, 
@@ -745,7 +752,10 @@ export default function DashboardPage() {
                }
              >
               {stat.isClickable ? (
-                <Link href={stat.href!} className="block">
+                <div 
+                  onClick={() => navigateWithLoading(stat.href!)}
+                  className="block cursor-pointer"
+                >
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">{stat.title}</CardTitle>
                     <div className="flex items-center space-x-1">
@@ -761,7 +771,7 @@ export default function DashboardPage() {
                       {stat.change} from last month
                     </p>
                   </CardContent>
-                </Link>
+                </div>
                              ) : (
                  <>
                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

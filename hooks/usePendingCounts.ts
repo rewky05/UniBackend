@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRealAppointments } from './useRealData';
 import { useRealReferrals } from './useRealData';
 import { useSpecialists } from './useOptimizedData';
+import { usePendingFeeRequests } from './useFeeRequests';
 import { realDataService } from '@/lib/services/real-data.service';
 
 /**
@@ -94,23 +95,29 @@ export function usePendingAppointmentsCount() {
 /**
  * Hook to track pending specialists count
  * Used for the "Specialist Management" sidebar indicator
+ * Includes both pending specialists and pending fee change requests
  */
 export function usePendingSpecialistsCount() {
   const { data: specialists = [], isLoading: specialistsLoading } = useSpecialists();
+  const { requests: pendingFeeRequests, loading: feeRequestsLoading } = usePendingFeeRequests();
   const [pendingCount, setPendingCount] = useState(0);
 
   const calculatePendingCount = useCallback(() => {
-    return specialists.filter(specialist => 
+    const pendingSpecialists = specialists.filter(specialist => 
       specialist.isSpecialist === true && 
       specialist.status === 'pending'
     ).length;
-  }, [specialists]);
+    
+    const pendingFeeRequestsCount = pendingFeeRequests.length;
+    
+    return pendingSpecialists + pendingFeeRequestsCount;
+  }, [specialists, pendingFeeRequests]);
 
   useEffect(() => {
-    if (!specialistsLoading) {
+    if (!specialistsLoading && !feeRequestsLoading) {
       setPendingCount(calculatePendingCount());
     }
-  }, [specialists, specialistsLoading, calculatePendingCount]);
+  }, [specialists, pendingFeeRequests, specialistsLoading, feeRequestsLoading, calculatePendingCount]);
 
   // Set up real-time listener for specialists
   useEffect(() => {
@@ -120,17 +127,21 @@ export function usePendingSpecialistsCount() {
         doctor.status === 'pending'
       ).length;
       
-      setPendingCount(pendingSpecialists);
+      setPendingCount(prev => {
+        // Keep the current fee requests count and update specialists count
+        const currentFeeRequestsCount = pendingFeeRequests.length;
+        return pendingSpecialists + currentFeeRequestsCount;
+      });
     });
 
     return () => {
       unsubscribeDoctors();
     };
-  }, [calculatePendingCount]);
+  }, [pendingFeeRequests, calculatePendingCount]);
 
   return {
     pendingCount,
-    loading: specialistsLoading,
+    loading: specialistsLoading || feeRequestsLoading,
     refresh: calculatePendingCount
   };
 }

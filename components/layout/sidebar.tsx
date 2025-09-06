@@ -229,15 +229,19 @@ export function Sidebar() {
                     <div className="flex items-center justify-between w-full">
                       <span>{item.title}</span>
                       {item.showPendingCount && pendingCount > 0 && (
-                        <div className="ml-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full">
-                          {pendingCount}
+                        <div className="ml-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px]">
+                          <span className="flex items-center justify-center w-full h-full">
+                            {pendingCount}
+                          </span>
                         </div>
                       )}
                     </div>
                   )}
                   {isCollapsed && item.showPendingCount && pendingCount > 0 && (
-                    <div className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full">
-                      {pendingCount}
+                    <div className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px]">
+                      <span className="flex items-center justify-center w-full h-full">
+                        {pendingCount}
+                      </span>
                     </div>
                   )}
                 </button>

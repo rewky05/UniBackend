@@ -15,12 +15,15 @@ export function LoadingSpinner({ size = "md", className, text }: LoadingSpinnerP
 
   return (
     <div className={cn("flex flex-col items-center justify-center", className)}>
-      <div 
-        className={cn(
-          "animate-spin rounded-full border-2 border-gray-300 border-t-primary",
-          sizeClasses[size]
-        )}
-      />
+      <div className="relative">
+        {/* Blue arc loader - matching the specialist data loader style */}
+        <div 
+          className={cn(
+            "rounded-full border-2 border-transparent border-t-primary animate-spin",
+            sizeClasses[size]
+          )}
+        />
+      </div>
       {text && (
         <p className="mt-2 text-sm text-muted-foreground">{text}</p>
       )}

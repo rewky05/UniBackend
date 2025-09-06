@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { ProtectedRoute } from './protected-route';
+import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,6 +14,13 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const { hideLoading } = useGlobalLoading();
+
+  // Hide loading when pathname changes (page has loaded)
+  useEffect(() => {
+    hideLoading();
+  }, [pathname, hideLoading]);
 
   return (
     <ProtectedRoute>

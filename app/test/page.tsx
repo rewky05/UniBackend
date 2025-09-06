@@ -3,18 +3,46 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { useRouter } from 'next/navigation';
+import { usePageTransition } from '@/hooks/usePageTransition';
+import { useFormSubmission } from '@/hooks/useFormSubmission';
+import { useGlobalLoading } from '@/hooks/useGlobalLoading';
 
 export default function TestPage() {
   const { user, loading, isSuperadmin, isAdmin } = useAuth();
   const router = useRouter();
+  const { navigateWithTransition, isTransitioning } = usePageTransition({
+    loadingMessage: 'Navigating...',
+    delay: 500, // Add a small delay to demonstrate loading
+  });
+  const { isSubmitting, submitForm } = useFormSubmission({
+    loadingMessage: 'Processing...',
+    successMessage: 'Action completed!',
+  });
+  const { showLoading, hideLoading } = useGlobalLoading();
 
   const goToDashboard = () => {
-    router.push('/dashboard');
+    navigateWithTransition('/dashboard');
   };
 
   const goToLogin = () => {
-    router.push('/login');
+    navigateWithTransition('/login');
+  };
+
+  const handleTestAction = async () => {
+    await submitForm(async () => {
+      // Simulate an async operation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Test action completed');
+    });
+  };
+
+  const handleGlobalLoading = () => {
+    showLoading('Testing global loading...');
+    setTimeout(() => {
+      hideLoading();
+    }, 3000);
   };
 
   return (
@@ -46,13 +74,44 @@ export default function TestPage() {
             </div>
           </div>
           
-          <div className="flex space-x-2">
-            <Button onClick={goToDashboard} disabled={!user}>
-              Go to Dashboard
-            </Button>
-            <Button onClick={goToLogin} variant="outline">
-              Go to Login
-            </Button>
+          <div className="space-y-2">
+            <div className="flex space-x-2">
+              <LoadingButton 
+                onClick={goToDashboard} 
+                disabled={!user || isTransitioning}
+                loading={isTransitioning}
+                loadingText="Navigating..."
+              >
+                Go to Dashboard
+              </LoadingButton>
+              <LoadingButton 
+                onClick={goToLogin} 
+                variant="outline"
+                disabled={isTransitioning}
+                loading={isTransitioning}
+                loadingText="Navigating..."
+              >
+                Go to Login
+              </LoadingButton>
+            </div>
+            
+            <div className="flex space-x-2">
+              <LoadingButton 
+                onClick={handleTestAction}
+                disabled={isSubmitting}
+                loading={isSubmitting}
+                loadingText="Processing..."
+                variant="secondary"
+              >
+                Test Form Action
+              </LoadingButton>
+              <Button 
+                onClick={handleGlobalLoading}
+                variant="outline"
+              >
+                Test Global Loading
+              </Button>
+            </div>
           </div>
           
           <div className="text-xs text-muted-foreground">

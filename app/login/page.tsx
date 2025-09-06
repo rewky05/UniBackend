@@ -14,6 +14,8 @@ import { LockoutTimer } from '@/components/ui/lockout-timer';
 import { securityService } from '@/lib/services/security.service';
 import { auth } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
+import { useFormSubmission } from '@/hooks/useFormSubmission';
+import { LoadingButton } from '@/components/ui/loading-button';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -27,6 +29,11 @@ export default function LoginPage() {
   const [debugInfo, setDebugInfo] = useState('');
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { isSubmitting, submitForm } = useFormSubmission({
+    loadingMessage: 'Signing in...',
+    successMessage: 'Login successful!',
+    errorMessage: 'Login failed. Please try again.',
+  });
 
   // Monitor authentication state changes
   useEffect(() => {
@@ -230,20 +237,14 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
                 className="w-full h-11"
-                disabled={isLoading}
+                loading={isLoading || isSubmitting}
+                loadingText="Signing In..."
               >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Signing In...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
+                Sign In
+              </LoadingButton>
             </form>
 
             {/* Security Notice */}

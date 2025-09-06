@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/hooks/useAuth';
 import { QueryProvider } from '@/lib/providers/query-provider';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { GlobalLoadingProvider } from '@/hooks/useGlobalLoading';
+import { GlobalLoadingOverlay } from '@/components/ui/global-loading-overlay';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,7 +32,10 @@ export default function RootLayout({
           >
             <QueryProvider>
               <AuthProvider>
-                {children}
+                <GlobalLoadingProvider>
+                  {children}
+                  <GlobalLoadingOverlay />
+                </GlobalLoadingProvider>
               </AuthProvider>
             </QueryProvider>
           </ThemeProvider>

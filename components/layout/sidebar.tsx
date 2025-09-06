@@ -20,8 +20,11 @@ import {
   Shield,
   FileText,
   Activity,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigationLoading } from "@/hooks/useNavigationLoading";
+import { ModernSidebarLoader } from "@/components/ui/modern-sidebar-loader";
 
 const navigationItems = [
   {
@@ -65,6 +68,10 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
   const { user, isSuperadmin } = useAuth();
+  const { isNavigating, loadingPath, navigateWithLoading } = useNavigationLoading({
+    loadingMessage: '', // No message for clean tab navigation
+    delay: 1000, // Wait 1 second after navigation to ensure page is loaded
+  });
 
   // Get user display information
   const getUserDisplayName = () => {
@@ -88,6 +95,11 @@ export function Sidebar() {
       return storedEmail || sessionEmail || "";
     }
     return user?.email || "";
+  };
+
+  // Handle navigation with loading state
+  const handleNavigation = (href: string, title: string) => {
+    navigateWithLoading(href, ''); // No message for clean tab navigation
   };
 
   return (
@@ -165,23 +177,33 @@ export function Sidebar() {
           <div className="space-y-1">
             {navigationItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
+              const isLoading = loadingPath === item.href;
               return (
-                <Link
+                <button
                   key={item.href}
-                  href={item.href}
+                  onClick={() => handleNavigation(item.href, item.title)}
                   className={cn(
-                    "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 w-full text-left",
                     isActive
                       ? "bg-primary text-white shadow-lg"
                       : "text-slate-300 hover:bg-white/10 hover:text-white",
-                    isCollapsed && "justify-center px-2"
+                    isCollapsed && "justify-center px-2",
+                    (isLoading || isNavigating) && "opacity-75 cursor-not-allowed"
                   )}
+                  disabled={isLoading || isNavigating}
                 >
-                  <item.icon
-                    className={cn("h-5 w-5", !isCollapsed && "mr-3")}
-                  />
+                  {isLoading ? (
+                    <ModernSidebarLoader 
+                      className={cn(!isCollapsed && "mr-3")} 
+                      variant={isActive ? "light" : "dark"}
+                    />
+                  ) : (
+                    <item.icon
+                      className={cn("h-5 w-5", !isCollapsed && "mr-3")}
+                    />
+                  )}
                   {!isCollapsed && <span>{item.title}</span>}
-                </Link>
+                </button>
               );
             })}
           </div>

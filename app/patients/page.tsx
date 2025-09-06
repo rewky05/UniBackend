@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { useNavigationLoading } from "@/hooks/useNavigationLoading";
 import { formatDateToText, safeGetTimestamp } from "@/lib/utils";
 import { RealDataService } from "@/lib/services/real-data.service";
 import {
@@ -135,6 +136,10 @@ interface Patient {
 
 export default function PatientsPage() {
   const { toast } = useToast();
+  const { navigateWithLoading } = useNavigationLoading({
+    loadingMessage: '', // No message for clean navigation
+    delay: 1000,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedSort, setSelectedSort] = useState("date-desc");
@@ -665,11 +670,9 @@ export default function PatientsPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/patients/add">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Patient
-              </Link>
+            <Button onClick={() => navigateWithLoading('/patients/add')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Patient
             </Button>
           </div>
         </div>

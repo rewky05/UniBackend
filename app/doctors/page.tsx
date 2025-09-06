@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useNavigationLoading } from "@/hooks/useNavigationLoading";
 import { useRealDoctors, useRealClinics, useRealReferrals } from "@/hooks/useRealData";
 import { realDataService } from "@/lib/services/real-data.service";
 import { ProfessionalFeeStats } from "@/components/doctors/professional-fee-stats";
@@ -142,6 +143,10 @@ export default function DoctorsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { updateDoctorStatus, loading: actionLoading, error: actionError } = useDoctorActions();
+  const { navigateWithLoading } = useNavigationLoading({
+    loadingMessage: '', // No message for clean navigation
+    delay: 1000,
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All Specialties");
@@ -657,11 +662,9 @@ export default function DoctorsPage() {
               <Upload className="h-4 w-4 mr-2" />
               Bulk Import
             </Button>
-            <Button asChild>
-              <Link href="/doctors/add">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Specialist
-              </Link>
+            <Button onClick={() => navigateWithLoading('/doctors/add')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Specialist
             </Button>
             {/* <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />

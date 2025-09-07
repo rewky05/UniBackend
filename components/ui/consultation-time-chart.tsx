@@ -54,7 +54,7 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
     });
   }, [data, timeRange]);
 
-  // Process data for chart - group by week and calculate averages
+  // Process data for chart - group by week or day based on time range
   const chartData = useMemo(() => {
     const dataMap = new Map<string, { 
       totalDuration: number; 
@@ -62,13 +62,21 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
       averageDuration: number;
     }>();
     
-    // Group data by week
+    // Group data by week for longer ranges, by day for 7-day range
     filteredData.forEach(item => {
       const date = new Date(item.date);
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const key = weekStart.toISOString().split('T')[0];
+      let key: string;
+      
+      if (timeRange === '7d') {
+        // For 7-day range, group by individual day
+        key = date.toISOString().split('T')[0];
+      } else {
+        // For longer ranges, group by week
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        key = weekStart.toISOString().split('T')[0];
+      }
       
       const existing = dataMap.get(key) || { 
         totalDuration: 0, 
@@ -93,9 +101,11 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
       .sort((a, b) => a.date.localeCompare(b.date));
     
     console.log('Chart data for line chart:', {
+      timeRange,
       totalDataPoints: result.length,
       dataPoints: result,
-      filteredDataCount: filteredData.length
+      filteredDataCount: filteredData.length,
+      filteredData: filteredData.map(item => ({ date: item.date, duration: item.duration }))
     });
     
     return result;
@@ -141,10 +151,14 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const dateLabel = timeRange === '7d' 
+        ? new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : `Week of ${new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      
       return (
         <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 dark:text-gray-100">
-            Week of {new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {dateLabel}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Average: {data.averageDuration} min
@@ -164,7 +178,7 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
+            
               <CardTitle className="text-lg">Consultation Time Trends</CardTitle>
             </div>
             
@@ -198,9 +212,9 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
           </div>
 
           {/* Clean shadcn-style line chart */}
-          <div className="w-full h-64">
+          <div className="w-full h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 40 }}>
+              <LineChart data={chartData} margin={{ top: 20, right: 20, left: -30, bottom: 20 }}>
                 {/* Subtle horizontal grid lines only */}
                 <CartesianGrid 
                   strokeDasharray="0" 
@@ -209,12 +223,16 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
                   vertical={false}
                 />
                 
-                {/* X-axis with week labels */}
+                {/* X-axis with dynamic labels based on time range */}
                 <XAxis 
                   dataKey="date" 
                   tickFormatter={(value) => {
                     const date = new Date(value);
-                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    if (timeRange === '7d') {
+                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    } else {
+                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
                   }}
                   fontSize={11}
                   stroke="#6b7280"
@@ -222,9 +240,14 @@ export function ConsultationTimeChart({ data, className, isSampleData = false }:
                   axisLine={false}
                 />
                 
-                {/* Hidden Y-axis for clean look */}
+                {/* Y-axis with minutes labels */}
                 <YAxis 
-                  hide={true}
+                  tickFormatter={(value) => `${value} min`}
+                  fontSize={11}
+                  stroke="#6b7280"
+                  tickLine={false}
+                  axisLine={false}
+                  width={80}
                 />
                 
                 {/* Custom tooltip */}

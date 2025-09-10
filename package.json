@@ -10,7 +10,10 @@
     "seed": "tsx scripts/seed-data.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "cleanup-temp-passwords": "tsx scripts/cleanup-temporary-passwords.ts",
+    "test-temp-password": "tsx scripts/test-temporary-password-system.ts",
+    "setup-temp-password": "tsx scripts/setup-temp-password.ts"
   },
   "dependencies": {
     "@firebase/storage": "^0.14.0",

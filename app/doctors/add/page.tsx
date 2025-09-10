@@ -13,7 +13,6 @@ import { AffiliationsEducationForm } from '@/components/doctors/affiliations-edu
 import { DocumentUploadsForm } from '@/components/doctors/document-uploads-form';
 import { ArrowLeft, UserPlus, AlertTriangle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { RealDataService } from '@/lib/services/real-data.service';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -201,7 +200,6 @@ export default function AddDoctorPage() {
       console.log('Admin password length:', adminPassword.length);
       console.log('Timestamp:', new Date().toISOString());
       
-      const realDataService = new RealDataService();
       
       // Step 1: Validate form data before creation
       logs.push('Step 1: Validating form data...');
@@ -248,11 +246,24 @@ export default function AddDoctorPage() {
       console.log('About to create doctor with email:', doctorData.email);
       logs.push(`About to create doctor with email: ${doctorData.email}`);
       
-      // Step 3: Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
-      logs.push('Step 3: Creating doctor in Firebase...');
-      const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
+      // Step 3: Create doctor via API route (handles Firebase creation and email sending)
+      logs.push('Step 3: Creating doctor via API route...');
+      const response = await fetch('/api/create-doctor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ doctorData })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create doctor');
+      }
+
+      const { doctorId, temporaryPassword, tempPasswordId } = await response.json();
       
-      console.log('Doctor created successfully:', { doctorId, temporaryPassword });
+      console.log('Doctor created successfully:', { doctorId, temporaryPassword, tempPasswordId });
       console.log('Temporary password type:', typeof temporaryPassword);
       console.log('Temporary password length:', temporaryPassword?.length);
       console.log('Current auth user after doctor creation:', auth.currentUser);

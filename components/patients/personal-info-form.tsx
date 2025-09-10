@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { EmailInput } from '@/components/ui/email-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Phone, Calendar, MapPin, Heart, AlertTriangle, GraduationCap, Plus, X } from 'lucide-react';
@@ -267,18 +268,15 @@ export function PersonalInfoForm({ data, onUpdate, disabled }: PersonalInfoFormP
         {/* Contact Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email Address <span className="text-destructive">*</span>
-            </Label>
-            <Input
+            <EmailInput
               id="email"
-              type="email"
+              label="Email Address"
               value={data?.email || ''}
-              onChange={(e) => handleInputChange('email', e.target.value)}
+              onChange={(value) => handleInputChange('email', value)}
               placeholder="Enter email address"
               required
               disabled={disabled}
+              showValidation={true}
             />
           </div>
           {/* Temporary Password */}

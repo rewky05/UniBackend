@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailInput } from "@/components/ui/email-input";
 import {
   Select,
   SelectContent,
@@ -155,16 +156,14 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
           
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="email">
-                Email Address <span className="text-destructive">*</span>
-              </Label>
-              <Input
+              <EmailInput
                 id="email"
-                type="email"
+                label="Email Address"
                 placeholder="doctor@example.com"
                 value={data.email || ''}
-                onChange={(e) => handleInputChange("email", e.target.value)}
+                onChange={(value) => handleInputChange("email", value)}
                 required
+                showValidation={true}
               />
             </div>
             <div className="space-y-2">

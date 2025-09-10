@@ -3,6 +3,8 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase/config';
 import { safeGetTimestamp, resolveAddress, resolveFullAddress, getAddressComponents, getStreetAddress, getLocationDetails } from '@/lib/utils';
 import { calculateAverageConsultationTime } from '@/lib/utils/consultation-time';
+import { TemporaryPasswordService } from './temporary-password.service';
+import { EmailService } from './email.service';
 import type { 
   Doctor, 
   Clinic, 
@@ -59,22 +61,11 @@ export class RealDataService {
   /**
    * Create a new doctor with entries in users, doctors, and specialistSchedules nodes
    */
-  async createDoctor(doctorData: any): Promise<{ doctorId: string; temporaryPassword: string }> {
+  async createDoctor(doctorData: any, doctorId: string, temporaryPassword: string, tempPasswordId: string): Promise<{ doctorId: string; temporaryPassword: string; tempPasswordId: string }> {
     try {
       const timestamp = new Date().toISOString();
-      // Use provided temporary password or generate one
-      const temporaryPassword = doctorData.temporaryPassword || this.generateTemporaryPassword();
-      
-      console.log('Creating doctor with temporary password:', temporaryPassword);
 
-      // 1. Create Firebase Authentication account
-      const userCredential = await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
-      
-      // Note: createUserWithEmailAndPassword automatically signs in the new user
-      // We need to handle this in the calling component to prevent the admin from being signed out
-
-      // 2. Use the Firebase Auth UID as the unique key
-      const doctorId = userCredential.user.uid;
+      console.log('Creating doctor with provided temporary password:', temporaryPassword);
       
       const userData = {
         createdAt: timestamp,
@@ -94,13 +85,10 @@ export class RealDataService {
         contactNumber: doctorData.phone, // ✅ Reverted: Use 'phone' as provided by bulk import
         createdAt: timestamp,
         dateOfBirth: doctorData.dateOfBirth,
-        email: doctorData.email,
-        firstName: doctorData.firstName,
         gender: doctorData.gender,
         isGeneralist: false,
         isSpecialist: true,
         lastLogin: timestamp,
-        lastName: doctorData.lastName,
         medicalLicenseNumber: doctorData.medicalLicenseNumber, // ✅ Reverted: Use 'medicalLicense' as provided by bulk import
         prcExpiryDate: doctorData.prcExpiryDate, // ✅ Reverted: Use 'prcExpiry' as provided by bulk import
         prcId: doctorData.prcId,
@@ -117,14 +105,21 @@ export class RealDataService {
         
         doctorData.schedules.forEach((schedule: any, index: number) => {
           const scheduleKey = `sched_${doctorId}_${index + 1}`;
+          
           scheduleData[scheduleKey] = {
             createdAt: timestamp,
             isActive: schedule.isActive,
             lastUpdated: timestamp,
-            practiceLocation: schedule.practiceLocation,
-            recurrence: schedule.recurrence,
-            scheduleType: schedule.scheduleType,
-            slotTemplate: schedule.slotTemplate,
+            practiceLocation: {
+              clinicId: schedule.practiceLocation?.clinicId || 'unknown_clinic',
+              roomOrUnit: schedule.practiceLocation?.roomOrUnit || ''
+            },
+            recurrence: {
+              dayOfWeek: schedule.recurrence?.dayOfWeek || [],
+              type: schedule.recurrence?.type || 'weekly'
+            },
+            scheduleType: schedule.scheduleType || 'recurring',
+            slotTemplate: schedule.slotTemplate || {},
             specialistId: doctorId,
             validFrom: schedule.validFrom
           };
@@ -132,6 +127,7 @@ export class RealDataService {
         
         // Save schedules to Firebase
         await set(ref(db, `specialistSchedules/${doctorId}`), scheduleData);
+        console.log(`✅ [RealDataService] Created ${Object.keys(scheduleData).length} schedules for doctor ${doctorId}`);
       }
 
       // Save to Firebase
@@ -141,7 +137,9 @@ export class RealDataService {
       ]);
 
       console.log('Doctor created successfully. Returning:', { doctorId, temporaryPassword });
-      return { doctorId, temporaryPassword };
+
+      
+      return { doctorId, temporaryPassword, tempPasswordId };
     } catch (error) {
       console.error('Error creating doctor:', error);
       throw error;
@@ -1538,55 +1536,51 @@ export class RealDataService {
   /**
    * Create a new patient with entries in users and patients nodes
    */
-  async createPatient(patientData: any): Promise<{ patientId: string; temporaryPassword: string }> {
+  async createPatient(patientData: any, patientId: string, temporaryPassword: string, tempPasswordId: string): Promise<{ patientId: string; temporaryPassword: string; tempPasswordId: string }> {
     try {
       const timestamp = new Date().toISOString();
-      // Use provided temporary password or generate one
-      const temporaryPassword = patientData.temporaryPassword || this.generateTemporaryPassword();
 
-      // 1. Create Firebase Authentication account
-      const userCredential = await createUserWithEmailAndPassword(auth, patientData.email, temporaryPassword);
-      
-      // Note: createUserWithEmailAndPassword automatically signs in the new user
-      // We need to handle this in the calling component to prevent the admin from being signed out
-
-      // 2. Use the Firebase Auth UID as the unique key
-      const patientId = userCredential.user.uid;
-      
-      // 3. Create user entry (only immutable fields)
+      // 1. Create user entry (only immutable fields)
       const userData = {
         createdAt: timestamp,
+        patientId: patientId,
         email: patientData.email,
         firstName: patientData.firstName,
         middleName: patientData.middleName || '',
         lastName: patientData.lastName,
-        patientId: patientId,
         role: 'patient'
       };
 
-      // 4. Create patient entry (detailed information)
+      // 2. Create patient entry (detailed information, without duplicated user fields)
       const patientEntry = {
+        address: patientData.address,
+        allergies: patientData.allergies || [],
+        bloodType: patientData.bloodType || '',
+        civilStatus: patientData.civilStatus || '',
         contactNumber: patientData.phone,
-        highestEducationalAttainment: patientData.educationalAttainment || '',
         createdAt: timestamp,
         dateOfBirth: patientData.dateOfBirth,
-        emergencyContact: patientData.emergencyContact,
-        firstName: patientData.firstName,
+        educationalAttainment: patientData.educationalAttainment || '',
+        emergencyContact: patientData.emergencyContact || {},
         gender: patientData.gender,
-        middleName: patientData.middleName || '',
-        lastName: patientData.lastName,
-        address: patientData.address || '',
-        bloodType: patientData.bloodType || '',
-        allergies: patientData.allergies || [],
-        lastUpdated: timestamp,
+        lastLogin: timestamp,
+        profileImageUrl: patientData.profileImageUrl || '',
+        status: 'active',
         userId: patientId
       };
 
-      // 5. Save to Firebase
-      await set(ref(db, `users/${patientId}`), userData);
-      await set(ref(db, `patients/${patientId}`), patientEntry);
+      // 3. Save to Firebase
+      await Promise.all([
+        set(ref(db, `users/${patientId}`), userData),
+        set(ref(db, `patients/${patientId}`), patientEntry)
+      ]);
 
-      return { patientId, temporaryPassword };
+      console.log('Patient created successfully. Returning:', { patientId, temporaryPassword });
+
+      // Email sending is now handled by the API route that calls this method.
+      // This method no longer performs email sending or temporary password generation.
+
+      return { patientId, temporaryPassword, tempPasswordId };
     } catch (error) {
       console.error('Error creating patient:', error);
       throw error;

@@ -37,6 +37,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Download, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, UserX, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealClinics } from '@/hooks/useRealData';
 import { RealDataService } from '@/lib/services/real-data.service';
 import { authService } from '@/lib/auth/auth.service';
 import * as XLSX from 'xlsx';
@@ -151,6 +152,7 @@ const RETRYABLE_ERRORS = [
 export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { clinics, loading: clinicsLoading } = useRealClinics();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -500,9 +502,8 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
 
   };
 
-  // Enhanced bulk processing with batch support
+  // Enhanced bulk processing with API route
   const processBulkImport = async (specialists: SpecialistData[], adminPassword: string) => {
-    const realDataService = new RealDataService();
     const totalBatches = Math.ceil(specialists.length / BATCH_CONFIG.SIZE);
     
     setTotalBatches(totalBatches);
@@ -526,20 +527,156 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
       const batchSpecialists = specialists.slice(startIndex, endIndex);
 
       try {
-        const batchResult = await processBatch(batchSpecialists, batchIndex, realDataService, adminPassword);
+        // Transform specialists data for API
+        const transformedSpecialists = batchSpecialists.map((specialist, index) => {
+          // Debug logging for the first specialist in each batch
+          if (index === 0) {
+            console.log('🔍 [BULK IMPORT] Raw specialist data from Excel:', specialist);
+            console.log('🔍 [BULK IMPORT] Available keys:', Object.keys(specialist));
+            console.log('🔍 [BULK IMPORT] Temporary Password* value:', specialist['Temporary Password*']);
+            console.log('🔍 [BULK IMPORT] Temporary Password* type:', typeof specialist['Temporary Password*']);
+          }
+          
+          // Construct schedule data from Excel fields
+          const schedules = (() => {
+            const dayOfWeek = specialist['Day of Week*'];
+            const startTime = specialist['Start Time*'];
+            const endTime = specialist['End Time*'];
+            const validFrom = specialist['Valid From*'];
+            const clinicName = specialist['Clinic Name*'];
+            const roomOrUnit = specialist['Room/Unit*'];
+
+            if (!dayOfWeek || !startTime || !endTime || !validFrom || !clinicName || !roomOrUnit) {
+              console.warn('Missing schedule data for specialist:', specialist['Email*']);
+              return [];
+            }
+
+            // Resolve clinic ID from clinic name
+            const foundClinic = clinics.find(clinic => 
+              clinic.name.toLowerCase() === clinicName.toLowerCase()
+            );
+            
+            if (!foundClinic) {
+              console.warn(`Clinic not found: ${clinicName} for specialist: ${specialist['Email*']}`);
+              return [];
+            }
+
+            // Parse days of week
+            const days = dayOfWeek.split(',').map((day: string) => {
+              const dayMap: { [key: string]: number } = {
+                'monday': 1, 'mon': 1,
+                'tuesday': 2, 'tue': 2,
+                'wednesday': 3, 'wed': 3,
+                'thursday': 4, 'thu': 4,
+                'friday': 5, 'fri': 5,
+                'saturday': 6, 'sat': 6,
+                'sunday': 0, 'sun': 0
+              };
+              return dayMap[day.trim().toLowerCase()] || 1;
+            });
+
+            // Create slot template (object with time slots as keys)
+            const slotTemplate: { [timeSlot: string]: { defaultStatus: string; durationMinutes: number } } = {};
+            
+            // Create time slots from start time to end time
+            const startHour = parseInt(startTime.split(':')[0]);
+            const startMinute = parseInt(startTime.split(':')[1]);
+            const endHour = parseInt(endTime.split(':')[0]);
+            const endMinute = parseInt(endTime.split(':')[1]);
+            
+            const startMinutes = startHour * 60 + startMinute;
+            const endMinutes = endHour * 60 + endMinute;
+            const slotDuration = 30; // 30-minute slots
+            
+            for (let time = startMinutes; time < endMinutes; time += slotDuration) {
+              const hour = Math.floor(time / 60);
+              const minute = time % 60;
+              const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+              slotTemplate[timeSlot] = {
+                defaultStatus: 'available',
+                durationMinutes: slotDuration
+              };
+            }
+
+            return [{
+              id: `temp_${Date.now()}_${Math.random()}`,
+              specialistId: 'temp_specialist_id', // Will be replaced with actual doctorId
+              createdAt: new Date().toISOString(),
+              isActive: true,
+              lastUpdated: new Date().toISOString(),
+              practiceLocation: {
+                clinicId: foundClinic.id, // Resolved clinic ID
+                roomOrUnit: roomOrUnit
+              },
+              recurrence: {
+                dayOfWeek: days,
+                type: 'weekly'
+              },
+              scheduleType: 'recurring',
+              slotTemplate: slotTemplate,
+              validFrom: validFrom
+            }];
+          })();
+
+          return {
+            firstName: specialist['First Name*'],
+            lastName: specialist['Last Name*'],
+            email: specialist['Email*'],
+            temporaryPassword: specialist['Temporary Password*'],
+            phone: specialist['Phone*'],
+            specialty: specialist['Specialty*'],
+            medicalLicenseNumber: specialist['Medical License*'],
+            prcId: specialist['PRC ID*'],
+            prcExpiryDate: specialist['PRC Expiry*'],
+            professionalFee: specialist['Professional Fee*'] || 0,
+            address: specialist['Address*'],
+            dateOfBirth: specialist['Date of Birth*'],
+            gender: specialist['Gender*'],
+            civilStatus: specialist['Civil Status*'],
+            createdBy: specialist['Created By*'] || 'Bulk Import',
+            clinicName: specialist['Clinic Name*'] || 'UniHealth Medical System',
+            schedules: schedules
+          };
+        });
+
+        // Call bulk create API
+        const response = await fetch('/api/bulk-create-doctors', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            doctorsData: transformedSpecialists,
+            batchSize: BATCH_CONFIG.SIZE
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create doctors in bulk');
+        }
+
+        const apiResult = await response.json();
         
         // Update overall results
-        results.successful += batchResult.successful;
-        results.failed += batchResult.failed;
-        results.errors.push(...batchResult.errors);
-        results.credentials.push(...batchResult.credentials);
+        results.successful += apiResult.summary.successful;
+        results.failed += apiResult.summary.failed;
+        results.errors.push(...apiResult.errors.map((error: any) => ({
+          row: batchIndex * BATCH_CONFIG.SIZE + specialists.findIndex(s => s.email === error.email) + 3,
+          email: error.email,
+          error: error.error
+        })));
+        results.credentials.push(...apiResult.results.map((result: any) => ({
+          email: result.email,
+          password: result.temporaryPassword
+        })));
         
         // Add batch summary
         results.batches.push({
           batchNumber: batchIndex + 1,
-          successful: batchResult.successful,
-          failed: batchResult.failed,
-          errors: batchResult.errors.map(e => e.error)
+          successful: apiResult.summary.successful,
+          failed: apiResult.summary.failed,
+          errors: apiResult.errors.map((e: any) => e.error)
         });
 
         // Update progress

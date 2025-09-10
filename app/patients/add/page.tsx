@@ -164,16 +164,30 @@ export default function AddPatientPage() {
       }
       logs.push('Form validation passed');
       
-      // Step 2: Create patient in Firebase (users and patients nodes)
-      logs.push('Step 2: Creating patient in Firebase...');
+      // Step 2: Create patient via API route
+      logs.push('Step 2: Creating patient via API...');
       console.log('About to create patient with email:', formData.email);
       logs.push(`About to create patient with email: ${formData.email}`);
       
-      const { patientId, temporaryPassword } = await realDataService.createPatient(formData);
+      const response = await fetch('/api/create-patient', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ patientData: formData }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create patient');
+      }
+
+      const { patientId, temporaryPassword, tempPasswordId, emailSent } = await response.json();
       
-      console.log('Patient created successfully:', { patientId, temporaryPassword });
+      console.log('Patient created successfully:', { patientId, temporaryPassword, tempPasswordId, emailSent });
       console.log('Temporary password type:', typeof temporaryPassword);
       console.log('Temporary password length:', temporaryPassword?.length);
+      console.log('Email sent:', emailSent);
       console.log('Current auth user after patient creation:', auth.currentUser);
       
       logs.push(`Patient created successfully. ID: ${patientId}`);

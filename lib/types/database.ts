@@ -1,5 +1,11 @@
 // Types matching your exact Firebase database structure
 
+export interface FeeHistoryEntry {
+  fee: number;
+  effectiveDate: string;
+  status: 'active' | 'inactive';
+}
+
 export interface BaseEntity {
   id?: string;
   createdAt?: string;
@@ -27,6 +33,7 @@ export interface Doctor {
   isSpecialist: boolean;
   isGeneralist: boolean;
   professionalFee?: number; // Professional fee in Philippine pesos
+  feeHistory?: FeeHistoryEntry[]; // History of professional fee changes
   status: 'verified' | 'pending' | 'suspended';
   profileImageUrl?: string;
   prcId?: string;

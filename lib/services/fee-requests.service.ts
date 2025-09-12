@@ -107,6 +107,26 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
         lastUpdated: new Date().toISOString()
       };
 
+      // Add fee history entry when approved
+      if (updates.status === 'approved') {
+        const currentFeeHistory = doctor.feeHistory || [];
+        const newFeeHistory = [
+          // Mark all previous entries as inactive
+          ...currentFeeHistory.map(entry => ({
+            ...entry,
+            status: 'inactive'
+          })),
+          // Add new active entry
+          {
+            fee: newProfessionalFee,
+            effectiveDate: new Date().toISOString(),
+            status: 'active'
+          }
+        ];
+        
+        updateData.feeHistory = newFeeHistory;
+      }
+
       // Update feeChangeRequest with review information
       if (updates.status === 'approved' || updates.status === 'rejected') {
         updateData.feeChangeRequest = {

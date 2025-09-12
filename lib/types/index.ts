@@ -5,6 +5,13 @@ export interface BaseEntity {
   updatedAt: number;
 }
 
+// Fee History Entry
+export interface FeeHistoryEntry {
+  fee: number;
+  effectiveDate: string;
+  status: 'active' | 'inactive';
+}
+
 // User types - only immutable fields
 export interface User {
   id?: string;
@@ -37,6 +44,7 @@ export interface Doctor extends BaseEntity {
   isSpecialist: boolean;
   isGeneralist: boolean;
   professionalFee?: number;
+  feeHistory?: FeeHistoryEntry[];
   prcId?: string;
   prcExpiryDate?: string;
   medicalLicenseNumber?: string;

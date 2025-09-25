@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { calculateAverageConsultationTime } from '@/lib/utils/consultation-time';
-import type { Appointment, Referral } from '@/lib/types/database';
+import type { Appointment, Referral, SpecialistReferral } from '@/lib/types/database';
 
-export function useConsultationTime(appointments: Appointment[], referrals: Referral[]) {
+export function useConsultationTime(appointments: Appointment[], referrals: Referral[], specialistReferrals: SpecialistReferral[] = []) {
   const consultationTimeStats = useMemo(() => {
-    return calculateAverageConsultationTime(appointments, referrals);
-  }, [appointments, referrals]);
+    // Combine both referral types for consultation time calculation
+    const allReferrals = [...referrals, ...specialistReferrals];
+    return calculateAverageConsultationTime(appointments, allReferrals);
+  }, [appointments, referrals, specialistReferrals]);
 
   return {
     consultationTimeStats,

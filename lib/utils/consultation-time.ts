@@ -1,4 +1,4 @@
-import type { Appointment, Referral } from '@/lib/types/database';
+import type { Appointment, Referral, SpecialistReferral } from '@/lib/types/database';
 
 export interface IndividualConsultation {
   id: string;
@@ -127,12 +127,12 @@ export function calculateConsultationTime(
 /**
  * Calculate average consultation time from appointments and referrals
  * @param appointments - Array of appointments
- * @param referrals - Array of referrals
+ * @param referrals - Array of referrals (both regular and specialist referrals)
  * @returns Consultation time statistics
  */
 export function calculateAverageConsultationTime(
   appointments: Appointment[],
-  referrals: Referral[]
+  referrals: (Referral | SpecialistReferral)[]
 ): ConsultationTimeStats {
   console.log('=== CONSULTATION TIME CALCULATION DEBUG ===');
   console.log('Total appointments:', appointments.length);
@@ -198,7 +198,7 @@ export function calculateAverageConsultationTime(
     }
   });
   
-  // Process completed referrals with validation
+  // Process completed referrals with validation (both regular and specialist referrals)
   referrals.forEach((referral, index) => {
     console.log(`Referral ${index}:`, {
       id: referral.id,

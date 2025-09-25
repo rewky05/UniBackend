@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRealAppointments, useRealReferrals, useRealClinics, useRealDoctors } from "@/hooks/useRealData";
+import { useRealAppointments, useRealReferrals, useRealSpecialistReferrals, useRealClinics, useRealDoctors } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatPhilippinePeso, formatDateToText, formatDateTimeToText, safeGetTimestamp } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,13 +97,15 @@ export default function AppointmentsPage() {
   // Data hooks
   const { appointments, loading: appointmentsLoading } = useRealAppointments();
   const { referrals, loading: referralsLoading } = useRealReferrals();
+  const { specialistReferrals, loading: specialistReferralsLoading } = useRealSpecialistReferrals();
   const { clinics } = useRealClinics();
   const { doctors } = useRealDoctors();
 
   // Get unique clinics for filtering
   const uniqueClinics = Array.from(new Set([
     ...appointments.map(a => a.clinicName).filter(Boolean),
-    ...referrals.map(r => r.specialistClinicName).filter(Boolean)
+    ...referrals.map(r => r.specialistClinicName).filter(Boolean),
+    ...specialistReferrals.map(sr => sr.specialistClinicName).filter(Boolean)
   ])).filter((clinicName): clinicName is string => clinicName !== undefined);
 
   // State management
@@ -212,7 +214,13 @@ export default function AppointmentsPage() {
     return matchesSearch && matchesStatus && matchesClinic;
   });
 
-  const filteredReferrals = referrals.filter(referral => {
+  // Combine both referral types for filtering and display
+  const allReferrals = [
+    ...referrals.map(r => ({ ...r, referralType: 'generalist' as const })),
+    ...specialistReferrals.map(sr => ({ ...sr, referralType: 'specialist' as const }))
+  ];
+
+  const filteredReferrals = allReferrals.filter(referral => {
     const matchesSearch = searchTerm === "" || 
       referral.patientFirstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       referral.patientLastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -293,7 +301,7 @@ export default function AppointmentsPage() {
             </TabsTrigger>
             <TabsTrigger value="referrals" className="flex items-center gap-2">
               <ArrowRight className="h-4 w-4" />
-              Specialist Referrals ({referrals.length})
+              Specialist Referrals ({referrals.length + specialistReferrals.length})
             </TabsTrigger>
           </TabsList>
 
@@ -589,7 +597,7 @@ export default function AppointmentsPage() {
                   <div>
                     <CardTitle>Specialist Referrals</CardTitle>
                     <CardDescription>
-                      {filteredReferrals.length} referral{filteredReferrals.length !== 1 ? 's' : ''} found
+                      {filteredReferrals.length} referral{filteredReferrals.length !== 1 ? 's' : ''} found (including generalist and specialist referrals)
                     </CardDescription>
                   </div>
                   <ReportActions
@@ -617,7 +625,7 @@ export default function AppointmentsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {referralsLoading ? (
+                      {(referralsLoading || specialistReferralsLoading) ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8">
                             Loading referrals...
@@ -652,10 +660,13 @@ export default function AppointmentsPage() {
                             <TableCell>
                               <div>
                                 <div className="font-medium">
-                                  Dr. {referral.referringGeneralistFirstName} {referral.referringGeneralistLastName}
+                                  {referral.referralType === 'generalist' 
+                                    ? `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}`
+                                    : `Dr. ${referral.referringSpecialistFirstName} ${referral.referringSpecialistLastName}`
+                                  }
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  Generalist
+                                  {referral.referralType === 'generalist' ? 'Generalist' : 'Specialist'}
                                 </div>
                               </div>
                             </TableCell>

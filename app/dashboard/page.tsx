@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useNavigationLoading } from "@/hooks/useNavigationLoading";
 import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
-import { useRealAppointments, useRealReferrals, useRealFeedback } from "@/hooks/useRealData";
+import { useRealAppointments, useRealReferrals, useRealSpecialistReferrals, useRealFeedback } from "@/hooks/useRealData";
 import { useUnifiedAppointmentData } from "@/hooks/useUnifiedAppointmentData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { formatDateToText } from "@/lib/utils";
@@ -84,6 +84,7 @@ export default function DashboardPage() {
   // Appointments data
   const { appointments: realAppointments, loading: appointmentsLoading } = useRealAppointments();
   const { referrals: realReferrals, loading: referralsLoading } = useRealReferrals();
+  const { specialistReferrals: realSpecialistReferrals, loading: specialistReferralsLoading } = useRealSpecialistReferrals();
   const { feedback, loading: feedbackLoading } = useRealFeedback();
 
   // TEMPORARY SAMPLE DATA - Remove when user says "remove"
@@ -600,12 +601,13 @@ export default function DashboardPage() {
   // Use real data from Firebase, with sample data fallback for demonstration
   const appointments = realAppointments && realAppointments.length > 0 ? realAppointments : sampleAppointments;
   const referrals = realReferrals && realReferrals.length > 0 ? realReferrals : sampleReferrals;
+  const specialistReferrals = realSpecialistReferrals && realSpecialistReferrals.length > 0 ? realSpecialistReferrals : [];
 
   // Use unified appointment data for consistent counting across all components
   const unifiedData = useUnifiedAppointmentData(appointments, referrals);
 
-  // Calculate consultation time statistics using custom hook - including referrals
-  const { consultationTimeStats } = useConsultationTime(appointments, referrals);
+  // Calculate consultation time statistics using custom hook - including both referral types
+  const { consultationTimeStats } = useConsultationTime(appointments, referrals, specialistReferrals);
 
   // Transform consultation time stats data for the chart
   // Use the same data as the stats calculation for consistency

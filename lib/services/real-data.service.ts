@@ -13,6 +13,7 @@ import type {
   Appointment, 
   Patient, 
   Referral, 
+  SpecialistReferral,
   DashboardStats,
   MedicalSpecialty,
   LabTest,
@@ -370,6 +371,8 @@ export class RealDataService {
   subscribeToReferrals(callback: (referrals: Referral[]) => void): () => void {
     const referralsRef = ref(db, 'referrals');
     const clinicsRef = ref(db, 'clinics');
+    const usersRef = ref(db, 'users');
+    const doctorsRef = ref(db, 'doctors');
     
     const unsubscribe = onValue(referralsRef, async (referralsSnapshot) => {
       try {
@@ -378,8 +381,15 @@ export class RealDataService {
           return;
         }
         
-        const clinicsSnapshot = await get(clinicsRef);
+        const [clinicsSnapshot, usersSnapshot, doctorsSnapshot] = await Promise.all([
+          get(clinicsRef),
+          get(usersRef),
+          get(doctorsRef)
+        ]);
+        
         const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+        const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
         
         // Create a map of clinic IDs to clinic names for quick lookup
         const clinicNameMap: { [key: string]: string } = {};
@@ -393,6 +403,22 @@ export class RealDataService {
           const specialistClinicId = referral.practiceLocation?.clinicId;
           const referringClinicId = referral.referringClinicId;
           
+          // Get names from users node using IDs
+          const patientUser = users[referral.patientId] || {};
+          const assignedSpecialistUser = users[referral.assignedSpecialistId] || {};
+          let referringGeneralistUser = users[referral.referringGeneralistId] || {};
+          
+          // If not found in users, try to find in doctors node (might be a specialist)
+          if (!referringGeneralistUser.firstName && !referringGeneralistUser.lastName) {
+            const referringDoctor = doctors[referral.referringGeneralistId] || {};
+            if (referringDoctor.firstName || referringDoctor.lastName) {
+              referringGeneralistUser = {
+                firstName: referringDoctor.firstName || 'Unknown',
+                lastName: referringDoctor.lastName || 'Doctor'
+              };
+            }
+          }
+          
           const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
           const referringClinicName = referringClinicId ? clinicNameMap[referringClinicId] || referral.referringClinicName || 'Unknown Clinic' : referral.referringClinicName || 'Unknown Clinic';
           
@@ -400,13 +426,107 @@ export class RealDataService {
             id,
             ...referral,
             specialistClinicName,
-            referringClinicName
+            referringClinicName,
+            patientFirstName: patientUser.firstName || 'Unknown',
+            patientLastName: patientUser.lastName || 'Patient',
+            assignedSpecialistFirstName: assignedSpecialistUser.firstName || 'Unknown',
+            assignedSpecialistLastName: assignedSpecialistUser.lastName || 'Specialist',
+            referringGeneralistFirstName: referringGeneralistUser.firstName || 'Unknown',
+            referringGeneralistLastName: referringGeneralistUser.lastName || 'Generalist'
           };
         });
         
         callback(processedReferrals);
       } catch (error) {
         console.error('Error processing referrals subscription:', error);
+        callback([]);
+      }
+    });
+    
+    return unsubscribe;
+  }
+
+  /**
+   * Subscribe to real-time specialist referrals updates
+   */
+  subscribeToSpecialistReferrals(callback: (specialistReferrals: SpecialistReferral[]) => void): () => void {
+    const specialistReferralsRef = ref(db, 'specialistReferrals');
+    const clinicsRef = ref(db, 'clinics');
+    const usersRef = ref(db, 'users');
+    const doctorsRef = ref(db, 'doctors');
+    
+    const unsubscribe = onValue(specialistReferralsRef, async (specialistReferralsSnapshot) => {
+      try {
+        if (!specialistReferralsSnapshot.exists()) {
+          callback([]);
+          return;
+        }
+        
+        const [clinicsSnapshot, usersSnapshot, doctorsSnapshot] = await Promise.all([
+          get(clinicsRef),
+          get(usersRef),
+          get(doctorsRef)
+        ]);
+        
+        const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+        const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+        
+        // Create lookup maps for quick access
+        const clinicNameMap: { [key: string]: string } = {};
+        Object.keys(clinics).forEach(clinicId => {
+          clinicNameMap[clinicId] = clinics[clinicId].name || 'Unknown Clinic';
+        });
+        
+        const specialistReferrals = specialistReferralsSnapshot.val();
+        const processedSpecialistReferrals = Object.keys(specialistReferrals).map(id => {
+          const referral = specialistReferrals[id];
+          const specialistClinicId = referral.practiceLocation?.clinicId;
+          
+          // Get names from users node using IDs
+          const patientUser = users[referral.patientId] || {};
+          let assignedSpecialistUser = users[referral.assignedSpecialistId] || {};
+          let referringSpecialistUser = users[referral.referringSpecialistId] || {};
+          
+          // If not found in users, try to find in doctors node
+          if (!assignedSpecialistUser.firstName && !assignedSpecialistUser.lastName) {
+            const assignedDoctor = doctors[referral.assignedSpecialistId] || {};
+            if (assignedDoctor.firstName || assignedDoctor.lastName) {
+              assignedSpecialistUser = {
+                firstName: assignedDoctor.firstName || 'Unknown',
+                lastName: assignedDoctor.lastName || 'Specialist'
+              };
+            }
+          }
+          
+          if (!referringSpecialistUser.firstName && !referringSpecialistUser.lastName) {
+            const referringDoctor = doctors[referral.referringSpecialistId] || {};
+            if (referringDoctor.firstName || referringDoctor.lastName) {
+              referringSpecialistUser = {
+                firstName: referringDoctor.firstName || 'Unknown',
+                lastName: referringDoctor.lastName || 'Specialist'
+              };
+            }
+          }
+          
+          const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
+          
+          return {
+            id,
+            ...referral,
+            specialistClinicName,
+            patientFirstName: patientUser.firstName || 'Unknown',
+            patientLastName: patientUser.lastName || 'Patient',
+            assignedSpecialistFirstName: assignedSpecialistUser.firstName || 'Unknown',
+            assignedSpecialistLastName: assignedSpecialistUser.lastName || 'Specialist',
+            referringSpecialistFirstName: referringSpecialistUser.firstName || referral.referringSpecialistFirstName || 'Unknown',
+            referringSpecialistLastName: referringSpecialistUser.lastName || referral.referringSpecialistLastName || 'Specialist'
+          };
+        });
+        
+        callback(processedSpecialistReferrals);
+      } catch (error) {
+        console.error('Error processing specialist referrals subscription:', error);
         callback([]);
       }
     });
@@ -1182,15 +1302,19 @@ export class RealDataService {
    */
   async getReferrals(): Promise<Referral[]> {
     try {
-      const [referralsSnapshot, clinicsSnapshot] = await Promise.all([
+      const [referralsSnapshot, clinicsSnapshot, usersSnapshot, doctorsSnapshot] = await Promise.all([
         get(ref(db, 'referrals')),
-        get(ref(db, 'clinics'))
+        get(ref(db, 'clinics')),
+        get(ref(db, 'users')),
+        get(ref(db, 'doctors'))
       ]);
       
       if (!referralsSnapshot.exists()) return [];
       
       const referrals = referralsSnapshot.val();
       const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
       
       // Create a map of clinic IDs to clinic names for quick lookup
       const clinicNameMap: { [key: string]: string } = {};
@@ -1203,6 +1327,22 @@ export class RealDataService {
         const specialistClinicId = referral.practiceLocation?.clinicId;
         const referringClinicId = referral.referringClinicId;
         
+        // Get names from users node using IDs
+        const patientUser = users[referral.patientId] || {};
+        const assignedSpecialistUser = users[referral.assignedSpecialistId] || {};
+        let referringGeneralistUser = users[referral.referringGeneralistId] || {};
+        
+        // If not found in users, try to find in doctors node (might be a specialist)
+        if (!referringGeneralistUser.firstName && !referringGeneralistUser.lastName) {
+          const referringDoctor = doctors[referral.referringGeneralistId] || {};
+          if (referringDoctor.firstName || referringDoctor.lastName) {
+            referringGeneralistUser = {
+              firstName: referringDoctor.firstName || 'Unknown',
+              lastName: referringDoctor.lastName || 'Doctor'
+            };
+          }
+        }
+        
         const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
         const referringClinicName = referringClinicId ? clinicNameMap[referringClinicId] || referral.referringClinicName || 'Unknown Clinic' : referral.referringClinicName || 'Unknown Clinic';
         
@@ -1210,7 +1350,13 @@ export class RealDataService {
           id,
           ...referral,
           specialistClinicName,
-          referringClinicName
+          referringClinicName,
+          patientFirstName: patientUser.firstName || 'Unknown',
+          patientLastName: patientUser.lastName || 'Patient',
+          assignedSpecialistFirstName: assignedSpecialistUser.firstName || 'Unknown',
+          assignedSpecialistLastName: assignedSpecialistUser.lastName || 'Specialist',
+          referringGeneralistFirstName: referringGeneralistUser.firstName || 'Unknown',
+          referringGeneralistLastName: referringGeneralistUser.lastName || 'Generalist'
         };
       });
     } catch (error) {
@@ -1220,17 +1366,93 @@ export class RealDataService {
   }
 
   /**
+   * Get all specialist referrals from your database
+   */
+  async getSpecialistReferrals(): Promise<SpecialistReferral[]> {
+    try {
+      const [specialistReferralsSnapshot, clinicsSnapshot, usersSnapshot, doctorsSnapshot] = await Promise.all([
+        get(ref(db, 'specialistReferrals')),
+        get(ref(db, 'clinics')),
+        get(ref(db, 'users')),
+        get(ref(db, 'doctors'))
+      ]);
+      
+      if (!specialistReferralsSnapshot.exists()) return [];
+      
+      const specialistReferrals = specialistReferralsSnapshot.val();
+      const clinics = clinicsSnapshot.exists() ? clinicsSnapshot.val() : {};
+      const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+      const doctors = doctorsSnapshot.exists() ? doctorsSnapshot.val() : {};
+      
+      // Create lookup maps for quick access
+      const clinicNameMap: { [key: string]: string } = {};
+      Object.keys(clinics).forEach(clinicId => {
+        clinicNameMap[clinicId] = clinics[clinicId].name || 'Unknown Clinic';
+      });
+      
+      return Object.keys(specialistReferrals).map(id => {
+        const referral = specialistReferrals[id];
+        const specialistClinicId = referral.practiceLocation?.clinicId;
+        
+        // Get names from users node using IDs
+        const patientUser = users[referral.patientId] || {};
+        let assignedSpecialistUser = users[referral.assignedSpecialistId] || {};
+        let referringSpecialistUser = users[referral.referringSpecialistId] || {};
+        
+        // If not found in users, try to find in doctors node
+        if (!assignedSpecialistUser.firstName && !assignedSpecialistUser.lastName) {
+          const assignedDoctor = doctors[referral.assignedSpecialistId] || {};
+          if (assignedDoctor.firstName || assignedDoctor.lastName) {
+            assignedSpecialistUser = {
+              firstName: assignedDoctor.firstName || 'Unknown',
+              lastName: assignedDoctor.lastName || 'Specialist'
+            };
+          }
+        }
+        
+        if (!referringSpecialistUser.firstName && !referringSpecialistUser.lastName) {
+          const referringDoctor = doctors[referral.referringSpecialistId] || {};
+          if (referringDoctor.firstName || referringDoctor.lastName) {
+            referringSpecialistUser = {
+              firstName: referringDoctor.firstName || 'Unknown',
+              lastName: referringDoctor.lastName || 'Specialist'
+            };
+          }
+        }
+        
+        const specialistClinicName = specialistClinicId ? clinicNameMap[specialistClinicId] || 'Unknown Clinic' : 'Unknown Clinic';
+        
+        return {
+          id,
+          ...referral,
+          specialistClinicName,
+          patientFirstName: patientUser.firstName || 'Unknown',
+          patientLastName: patientUser.lastName || 'Patient',
+          assignedSpecialistFirstName: assignedSpecialistUser.firstName || 'Unknown',
+          assignedSpecialistLastName: assignedSpecialistUser.lastName || 'Specialist',
+          referringSpecialistFirstName: referringSpecialistUser.firstName || referral.referringSpecialistFirstName || 'Unknown',
+          referringSpecialistLastName: referringSpecialistUser.lastName || referral.referringSpecialistLastName || 'Specialist'
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching specialist referrals:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Calculate dashboard statistics from your real data (specialists only)
    */
   async getDashboardStats(): Promise<DashboardStats> {
     try {
-      const [doctors, clinics, feedback, appointments, patients, referrals] = await Promise.all([
+      const [doctors, clinics, feedback, appointments, patients, referrals, specialistReferrals] = await Promise.all([
         this.getDoctors(), // This now returns only specialists
         this.getClinics(),
         this.getFeedback(),
         this.getAppointments(),
         this.getPatients(),
-        this.getReferrals()
+        this.getReferrals(),
+        this.getSpecialistReferrals()
       ]);
 
       // Calculate stats from your real data (specialists only)
@@ -1251,7 +1473,7 @@ export class RealDataService {
       const completedAppointments = appointments.filter(a => a.status === 'completed').length;
       const pendingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'confirmed').length;
 
-      // Calculate consultation time statistics
+      // Calculate consultation time statistics (include both referral types)
       const consultationTimeStats = calculateAverageConsultationTime(appointments, referrals);
 
       return {
@@ -1267,7 +1489,7 @@ export class RealDataService {
         completedAppointments,
         pendingAppointments,
         totalPatients: patients.length,
-        totalReferrals: referrals.length,
+        totalReferrals: referrals.length + specialistReferrals.length,
         consultationTimeStats
       };
     } catch (error) {
@@ -1281,12 +1503,15 @@ export class RealDataService {
    */
   async getConsultationTimeStats() {
     try {
-      const [appointments, referrals] = await Promise.all([
+      const [appointments, referrals, specialistReferrals] = await Promise.all([
         this.getAppointments(),
-        this.getReferrals()
+        this.getReferrals(),
+        this.getSpecialistReferrals()
       ]);
 
-      return calculateAverageConsultationTime(appointments, referrals);
+      // Combine both referral types for consultation time calculation
+      const allReferrals = [...referrals, ...specialistReferrals];
+      return calculateAverageConsultationTime(appointments, allReferrals);
     } catch (error) {
       console.error('Error calculating consultation time stats:', error);
       throw error;
@@ -1393,9 +1618,10 @@ export class RealDataService {
       }
 
       // Fallback to system activities if adminActivityLogs doesn't exist yet
-      const [appointments, referrals, feedback] = await Promise.all([
+      const [appointments, referrals, specialistReferrals, feedback] = await Promise.all([
         this.getAppointments(),
         this.getReferrals(),
+        this.getSpecialistReferrals(),
         this.getFeedback()
       ]);
 
@@ -1426,6 +1652,19 @@ export class RealDataService {
           timestamp: r.referralTimestamp,
           ipAddress: 'N/A',
           details: r
+        })),
+        ...specialistReferrals.map(sr => ({
+          id: sr.id,
+          action: `Specialist Referral ${sr.status}`,
+          targetDoctor: `${sr.assignedSpecialistFirstName} ${sr.assignedSpecialistLastName}`,
+          targetDoctorId: sr.assignedSpecialistId,
+          adminUser: `${sr.referringSpecialistFirstName} ${sr.referringSpecialistLastName}`,
+          adminEmail: 'system@unihealth.ph',
+          description: `Specialist referral ${sr.status} for ${sr.patientFirstName} ${sr.patientLastName}`,
+          category: 'specialist_referral',
+          timestamp: sr.referralTimestamp,
+          ipAddress: 'N/A',
+          details: sr
         })),
         ...feedback.map(f => ({
           id: f.id,

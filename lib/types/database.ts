@@ -236,6 +236,40 @@ export interface Referral {
   referringGeneralistLastName?: string;
 }
 
+// Specialist Referrals - Additional structure for specialist-to-specialist referrals
+export interface SpecialistReferral {
+  id?: string;
+  additionalNotes?: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  assignedSpecialistId: string;
+  clinicAppointmentId: string;
+  createdAt: string;
+  lastUpdated: string;
+  patientId: string;
+  practiceLocation: {
+    clinicId: string;
+    roomOrUnit: string;
+  };
+  referralConsultationId: string;
+  referralTimestamp: string;
+  referringClinicId: string;
+  referringClinicName: string;
+  referringSpecialistFirstName: string;
+  referringSpecialistId: string;
+  referringSpecialistLastName: string;
+  sourceSystem: string;
+  specialistScheduleId: string;
+  status: 'pending' | 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
+  updatedAt: string;
+  // Computed fields added by the service
+  specialistClinicName?: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+  assignedSpecialistFirstName?: string;
+  assignedSpecialistLastName?: string;
+}
+
 // Activity Logs - This will be created automatically by the system
 export interface ActivityLog {
   id?: string;

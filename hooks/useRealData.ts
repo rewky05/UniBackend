@@ -8,6 +8,7 @@ import type {
   Appointment, 
   Patient, 
   Referral, 
+  SpecialistReferral,
   DashboardStats 
 } from '@/lib/types/database';
 
@@ -292,6 +293,37 @@ export function useRealReferrals() {
   };
 }
 
+// Hook for specialist referrals data
+export function useRealSpecialistReferrals() {
+  const [specialistReferrals, setSpecialistReferrals] = useState<SpecialistReferral[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSpecialistReferrals = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await realDataService.getSpecialistReferrals();
+      setSpecialistReferrals(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSpecialistReferrals();
+  }, [fetchSpecialistReferrals]);
+
+  return {
+    specialistReferrals,
+    loading,
+    error,
+    refresh: fetchSpecialistReferrals
+  };
+}
+
 // Hook for users data
 export function useRealUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -363,6 +395,7 @@ export function useRealHealthcareData() {
   const appointments = useRealAppointments();
   const patients = useRealPatients();
   const referrals = useRealReferrals();
+  const specialistReferrals = useRealSpecialistReferrals();
   const users = useRealUsers();
   const activityLogs = useRealActivityLogs();
 
@@ -378,6 +411,7 @@ export function useRealHealthcareData() {
     appointments: appointments.appointments,
     patients: patients.patients,
     referrals: referrals.referrals,
+    specialistReferrals: specialistReferrals.specialistReferrals,
     users: users.users,
     activityLogs: activityLogs.activityLogs,
     loading,
@@ -391,6 +425,7 @@ export function useRealHealthcareData() {
     appointmentsHook: appointments,
     patientsHook: patients,
     referralsHook: referrals,
+    specialistReferralsHook: specialistReferrals,
     usersHook: users,
     activityLogsHook: activityLogs
   };

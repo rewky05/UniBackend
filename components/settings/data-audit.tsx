@@ -210,7 +210,7 @@ export function DataAudit({ onUnsavedChanges }: DataAuditProps) {
                   View all admin user actions and system changes
                 </p>
               </div>
-              <Link href="/activity-logs">
+              <Link href="">
                 <Button variant="outline">
                   <FileText className="h-4 w-4 mr-2" />
                   View Logs

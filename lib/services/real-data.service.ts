@@ -1333,13 +1333,37 @@ export class RealDataService {
         // Get names from users node using IDs
         const patientUser = users[referral.patientId] || {};
         const assignedSpecialistUser = users[referral.assignedSpecialistId] || {};
-        let referringGeneralistUser = users[referral.referringGeneralistId] || {};
         
-        // If not found in users, try to find in doctors node (might be a specialist)
-        if (!referringGeneralistUser.firstName && !referringGeneralistUser.lastName) {
-          const referringDoctor = doctors[referral.referringGeneralistId] || {};
+        // Handle both generalist and specialist referrals
+        // Check if this is a specialist referral (has referringSpecialistId) or generalist referral (has referringGeneralistId)
+        const referringSpecialistId = referral.referringSpecialistId;
+        const referringGeneralistId = referral.referringGeneralistId;
+        
+        let referringDoctorUser: { firstName?: string; lastName?: string } = {};
+        let referringDoctorId = '';
+        let referralType = 'generalist';
+        
+        if (referringSpecialistId) {
+          // This is a specialist referral - get the actual user from users node
+          referringDoctorId = referringSpecialistId;
+          referringDoctorUser = users[referringSpecialistId] || {};
+          referralType = 'specialist';
+          console.log(`Referral ${id} is a specialist referral with referringSpecialistId: ${referringSpecialistId}`);
+        } else if (referringGeneralistId) {
+          // This is a generalist referral - get the actual user from users node
+          referringDoctorId = referringGeneralistId;
+          referringDoctorUser = users[referringGeneralistId] || {};
+          referralType = 'generalist';
+          console.log(`Referral ${id} is a generalist referral with referringGeneralistId: ${referringGeneralistId}`);
+        } else {
+          console.warn(`Referral ${id} has neither referringSpecialistId nor referringGeneralistId`);
+        }
+        
+        // If not found in users, try to find in doctors node as fallback
+        if (!referringDoctorUser.firstName && !referringDoctorUser.lastName && referringDoctorId) {
+          const referringDoctor = doctors[referringDoctorId] || {};
           if (referringDoctor.firstName || referringDoctor.lastName) {
-            referringGeneralistUser = {
+            referringDoctorUser = {
               firstName: referringDoctor.firstName || 'Unknown',
               lastName: referringDoctor.lastName || 'Doctor'
             };
@@ -1358,8 +1382,14 @@ export class RealDataService {
           patientLastName: patientUser.lastName || 'Patient',
           assignedSpecialistFirstName: assignedSpecialistUser.firstName || 'Unknown',
           assignedSpecialistLastName: assignedSpecialistUser.lastName || 'Specialist',
-          referringGeneralistFirstName: referringGeneralistUser.firstName || 'Unknown',
-          referringGeneralistLastName: referringGeneralistUser.lastName || 'Generalist'
+          // Use the resolved names from users node for referring doctor
+          // Populate both generalist and specialist fields for UI compatibility
+          referringGeneralistFirstName: referringDoctorUser.firstName || 'Unknown',
+          referringGeneralistLastName: referringDoctorUser.lastName || (referralType === 'specialist' ? 'Specialist' : 'Generalist'),
+          referringSpecialistFirstName: referralType === 'specialist' ? (referringDoctorUser.firstName || 'Unknown') : undefined,
+          referringSpecialistLastName: referralType === 'specialist' ? (referringDoctorUser.lastName || 'Specialist') : undefined,
+          // Add referralType to help the UI distinguish between specialist and generalist referrals
+          referralType
         };
       });
     } catch (error) {

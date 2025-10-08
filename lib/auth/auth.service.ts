@@ -22,7 +22,7 @@ export interface AdminUser {
   role: 'superadmin' | 'admin' | 'moderator';
   permissions: string[];
   isActive: boolean;
-  lastLoginAt?: number;
+  lastLogin?: string;
   createdAt: number;
   idToken?: string; // Add ID token for session cookie
 }
@@ -93,7 +93,7 @@ export class AuthService {
         permissions: this.getRolePermissions(userData.role || 'admin'),
         isActive: userData.isActive !== false,
         createdAt: userData.createdAt || Date.now(),
-        lastLoginAt: Date.now(),
+        lastLogin: new Date().toISOString(),
         idToken: idToken // Include ID token for session cookie
       };
       
@@ -126,6 +126,9 @@ export class AuthService {
       
       console.log('Session created and stored successfully');
       console.log('=== signIn completed successfully ===');
+      
+      // Update last login time
+      await this.updateLastLogin(adminUser.uid);
       
       // Store logs in localStorage
       localStorage.setItem('signInLogs', JSON.stringify(logs));
@@ -284,7 +287,8 @@ export class AuthService {
    */
   private async updateLastLogin(uid: string): Promise<void> {
     try {
-      await set(ref(db, `users/${uid}/lastLoginAt`), Date.now());
+      const nowString = new Date().toISOString();
+      await set(ref(db, `users/${uid}/lastLogin`), nowString);
     } catch (error) {
       console.error('Error updating last login:', error);
     }

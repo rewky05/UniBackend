@@ -189,28 +189,21 @@ export function useRealConsultationTime() {
   };
 }
 
-// Hook for appointments data
+// Hook for appointments data with real-time subscriptions
 export function useRealAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAppointments = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await realDataService.getAppointments();
-      setAppointments(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+    const unsubscribe = realDataService.subscribeToAppointments((data) => {
+      setAppointments(data);
+      setLoading(false);
+      setError(null);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const getAppointmentsByClinic = useCallback(async (clinicId: string) => {
     try {
@@ -226,7 +219,6 @@ export function useRealAppointments() {
     appointments,
     loading,
     error,
-    refresh: fetchAppointments,
     getAppointmentsByClinic
   };
 }
@@ -262,65 +254,49 @@ export function useRealPatients() {
   };
 }
 
-// Hook for referrals data
+// Hook for referrals data with real-time subscriptions
 export function useRealReferrals() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchReferrals = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await realDataService.getReferrals();
-      setReferrals(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchReferrals();
-  }, [fetchReferrals]);
+    const unsubscribe = realDataService.subscribeToReferrals((data) => {
+      setReferrals(data);
+      setLoading(false);
+      setError(null);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return {
     referrals,
     loading,
-    error,
-    refresh: fetchReferrals
+    error
   };
 }
 
-// Hook for specialist referrals data
+// Hook for specialist referrals data with real-time subscriptions
 export function useRealSpecialistReferrals() {
   const [specialistReferrals, setSpecialistReferrals] = useState<SpecialistReferral[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSpecialistReferrals = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await realDataService.getSpecialistReferrals();
-      setSpecialistReferrals(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchSpecialistReferrals();
-  }, [fetchSpecialistReferrals]);
+    const unsubscribe = realDataService.subscribeToSpecialistReferrals((data) => {
+      setSpecialistReferrals(data);
+      setLoading(false);
+      setError(null);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return {
     specialistReferrals,
     loading,
-    error,
-    refresh: fetchSpecialistReferrals
+    error
   };
 }
 

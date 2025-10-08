@@ -81,7 +81,7 @@ export default function DashboardPage() {
     error: activityError 
   } = useActivityLogs();
 
-  // Appointments data
+  // Appointments data - using real-time subscriptions
   const { appointments: realAppointments, loading: appointmentsLoading } = useRealAppointments();
   const { referrals: realReferrals, loading: referralsLoading } = useRealReferrals();
   const { specialistReferrals: realSpecialistReferrals, loading: specialistReferralsLoading } = useRealSpecialistReferrals();
@@ -598,10 +598,10 @@ export default function DashboardPage() {
     }
   ];
 
-  // Use real data from Firebase, with sample data fallback for demonstration
-  const appointments = realAppointments && realAppointments.length > 0 ? realAppointments : sampleAppointments;
-  const referrals = realReferrals && realReferrals.length > 0 ? realReferrals : sampleReferrals;
-  const specialistReferrals = realSpecialistReferrals && realSpecialistReferrals.length > 0 ? realSpecialistReferrals : [];
+  // Use real data from Firebase with real-time updates
+  const appointments = realAppointments || [];
+  const referrals = realReferrals || [];
+  const specialistReferrals = realSpecialistReferrals || [];
 
   // Use unified appointment data for consistent counting across all components
   const unifiedData = useUnifiedAppointmentData(appointments, referrals);
@@ -626,17 +626,16 @@ export default function DashboardPage() {
     // Sort by date for better visualization
     chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    console.log('Consultation time chart data (unified):', {
+    console.log('Consultation time chart data (real-time):', {
       totalFromStats: consultationTimeStats.totalCompletedConsultations,
       chartDataPoints: chartData.length,
       averageFromStats: consultationTimeStats.averageConsultationTimeMinutes,
-      usingRealData: realAppointments && realAppointments.length > 0,
-      usingSampleData: !realAppointments || realAppointments.length === 0,
+      usingRealTimeData: true,
       chartData: chartData.slice(0, 5), // Log first 5 for debugging
     });
     
     return chartData;
-  }, [consultationTimeStats, realAppointments]);
+  }, [consultationTimeStats, appointments]);
 
   // Show loading state
   if (dashboardLoading || specialistsLoading || appointmentsLoading || referralsLoading) {
@@ -660,14 +659,14 @@ export default function DashboardPage() {
   }
 
   // Debug: Log the data to see what we're working with
-  console.log('=== DASHBOARD DATA DEBUG ===');
+  console.log('=== DASHBOARD REAL-TIME DATA DEBUG ===');
   console.log('Appointments loading:', appointmentsLoading);
   console.log('Referrals loading:', referralsLoading);
   console.log('Real Appointments count:', realAppointments?.length || 0);
   console.log('Real Referrals count:', realReferrals?.length || 0);
   console.log('Using appointments:', appointments.length);
   console.log('Using referrals:', referrals.length);
-  console.log('Using sample data:', !realAppointments || realAppointments.length === 0);
+  console.log('Using real-time data:', true);
   
   // Log unified data counts
   console.log('=== UNIFIED DATA COUNTS ===');
@@ -807,7 +806,7 @@ export default function DashboardPage() {
             <ConsultationTimeChart 
               data={consultationTimeData}
               className="w-full"
-              isSampleData={!realAppointments || realAppointments.length === 0}
+              isSampleData={false}
             />
           </div>
         </div>

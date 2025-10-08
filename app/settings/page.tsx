@@ -38,13 +38,13 @@ const settingsCategories = [
     description: 'Manage admin users and permissions',
     allowedRoles: ['superadmin']
   },
-  {
-    id: 'security',
-    label: 'Security Management',
-    icon: Shield,
-    description: 'Monitor and manage account lockouts',
-    allowedRoles: ['superadmin']
-  },
+  // {
+  //   id: 'security',
+  //   label: 'Security Management',
+  //   icon: Shield,
+  //   description: 'Monitor and manage account lockouts',
+  //   allowedRoles: ['superadmin']
+  // },
   // {
   //   id: 'sessions',
   //   label: 'Session Management',
@@ -59,13 +59,13 @@ const settingsCategories = [
   //   description: 'Manage medical specialties and services',
   //   allowedRoles: ['superadmin', 'admin']
   // },
-  {
-    id: 'data',
-    label: 'Data & Audit',
-    icon: Database,
-    description: 'System logs and data management',
-    allowedRoles: ['superadmin']
-  }
+  // {
+  //   id: 'data',
+  //   label: 'Data & Audit',
+  //   icon: Database,
+  //   description: 'System logs and data management',
+  //   allowedRoles: ['superadmin']
+  // }
 ];
 
 export default function SettingsPage() {

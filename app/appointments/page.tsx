@@ -216,7 +216,7 @@ export default function AppointmentsPage() {
 
   // Combine both referral types for filtering and display
   const allReferrals = [
-    ...referrals.map(r => ({ ...r, referralType: 'generalist' as const })),
+    ...referrals, // referrals now include referralType from the service
     ...specialistReferrals.map(sr => ({ ...sr, referralType: 'specialist' as const }))
   ];
 

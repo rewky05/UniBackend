@@ -29,7 +29,7 @@ import { auth, db } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { AUTH_CONFIG } from '@/lib/config/auth';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { formatDateToText } from '@/lib/utils';
+import { formatDateToText, formatDateTimeToText } from '@/lib/utils';
 
 interface AdminUser {
   uid: string;
@@ -443,7 +443,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
                         <TableCell>
                           {user.lastLogin ? (
                             <span className="text-sm text-muted-foreground">
-                              {formatDateToText(user.lastLogin)}
+                              {formatDateTimeToText(user.lastLogin)}
                             </span>
                           ) : (
                             <span className="text-sm text-muted-foreground">Never</span>

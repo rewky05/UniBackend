@@ -483,7 +483,11 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
 
     console.log('About to call createDoctor with data:', JSON.stringify(transformedSpecialist, null, 2));
 
-    const result = await realDataService.createDoctor(transformedSpecialist);
+    // Generate temporary password and ID for direct service call
+    const tempPasswordId = 'bulk_import_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const tempPassword = transformedSpecialist.temporaryPassword || 'TempPass123!';
+    
+    const result = await realDataService.createDoctor(transformedSpecialist, '', tempPassword, tempPasswordId);
     const { doctorId, temporaryPassword } = result;
 
     // Re-authenticate admin after each doctor creation to restore admin session
@@ -528,7 +532,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
 
       try {
         // Transform specialists data for API
-        const transformedSpecialists = batchSpecialists.map((specialist, index) => {
+        const transformedSpecialists = batchSpecialists.map((specialist: any, index) => {
           // Debug logging for the first specialist in each batch
           if (index === 0) {
             console.log('🔍 [BULK IMPORT] Raw specialist data from Excel:', specialist);
@@ -620,7 +624,9 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: BulkImportDi
 
           return {
             firstName: specialist['First Name*'],
+            middleName: specialist['Middle Name*'] || '',
             lastName: specialist['Last Name*'],
+            suffix: specialist['Suffix*'] || '',
             email: specialist['Email*'],
             temporaryPassword: specialist['Temporary Password*'],
             phone: specialist['Phone*'],

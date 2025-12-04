@@ -190,7 +190,7 @@ async function seedData() {
     }
 
     // Seed doctors
-    console.log("👨‍⚕️ Seeding doctors...");
+    console.log(" Seeding doctors...");
     const doctorIds: string[] = [];
     for (const doctor of sampleDoctors) {
       const doctorRef = push(ref(db, 'doctors'));

@@ -4,7 +4,7 @@ import { TemporaryPasswordService } from '@/lib/services/temporary-password.serv
 import { EmailService } from '@/lib/services/email.service';
 
 export async function POST(request: NextRequest) {
-  console.log('👨‍⚕️ [API] Create doctor API route called');
+  console.log(' [API] Create doctor API route called');
   
   try {
     const body = await request.json();
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('👨‍⚕️ [API] Creating doctor with email:', doctorData.email);
+    console.log(' [API] Creating doctor with email:', doctorData.email);
 
     // 1. Validate and use the provided temporary password from the form
     const temporaryPassword = doctorData.temporaryPassword;
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
     
     const tempPasswordId = 'user_provided_' + Date.now();
-    console.log('👨‍⚕️ [API] Using provided temporary password:', temporaryPassword);
+    console.log(' [API] Using provided temporary password:', temporaryPassword);
 
     // 2. Create Firebase Authentication account
     const { createUserWithEmailAndPassword } = await import('firebase/auth');
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const realDataService = new RealDataService();
     const result = await realDataService.createDoctor(doctorData, doctorId, temporaryPassword, tempPasswordId);
 
-    console.log('👨‍⚕️ [API] Doctor created successfully:', {
+    console.log(' [API] Doctor created successfully:', {
       doctorId: result.doctorId,
       passwordLength: result.temporaryPassword.length,
       tempPasswordId: result.tempPasswordId

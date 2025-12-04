@@ -24,7 +24,7 @@ This document summarizes the comprehensive improvements made to individual docto
 - **Enhanced Logging**: Comprehensive logging stored in localStorage for debugging
 - **Session Management**: Automatic session restoration with validation
 
-### 👨‍⚕️ Enhanced Doctor Creation (`app/doctors/add/page.tsx`)
+###  Enhanced Doctor Creation (`app/doctors/add/page.tsx`)
 
 #### Process Improvements:
 - **5-Step Workflow**: Form validation → Data preparation → User creation → Enhanced re-authentication → Success handling
@@ -39,7 +39,7 @@ This document summarizes the comprehensive improvements made to individual docto
 - **Authentication Errors**: Admin re-authentication problems
 - **Session Errors**: Session management issues
 
-### 👥 Enhanced Patient Creation (`app/patients/add/page.tsx`)
+###  Enhanced Patient Creation (`app/patients/add/page.tsx`)
 
 #### Process Improvements:
 - **4-Step Workflow**: Form validation → User creation → Enhanced re-authentication → Success handling

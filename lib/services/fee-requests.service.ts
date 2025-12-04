@@ -242,7 +242,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                 });
               }
               
-              console.log('👨‍⚕️ [FeeRequestsService] Checking doctor:', {
+              console.log(' [FeeRequestsService] Checking doctor:', {
                 id: doctorId,
                 firstName: doctor?.firstName,
                 lastName: doctor?.lastName,
@@ -309,14 +309,14 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
               }
             });
           } else {
-            console.log('📭 [FeeRequestsService] No valid data found in snapshot');
+            console.log(' [FeeRequestsService] No valid data found in snapshot');
           }
         } catch (dataError) {
           console.error('❌ [FeeRequestsService] Error processing snapshot data:', dataError);
           throw new Error('Failed to process snapshot data');
         }
       } else {
-        console.log('📭 [FeeRequestsService] No doctors data found');
+        console.log(' [FeeRequestsService] No doctors data found');
       }
       
       const sortedRequests = requests.sort((a, b) => {
@@ -360,7 +360,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
       
       if (snapshot.exists()) {
         const doctor = snapshot.val();
-        console.log('👨‍⚕️ [FeeRequestsService] Doctor found:', {
+        console.log(' [FeeRequestsService] Doctor found:', {
           id: doctorId,
           firstName: doctor?.firstName,
           lastName: doctor?.lastName,
@@ -480,7 +480,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                     });
                   }
                   
-                  console.log('👨‍⚕️ [FeeRequestsService] Checking doctor:', {
+                  console.log(' [FeeRequestsService] Checking doctor:', {
                     id: doctorId,
                     firstName: doctor?.firstName,
                     lastName: doctor?.lastName,
@@ -547,7 +547,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
                   }
                 });
               } else {
-                console.log('📭 [FeeRequestsService] No valid data found in snapshot');
+                console.log(' [FeeRequestsService] No valid data found in snapshot');
               }
             } catch (dataError) {
               console.error('❌ [FeeRequestsService] Error processing snapshot data:', dataError);
@@ -555,7 +555,7 @@ export class FeeRequestsService extends BaseFirebaseService<FeeChangeRequest> {
               return;
             }
           } else {
-            console.log('📭 [FeeRequestsService] No doctors data found');
+            console.log(' [FeeRequestsService] No doctors data found');
           }
           
           // Sort by request date (newest first) in memory

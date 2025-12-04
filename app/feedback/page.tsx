@@ -526,7 +526,7 @@ export default function FeedbackPage() {
                      <TableRow>
                        <TableCell colSpan={6} className="text-center py-8">
                          <div className="flex flex-col items-center space-y-2">
-                           <div className="text-muted-foreground text-lg">📭</div>
+                           <div className="text-muted-foreground text-lg"></div>
                            <p className="text-muted-foreground font-medium">No feedback found</p>
                            <p className="text-sm text-muted-foreground">
                              Try adjusting your search criteria or filters

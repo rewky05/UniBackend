@@ -4,7 +4,7 @@ import { TemporaryPasswordService } from '@/lib/services/temporary-password.serv
 import { EmailService } from '@/lib/services/email.service';
 
 export async function POST(request: NextRequest) {
-  console.log('👥 [API] Bulk create doctors API route called');
+  console.log(' [API] Bulk create doctors API route called');
   
   try {
     const body = await request.json();
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`👥 [API] Processing ${doctorsData.length} doctors in batches of ${batchSize}`);
+    console.log(` [API] Processing ${doctorsData.length} doctors in batches of ${batchSize}`);
 
     const results = [];
     const errors = [];
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       const batch = doctorsData.slice(i, i + batchSize);
       const batchNumber = Math.floor(i / batchSize) + 1;
       
-      console.log(`👥 [API] Processing batch ${batchNumber} (${batch.length} doctors)`);
+      console.log(` [API] Processing batch ${batchNumber} (${batch.length} doctors)`);
 
       const batchResults = [];
       const batchErrors = [];
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         const doctorIndex = i + j + 1;
 
         try {
-          console.log(`👨‍⚕️ [API] Creating doctor ${doctorIndex}/${doctorsData.length}: ${doctorData.email}`);
+          console.log(` [API] Creating doctor ${doctorIndex}/${doctorsData.length}: ${doctorData.email}`);
           console.log(`🔍 [API] Doctor data keys:`, Object.keys(doctorData));
           console.log(`🔍 [API] temporaryPassword value:`, doctorData.temporaryPassword);
           console.log(`🔍 [API] temporaryPassword type:`, typeof doctorData.temporaryPassword);
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
           }
           
           const tempPasswordId = 'user_provided_' + Date.now();
-          console.log(`👨‍⚕️ [API] Using provided temporary password for doctor ${doctorIndex}:`, temporaryPassword);
+          console.log(` [API] Using provided temporary password for doctor ${doctorIndex}:`, temporaryPassword);
 
           // 2. Create Firebase Authentication account
           const { createUserWithEmailAndPassword } = await import('firebase/auth');
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`👥 [API] Bulk creation completed:`, {
+    console.log(` [API] Bulk creation completed:`, {
       total: doctorsData.length,
       successful: successCount,
       failed: errors.length,

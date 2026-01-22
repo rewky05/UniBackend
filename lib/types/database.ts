@@ -23,6 +23,7 @@ export interface Doctor {
   contactNumber: string;
   address?: string;
   addressLine?: string;
+  schedules?: string;
   city?: string;
   province?: string;
   zipCode?: string;

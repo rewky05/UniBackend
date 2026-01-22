@@ -215,6 +215,7 @@ export interface Referral {
   appointmentTime: string;
   status: 'pending' | 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
   referralTimestamp: string;
+  referralType?: 'generalist' | 'specialist';
   lastUpdated: string;
   patientArrivalConfirmed: boolean;
   practiceLocation: {
@@ -234,6 +235,8 @@ export interface Referral {
   assignedSpecialistLastName?: string;
   referringGeneralistFirstName?: string;
   referringGeneralistLastName?: string;
+  referringSpecialistFirstName?: string;
+  referringSpecialistLastName?: string;
 }
 
 // Specialist Referrals - Additional structure for specialist-to-specialist referrals
@@ -258,10 +261,12 @@ export interface SpecialistReferral {
   referringSpecialistFirstName: string;
   referringSpecialistId: string;
   referringSpecialistLastName: string;
+  referralType?: 'generalist' | 'specialist';
   sourceSystem: string;
   specialistScheduleId: string;
   status: 'pending' | 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
   updatedAt: string;
+  
   // Computed fields added by the service
   specialistClinicName?: string;
   patientFirstName?: string;

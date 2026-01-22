@@ -327,7 +327,7 @@ export function useDoctorActions() {
     setError(null);
 
     try {
-      await doctorsService.update(id, updates);
+      await doctorsService.update(id, updates as any);
     } catch (err: any) {
       setError(err.message);
       throw err;

@@ -71,11 +71,13 @@ export class ActivityLogsService extends BaseFirebaseService<ActivityLog> {
           const sortedLogs = logs.sort((a, b) => b.createdAt - a.createdAt);
           callback(sortedLogs);
         } catch (error) {
-          onError(new Error(`Failed to process user activity logs: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process user activity logs: ${errorMessage}`));
         }
       },
       (error) => {
-        onError(new Error(`User activity logs subscription failed: ${error.message}`));
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        onError(new Error(`User activity logs subscription failed: ${errorMessage}`));
       }
     );
     
@@ -227,7 +229,8 @@ export class ActivityLogsService extends BaseFirebaseService<ActivityLog> {
           
           callback(recentLogs);
         } catch (error) {
-          onError(new Error(`Failed to process recent activity logs: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process recent activity logs: ${errorMessage}`));
         }
       },
       (error) => {
@@ -262,7 +265,8 @@ export class ActivityLogsService extends BaseFirebaseService<ActivityLog> {
             document: 0,
             profile: 0,
             system: 0,
-            feedback: 0
+            feedback: 0,
+            fee_management: 0
           },
           byUser: {},
           byTargetType: {},
@@ -353,7 +357,8 @@ export class ActivityLogsService extends BaseFirebaseService<ActivityLog> {
             document: 0,
             profile: 0,
             system: 0,
-            feedback: 0
+            feedback: 0,
+            fee_management: 0
           },
           recentActivities: []
         };

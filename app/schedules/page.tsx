@@ -5,7 +5,8 @@ import { DoctorSelector } from "@/components/schedules/doctor-selector";
 import { EmptyState } from "@/components/schedules/empty-state";
 import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
 import { ScheduleCard } from "@/components/schedules/schedule-card";
-import { ClinicCard } from "@/components/schedules/clinic-card";
+import { ClinicCard, type ClinicAffiliation } from "@/components/schedules/clinic-card";
+import { type SpecialistSchedule } from "@/components/schedules/schedule-card";
 import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
 import { useState } from "react";
 
@@ -44,8 +45,20 @@ export default function SchedulePage() {
   }
 
   const selectedDoctorData = selectedDoctor ? doctors.find(d => d.id === selectedDoctor) : null;
-  const schedules = selectedDoctorData?.schedules || [];
-  const doctorClinics = selectedDoctorData?.clinicAffiliations || [];
+  // Handle schedules - could be string, string[], or SpecialistSchedule[]
+  const schedules: SpecialistSchedule[] = selectedDoctorData && Array.isArray(selectedDoctorData.schedules) 
+    ? (typeof selectedDoctorData.schedules[0] === 'string' ? [] : selectedDoctorData.schedules as SpecialistSchedule[])
+    : [];
+  // Handle clinicAffiliations - convert string[] to ClinicAffiliation[]
+  const doctorClinics: ClinicAffiliation[] = selectedDoctorData && Array.isArray(selectedDoctorData.clinicAffiliations)
+    ? selectedDoctorData.clinicAffiliations.map((clinicId: string, index: number) => ({
+        id: clinicId,
+        clinicId: clinicId,
+        name: `Clinic ${index + 1}`,
+        since: new Date().toISOString(),
+        schedules: []
+      }))
+    : [];
 
   return (
     <DashboardLayout title="">
@@ -59,8 +72,8 @@ export default function SchedulePage() {
             </p>
           </div>
           <DoctorSelector
-            doctors={doctors}
-            selectedDoctor={selectedDoctor}
+            doctors={doctors.filter(d => d.id)}
+            selectedDoctor={selectedDoctor ?? null}
             onDoctorSelect={setSelectedDoctor}
           />
         </div>
@@ -71,7 +84,7 @@ export default function SchedulePage() {
         ) : (
           selectedDoctorData && (
             <div className="space-y-6">
-              <DoctorInfoBanner doctor={selectedDoctorData} />
+              {selectedDoctorData && <DoctorInfoBanner doctor={selectedDoctorData} />}
 
               <div className="grid gap-6 lg:grid-cols-2">
                 <ScheduleCard

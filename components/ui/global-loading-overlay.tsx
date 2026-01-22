@@ -9,7 +9,7 @@ export function GlobalLoadingOverlay() {
   return (
     <ModernLoadingOverlay 
       isLoading={isLoading} 
-      message={loadingMessage} 
+      message={loadingMessage ?? undefined} 
     />
   );
 }

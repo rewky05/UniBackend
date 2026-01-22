@@ -76,7 +76,8 @@ export class SchedulesService extends BaseFirebaseService<Schedule> {
             .sort((a, b) => a.dayOfWeek - b.dayOfWeek);
           callback(activeSchedules);
         } catch (error) {
-          onError(new Error(`Failed to process doctor schedules: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process doctor schedules: ${errorMessage}`));
         }
       },
       (error) => {
@@ -351,7 +352,7 @@ export class SchedulesService extends BaseFirebaseService<Schedule> {
     try {
       const { ActivityLogsService } = await import('./activity-logs.service');
       const activityService = new ActivityLogsService();
-      await activityService.create(activityData);
+      await activityService.createActivityLog(activityData);
     } catch (error) {
       console.error('Failed to log activity:', error);
     }
@@ -369,12 +370,9 @@ export class ClinicsService extends BaseFirebaseService<Clinic> {
    */
   async createClinic(clinicData: Omit<Clinic, 'id' | 'createdAt' | 'updatedAt'>, createdBy?: string): Promise<string> {
     try {
-      const now = Date.now();
       return await this.create({
         ...clinicData,
         isActive: true,
-        createdAt: now,
-        updatedAt: now,
         createdBy: createdBy || 'system'
       });
     } catch (error) {
@@ -418,7 +416,8 @@ export class ClinicsService extends BaseFirebaseService<Clinic> {
             .sort((a, b) => a.name.localeCompare(b.name));
           callback(activeClinics);
         } catch (error) {
-          onError(new Error(`Failed to process active clinics: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process active clinics: ${errorMessage}`));
         }
       },
       (error) => {

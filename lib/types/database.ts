@@ -142,7 +142,7 @@ export interface Appointment {
   appointmentDate: string;
   appointmentTime: string;
   type: 'general_consultation' | 'emergency_assessment' | 'lab_booking' | 'walk_in';
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
   specialty?: string;
   notes?: string;
   patientComplaint?: string[];
@@ -215,7 +215,7 @@ export interface Referral {
   generalistNotes: string;
   appointmentDate: string;
   appointmentTime: string;
-  status: 'pending' | 'pending_acceptance' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'pending_acceptance' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
   referralTimestamp: string;
   referralType?: 'generalist' | 'specialist';
   lastUpdated: string;
@@ -263,6 +263,9 @@ export interface SpecialistReferral {
   referringSpecialistFirstName: string;
   referringSpecialistId: string;
   referringSpecialistLastName: string;
+  referringGeneralistFirstName: string;
+  referringGeneralistLastName: string;
+  referringGeneralistId: string;
   referralType?: 'generalist' | 'specialist';
   sourceSystem: string;
   specialistScheduleId: string;

@@ -56,8 +56,8 @@ class SessionEncryption {
  * Secure session storage manager
  */
 export class SecureSessionStorage {
-  private static readonly SESSION_KEY = 'unihealth_session';
-  private static readonly ACTIVITY_KEY = 'unihealth_activity';
+  public static readonly SESSION_KEY = 'unihealth_session';
+  public static readonly ACTIVITY_KEY = 'unihealth_activity';
 
   /**
    * Store session data securely

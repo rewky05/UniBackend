@@ -61,7 +61,7 @@ export class EmailService {
    * Send temporary password email to new user
    */
   async sendTemporaryPasswordEmail(data: TemporaryPasswordEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log('📧 [EMAIL SERVICE] sendTemporaryPasswordEmail called with data:', {
+    console.log('[EMAIL SERVICE] sendTemporaryPasswordEmail called with data:', {
       userName: data.userName,
       userEmail: data.userEmail,
       userType: data.userType,
@@ -71,25 +71,25 @@ export class EmailService {
       hasLoginUrl: !!data.loginUrl
     });
     
-    console.log('📧 [EMAIL SERVICE] Environment check:', {
+    console.log('[EMAIL SERVICE] Environment check:', {
       hasResendKey: !!(process.env.RESEND_API_KEY || process.env.NEXT_PUBLIC_RESEND_API_KEY),
       hasFromEmail: !!process.env.RESEND_FROM_EMAIL,
       hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL
     });
 
     try {
-      console.log('📧 [EMAIL SERVICE] Creating temporary password email template...');
+      console.log('[EMAIL SERVICE] Creating temporary password email template...');
       const emailTemplate = this.createTemporaryPasswordTemplate(data);
-      console.log('📧 [EMAIL SERVICE] Email template created:', {
+      console.log('[EMAIL SERVICE] Email template created:', {
         subject: emailTemplate.subject,
         to: emailTemplate.to,
         hasHtml: !!emailTemplate.html,
         hasText: !!emailTemplate.text
       });
       
-      console.log('📧 [EMAIL SERVICE] Sending email via Resend API...');
+      console.log('[EMAIL SERVICE] Sending email via Resend API...');
       const senderEmail = process.env.RESEND_FROM_EMAIL || 'UniHealth Admin <noreply@resend.dev>';
-      console.log('📧 [EMAIL SERVICE] Using sender email:', senderEmail);
+      console.log('[EMAIL SERVICE] Using sender email:', senderEmail);
       
       // Validate sender email format
       if (senderEmail && !senderEmail.includes('<') && !senderEmail.includes('@')) {
@@ -97,7 +97,7 @@ export class EmailService {
         return { success: false, error: 'Invalid sender email format. Use "Name <email@domain.com>" or "email@domain.com"' };
       }
       
-      console.log('📧 [EMAIL SERVICE] Preparing Resend API call with data:', {
+      console.log('[EMAIL SERVICE] Preparing Resend API call with data:', {
         from: senderEmail,
         to: [data.userEmail],
         subject: emailTemplate.subject,
@@ -113,9 +113,9 @@ export class EmailService {
         text: emailTemplate.text,
       });
       
-      console.log('📧 [EMAIL SERVICE] Resend API call completed. Raw result:', result);
+      console.log('[EMAIL SERVICE] Resend API call completed. Raw result:', result);
 
-      console.log('📧 [EMAIL SERVICE] Resend API response:', {
+      console.log('[EMAIL SERVICE] Resend API response:', {
         success: !result.error,
         messageId: result.data?.id,
         error: result.error
@@ -147,7 +147,7 @@ export class EmailService {
    * Send doctor verification email
    */
   async sendDoctorVerificationEmail(data: DoctorVerificationEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log('📧 [EMAIL SERVICE] sendDoctorVerificationEmail called with data:', {
+    console.log('[EMAIL SERVICE] sendDoctorVerificationEmail called with data:', {
       doctorName: data.doctorName,
       doctorEmail: data.doctorEmail,
       adminName: data.adminName,
@@ -156,18 +156,18 @@ export class EmailService {
     });
 
     try {
-      console.log('📧 [EMAIL SERVICE] Creating email template...');
+      console.log('[EMAIL SERVICE] Creating email template...');
       const emailTemplate = this.createDoctorVerificationTemplate(data);
-      console.log('📧 [EMAIL SERVICE] Email template created:', {
+      console.log('[EMAIL SERVICE] Email template created:', {
         subject: emailTemplate.subject,
         to: emailTemplate.to,
         hasHtml: !!emailTemplate.html,
         hasText: !!emailTemplate.text
       });
       
-      console.log('📧 [EMAIL SERVICE] Sending email via Resend API...');
+      console.log('[EMAIL SERVICE] Sending email via Resend API...');
       const senderEmail = process.env.RESEND_FROM_EMAIL || 'UniHealth Admin <noreply@resend.dev>';
-      console.log('📧 [EMAIL SERVICE] Using sender email:', senderEmail);
+      console.log('[EMAIL SERVICE] Using sender email:', senderEmail);
       
       // Validate sender email format
       if (senderEmail && !senderEmail.includes('<') && !senderEmail.includes('@')) {
@@ -183,7 +183,7 @@ export class EmailService {
         text: emailTemplate.text,
       });
 
-      console.log('📧 [EMAIL SERVICE] Resend API response:', {
+      console.log('[EMAIL SERVICE] Resend API response:', {
         success: !result.error,
         messageId: result.data?.id,
         error: result.error
@@ -214,7 +214,7 @@ export class EmailService {
       reason?: string;
     }
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log('📧 [EMAIL SERVICE] sendDoctorStatusChangeEmail called with data:', {
+    console.log('[EMAIL SERVICE] sendDoctorStatusChangeEmail called with data:', {
       doctorName: data.doctorName,
       doctorEmail: data.doctorEmail,
       newStatus: data.newStatus,
@@ -225,18 +225,18 @@ export class EmailService {
     });
 
     try {
-      console.log('📧 [EMAIL SERVICE] Creating status change email template...');
+      console.log('[EMAIL SERVICE] Creating status change email template...');
       const emailTemplate = this.createStatusChangeTemplate(data);
-      console.log('📧 [EMAIL SERVICE] Status change email template created:', {
+      console.log('[EMAIL SERVICE] Status change email template created:', {
         subject: emailTemplate.subject,
         to: emailTemplate.to,
         hasHtml: !!emailTemplate.html,
         hasText: !!emailTemplate.text
       });
       
-      console.log('📧 [EMAIL SERVICE] Sending status change email via Resend API...');
+      console.log('[EMAIL SERVICE] Sending status change email via Resend API...');
       const senderEmail = process.env.RESEND_FROM_EMAIL || 'UniHealth Admin <noreply@resend.dev>';
-      console.log('📧 [EMAIL SERVICE] Using sender email:', senderEmail);
+      console.log('[EMAIL SERVICE] Using sender email:', senderEmail);
       
       // Validate sender email format
       if (senderEmail && !senderEmail.includes('<') && !senderEmail.includes('@')) {
@@ -252,7 +252,7 @@ export class EmailService {
         text: emailTemplate.text,
       });
 
-      console.log('📧 [EMAIL SERVICE] Resend API response for status change:', {
+      console.log('[EMAIL SERVICE] Resend API response for status change:', {
         success: !result.error,
         messageId: result.data?.id,
         error: result.error

@@ -3,7 +3,7 @@ import { EmailService } from '@/lib/services/email.service';
 import { TemporaryPasswordService } from '@/lib/services/temporary-password.service';
 
 export async function POST(request: NextRequest) {
-  console.log('📧 [API] Temporary password email API route called');
+  console.log('[API] Temporary password email API route called');
   
   try {
     const body = await request.json();
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📧 [API] Email data prepared:', {
+    console.log('[API] Email data prepared:', {
       userName,
       userEmail,
       userType,
@@ -71,11 +71,11 @@ export async function POST(request: NextRequest) {
       loginUrl: loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`
     };
 
-    console.log('📧 [API] Sending temporary password email...');
+    console.log('[API] Sending temporary password email...');
     const emailService = EmailService.getInstance();
     const result = await emailService.sendTemporaryPasswordEmail(emailData);
 
-    console.log('📧 [API] Email service result:', result);
+    console.log('[API] Email service result:', result);
 
     if (result.success) {
       // Mark temporary password as sent

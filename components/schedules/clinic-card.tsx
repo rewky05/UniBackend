@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building, Plus, Edit, Trash2, Calendar, Clock, MapPin, User } from "lucide-react";
 import { ClinicScheduleDialog } from "../doctors/clinic-schedule-dialog";
+import { type SpecialistSchedule } from "./schedule-card";
 import { formatDateToText } from "@/lib/utils";
 
 export interface ClinicAffiliation {
@@ -20,6 +21,7 @@ export interface ClinicAffiliation {
   name: string;
   since: string;
   schedules: any[]; // ClinicScheduleBlock[]
+  resolvedAddress?: string;
   newClinicDetails?: {
     name: string;
     addressLine: string;
@@ -54,7 +56,19 @@ export function ClinicCard({
     setIsDialogOpen(true);
   };
 
-  const handleSave = (clinicData: Omit<ClinicAffiliation, "id">) => {
+  const handleSave = (schedules: SpecialistSchedule[]) => {
+    // Convert schedules to clinic data format
+    const clinicData: Omit<ClinicAffiliation, "id"> = editingClinic 
+      ? {
+          ...editingClinic,
+          schedules: schedules
+        }
+      : {
+          name: 'New Clinic',
+          since: new Date().toISOString(),
+          schedules: schedules
+        };
+    
     if (editingClinic) {
       onClinicEdit({ ...clinicData, id: editingClinic.id });
     } else {
@@ -169,7 +183,7 @@ export function ClinicCard({
         <ClinicScheduleDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          affiliation={editingClinic}
+          existingSchedules={(editingClinic?.schedules as SpecialistSchedule[]) || []}
           onSave={handleSave}
         />
       )}

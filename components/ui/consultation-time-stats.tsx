@@ -22,7 +22,8 @@ export function ConsultationTimeStats({ stats, className }: ConsultationTimeStat
   } = stats;
 
   // Calculate trend (placeholder - you can implement actual trend calculation)
-  const trend = "stable"; // "up", "down", "stable"
+  type TrendType = "up" | "down" | "stable";
+  const trend: TrendType = "stable" as TrendType; // "up", "down", "stable"
   const trendPercentage = 0; // Replace with actual trend calculation
 
   return (

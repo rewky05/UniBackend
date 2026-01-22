@@ -201,8 +201,8 @@ export function AppointmentTrendsChart({ appointments, referrals, className }: A
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Clinics</SelectItem>
-                    {clinics.map(clinic => (
-                      <SelectItem key={clinic} value={clinic}>
+                    {clinics.filter(clinic => clinic).map(clinic => (
+                      <SelectItem key={clinic} value={clinic || ''}>
                         {clinic}
                       </SelectItem>
                     ))}

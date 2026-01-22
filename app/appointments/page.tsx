@@ -265,7 +265,19 @@ export default function AppointmentsPage() {
   // PDF report columns configuration for referrals
   const referralPdfColumns = [
     { key: 'patient', label: 'Patient', render: (referral: any) => `${referral.patientFirstName} ${referral.patientLastName}` },
-    { key: 'referringDoctor', label: 'Referring Doctor', render: (referral: any) => `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}` },
+    {
+      key: 'referringDoctor',
+      label: 'Referring Doctor',
+      render: (referral: any) => {
+        if (referral.referringSpecialistFirstName) {
+          return `Dr. ${referral.referringSpecialistFirstName} ${referral.referringSpecialistLastName}`;
+        }
+        if (referral.referringGeneralistFirstName) {
+          return `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}`;
+        }
+        return 'Not specified';
+      }
+    },    
     { key: 'assignedSpecialist', label: 'Assigned Specialist', render: (referral: any) => `Dr. ${referral.assignedSpecialistFirstName} ${referral.assignedSpecialistLastName}` },
     { key: 'specialistClinicName', label: 'Specialist Clinic' },
     { key: 'appointmentDate', label: 'Date' },
@@ -660,13 +672,13 @@ export default function AppointmentsPage() {
                             <TableCell>
                               <div>
                                 <div className="font-medium">
-                                  {referral.referralType === 'generalist' 
+                                  {referral.referringGeneralistId 
                                     ? `Dr. ${referral.referringGeneralistFirstName} ${referral.referringGeneralistLastName}`
                                     : `Dr. ${referral.referringSpecialistFirstName} ${referral.referringSpecialistLastName}`
                                   }
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {referral.referralType === 'generalist' ? 'Generalist' : 'Specialist'}
+                                  {referral.referringGeneralistId ? 'Generalist' : 'Specialist'}
                                 </div>
                               </div>
                             </TableCell>

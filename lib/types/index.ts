@@ -5,6 +5,20 @@ export interface BaseEntity {
   updatedAt: number;
 }
 
+// Base entity for entities that may have optional id
+export interface BaseEntityOptional {
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+// Flexible base entity for entities that use string dates
+export interface BaseEntityWithStringDates {
+  id?: string;
+  createdAt?: string | number;
+  updatedAt?: string | number;
+}
+
 // Fee History Entry
 export interface FeeHistoryEntry {
   fee: number;
@@ -26,12 +40,14 @@ export interface User {
 }
 
 // Doctor related types
-export interface Doctor extends BaseEntity {
+export interface Doctor extends BaseEntityWithStringDates {
+  id: string;
   userId: string;
   // Personal Information
   firstName: string;
   lastName: string;
   middleName?: string;
+  suffix?: string;
   email: string;
   contactNumber: string;
   address?: string;
@@ -47,17 +63,20 @@ export interface Doctor extends BaseEntity {
   feeHistory?: FeeHistoryEntry[];
   prcId?: string;
   prcExpiryDate?: string;
+  prcExpiry?: string; // Alias for prcExpiryDate
   medicalLicenseNumber?: string;
   clinicAffiliations?: string[];
   
   // Status and Verification
-  status: 'pending' | 'verified' | 'suspended';
+  status: 'pending' | 'verified' | 'suspended' | 'rejected';
   profileImageUrl?: string;
+  isActive?: boolean;
   
   // System fields
   lastLogin?: string;
-  createdAt?: string;
+  createdAt?: string | number;
   lastUpdated?: string;
+  updatedAt?: number;
 }
 
 export interface CreateDoctorDto {
@@ -84,6 +103,8 @@ export interface UpdateDoctorDto extends Partial<CreateDoctorDto> {
   verifiedBy?: string;
   lastLoginAt?: number;
   isActive?: boolean;
+  prcExpiryDate?: string;
+  prcExpiry?: string;
 }
 
 // Clinic related types
@@ -97,6 +118,7 @@ export interface Clinic extends BaseEntity {
   email?: string;
   type: 'hospital' | 'multi_specialty_clinic' | 'community_clinic' | 'private_clinic';
   isActive: boolean;
+  createdBy?: string;
 }
 
 export interface DoctorClinicAffiliation extends BaseEntity {
@@ -137,6 +159,7 @@ export interface Feedback extends BaseEntity {
   patientEmail?: string;
   doctorId: string;
   clinicId: string;
+  clinicName?: string;
   rating: 1 | 2 | 3 | 4 | 5;
   comment: string;
   tags: string[];
@@ -177,9 +200,9 @@ export interface ActivityLog extends BaseEntity {
   userId: string;
   userEmail: string;
   action: string;
-  category: 'verification' | 'schedule' | 'document' | 'profile' | 'system' | 'feedback';
+  category: 'verification' | 'schedule' | 'document' | 'profile' | 'system' | 'feedback' | 'fee_management';
   targetId?: string;
-  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule';
+  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule' | 'patient' | 'fee_request' | 'appointment';
   details: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
@@ -189,16 +212,17 @@ export interface CreateActivityLogDto {
   userId: string;
   userEmail: string;
   action: string;
-  category: 'verification' | 'schedule' | 'document' | 'profile' | 'system' | 'feedback';
+  category: 'verification' | 'schedule' | 'document' | 'profile' | 'system' | 'feedback' | 'fee_management';
   targetId?: string;
-  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule' | 'patient';
+  targetType?: 'doctor' | 'clinic' | 'feedback' | 'schedule' | 'patient' | 'fee_request' | 'appointment';
   details: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
 }
 
 // Patient types
-export interface Patient extends BaseEntity {
+export interface Patient extends BaseEntityWithStringDates {
+  id: string;
   userId: string;
   firstName: string;
   middleName?: string;
@@ -206,6 +230,8 @@ export interface Patient extends BaseEntity {
   dateOfBirth: string;
   gender: string;
   contactNumber: string;
+  email?: string;
+  phone?: string;
   highestEducationalAttainment?: string;
   address?: string;
   bloodType?: string;
@@ -216,8 +242,9 @@ export interface Patient extends BaseEntity {
     phone: string;
     relationship: string;
   };
-  createdAt: string;
+  createdAt: string | number;
   lastUpdated: string;
+  updatedAt?: number;
 }
 
 export interface CreatePatientDto {
@@ -336,7 +363,7 @@ export interface FirebaseError {
 }
 
 // Fee Change Request types
-export interface FeeChangeRequest {
+export interface FeeChangeRequest extends BaseEntityWithStringDates {
   id: string;
   doctorId: string;
   doctorName: string;

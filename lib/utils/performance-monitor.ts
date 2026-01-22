@@ -23,7 +23,8 @@ class PerformanceMonitor {
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      this.recordMetric(`${name}_error`, duration, { ...context, error: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.recordMetric(`${name}_error`, duration, { ...context, error: errorMessage });
       throw error;
     }
   }
@@ -42,7 +43,8 @@ class PerformanceMonitor {
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      this.recordMetric(`${name}_error`, duration, { ...context, error: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.recordMetric(`${name}_error`, duration, { ...context, error: errorMessage });
       throw error;
     }
   }

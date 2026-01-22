@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { emailService } from '@/lib/services/email.service';
 
 export async function POST(request: NextRequest) {
-  console.log('📧 [API] Email API route called');
+  console.log('[API] Email API route called');
   
   // Log environment variables for testing (remove in production)
   console.log('🔍 [API] Environment variables check:', {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     // Initialize email service with error handling
     let emailServiceInstance;
     try {
-      console.log('📧 [API] Attempting to initialize email service...');
+      console.log('[API] Attempting to initialize email service...');
       emailServiceInstance = emailService;
       console.log('✅ [API] Email service initialized successfully');
     } catch (error) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('📧 [API] Request body received:', {
+    console.log('[API] Request body received:', {
       doctorName: body.doctorName,
       doctorEmail: body.doctorEmail,
       newStatus: body.newStatus,
@@ -84,26 +84,26 @@ export async function POST(request: NextRequest) {
       specialty
     };
 
-    console.log('📧 [API] Email data prepared:', emailData);
-    console.log('📧 [API] NEXT_PUBLIC_RESEND_API_KEY exists:', !!process.env.NEXT_PUBLIC_RESEND_API_KEY);
-    console.log('📧 [API] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
-    console.log('📧 [API] Using API key:', process.env.NEXT_PUBLIC_RESEND_API_KEY ? 'NEXT_PUBLIC' : 'SERVER_SIDE');
-    console.log('📧 [API] API key length:', (process.env.NEXT_PUBLIC_RESEND_API_KEY || process.env.RESEND_API_KEY)?.length || 0);
+    console.log('[API] Email data prepared:', emailData);
+    console.log('[API] NEXT_PUBLIC_RESEND_API_KEY exists:', !!process.env.NEXT_PUBLIC_RESEND_API_KEY);
+    console.log('[API] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+    console.log('[API] Using API key:', process.env.NEXT_PUBLIC_RESEND_API_KEY ? 'NEXT_PUBLIC' : 'SERVER_SIDE');
+    console.log('[API] API key length:', (process.env.NEXT_PUBLIC_RESEND_API_KEY || process.env.RESEND_API_KEY)?.length || 0);
 
     let result;
     try {
       if (newStatus === 'verified') {
-        console.log('📧 [API] Sending verification email...');
+        console.log('[API] Sending verification email...');
         result = await emailServiceInstance.sendDoctorVerificationEmail(emailData);
       } else {
-        console.log('📧 [API] Sending status change email...');
+        console.log('[API] Sending status change email...');
         result = await emailServiceInstance.sendDoctorStatusChangeEmail({
           ...emailData,
           newStatus: newStatus || 'verified',
           reason: reason || undefined
         });
       }
-      console.log('📧 [API] Email service call completed');
+      console.log('[API] Email service call completed');
     } catch (emailError) {
       console.error('❌ [API] Email service call failed:', emailError);
       console.error('❌ [API] Email error details:', {
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📧 [API] Email service result:', result);
+    console.log('[API] Email service result:', result);
 
     if (result.success) {
       console.log('✅ [API] Email sent successfully:', result.messageId);

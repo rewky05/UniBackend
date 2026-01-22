@@ -75,7 +75,7 @@ export function testDateFormats() {
   testCases.forEach((testCase, index) => {
     const result = safeCreateDate(testCase);
     const timestamp = safeGetTimestamp(testCase);
-    const formatted = formatDateToText(testCase);
+    const formatted = testCase != null ? formatDateToText(testCase) : 'Invalid date';
     
     console.log(`Test ${index + 1}: "${testCase}"`);
     console.log(`  Type: ${typeof testCase}`);
@@ -141,7 +141,7 @@ export function testErrorHandling() {
   
   invalidDates.forEach(date => {
     const result = safeCreateDate(date);
-    const formatted = formatDateToText(date);
+    const formatted = date != null ? formatDateToText(date) : 'Invalid date';
     console.log(`"${date}" -> ${result ? 'SUCCESS' : 'FAILED'} (${formatted})`);
   });
 }

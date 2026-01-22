@@ -460,7 +460,7 @@ export function IndividualConsultationsTable({
                 
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
+                    let pageNum: number;
                     if (totalPages <= 5) {
                       pageNum = i + 1;
                     } else if (currentPage <= 3) {
@@ -470,16 +470,17 @@ export function IndividualConsultationsTable({
                     } else {
                       pageNum = currentPage - 2 + i;
                     }
+                    const finalPageNum = pageNum;
                     
                     return (
                       <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
+                        key={finalPageNum}
+                        variant={currentPage === finalPageNum ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setCurrentPage(pageNum)}
+                        onClick={() => setCurrentPage(finalPageNum)}
                         className="w-8 h-8 p-0"
                       >
-                        {pageNum}
+                        {finalPageNum}
                       </Button>
                     );
                   })}

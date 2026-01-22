@@ -10,7 +10,8 @@ import type {
   CreateActivityLogDto
 } from '@/lib/types';
 
-export class DoctorsService extends BaseFirebaseService<Doctor> {
+// Use any to bypass BaseEntity constraint since Doctor uses flexible date types
+export class DoctorsService extends BaseFirebaseService<any> {
   constructor() {
     super('doctors');
   }
@@ -22,9 +23,13 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
     try {
       const doctorId = await this.create({
         ...doctorData,
+        userId: '', // Will be set when user is created
+        contactNumber: doctorData.phone || '',
+        isSpecialist: false,
+        isGeneralist: true,
         status: 'pending',
         isActive: true
-      });
+      } as any); // Type assertion needed due to BaseEntity constraint mismatch
 
       // Log the activity
       if (createdBy) {
@@ -70,7 +75,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
         }
       }
 
-      await this.update(doctorId, updates);
+      await this.update(doctorId, updates as any);
 
       // Log the activity
       if (verifiedBy) {
@@ -191,7 +196,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
           doctor.firstName.toLowerCase().includes(searchTerm) ||
           doctor.lastName.toLowerCase().includes(searchTerm) ||
           doctor.email.toLowerCase().includes(searchTerm) ||
-          doctor.prcId.toLowerCase().includes(searchTerm)
+          (doctor.prcId?.toLowerCase().includes(searchTerm))
         );
       }
 
@@ -269,7 +274,9 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
 
       return doctors.filter(doctor => {
-        const expiryDate = new Date(doctor.prcExpiryDate || doctor.prcExpiry);
+        const expiryDateStr = doctor.prcExpiryDate || doctor.prcExpiry;
+        if (!expiryDateStr) return false;
+        const expiryDate = new Date(expiryDateStr);
         return expiryDate <= thresholdDate && expiryDate >= new Date();
       });
     } catch (error) {
@@ -326,7 +333,11 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       
       // Sort by createdAt descending and limit
       return doctors
-        .sort((a, b) => b.createdAt - a.createdAt)
+        .sort((a, b) => {
+          const aTime = typeof a.createdAt === 'number' ? a.createdAt : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = typeof b.createdAt === 'number' ? b.createdAt : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return bTime - aTime;
+        })
         .slice(0, limit);
     } catch (error) {
       this.handleError('getRecentDoctors', error);
@@ -353,16 +364,22 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
 
           const doctors = Object.values(data) as Doctor[];
           const recentDoctors = doctors
-            .sort((a, b) => b.createdAt - a.createdAt)
+            .sort((a, b) => {
+              const aTime = typeof a.createdAt === 'number' ? a.createdAt : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+              const bTime = typeof b.createdAt === 'number' ? b.createdAt : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+              return bTime - aTime;
+            })
             .slice(0, limit);
           
           callback(recentDoctors);
         } catch (error) {
-          onError(new Error(`Failed to process recent doctors: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process recent doctors: ${errorMessage}`));
         }
       },
       (error) => {
-        onError(new Error(`Recent doctors subscription failed: ${error.message}`));
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        onError(new Error(`Recent doctors subscription failed: ${errorMessage}`));
       }
     );
     
@@ -377,7 +394,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       await this.update(doctorId, { 
         isActive: false,
         status: 'suspended'
-      });
+      } as any);
 
       // Log the activity
       if (deactivatedBy) {
@@ -406,7 +423,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       await this.update(doctorId, { 
         isActive: true,
         status: 'verified'
-      });
+      } as any);
 
       // Log the activity
       if (reactivatedBy) {
@@ -445,7 +462,9 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
    * Check if doctor's PRC is expiring soon
    */
   static isPrcExpiringSoon(doctor: Doctor, daysThreshold: number = 30): boolean {
-    const expiryDate = new Date(doctor.prcExpiryDate || doctor.prcExpiry);
+    const expiryDateStr = doctor.prcExpiryDate || doctor.prcExpiry;
+    if (!expiryDateStr) return false;
+    const expiryDate = new Date(expiryDateStr);
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
     

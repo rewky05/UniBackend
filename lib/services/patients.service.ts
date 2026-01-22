@@ -11,7 +11,8 @@ import type {
 
 
 
-export class PatientsService extends BaseFirebaseService<Patient> {
+// Use any to bypass BaseEntity constraint since Patient uses flexible date types
+export class PatientsService extends BaseFirebaseService<any> {
   constructor() {
     super('patients');
   }
@@ -23,9 +24,10 @@ export class PatientsService extends BaseFirebaseService<Patient> {
     try {
       const patientId = await this.create({
         ...patientData,
-        createdAt: Date.now(),
-        lastUpdated: Date.now()
-      });
+        userId: '', // Will be set when user is created
+        contactNumber: patientData.phone || '',
+        lastUpdated: new Date().toISOString()
+      } as any);
 
       // Log the activity
       if (createdBy) {
@@ -111,8 +113,8 @@ export class PatientsService extends BaseFirebaseService<Patient> {
         patients = patients.filter(patient => 
           patient.firstName.toLowerCase().includes(searchTerm) ||
           patient.lastName.toLowerCase().includes(searchTerm) ||
-          patient.email.toLowerCase().includes(searchTerm) ||
-          patient.phone.toLowerCase().includes(searchTerm)
+          (patient.email && patient.email.toLowerCase().includes(searchTerm)) ||
+          (patient.phone && patient.phone.toLowerCase().includes(searchTerm))
         );
       }
 
@@ -188,7 +190,11 @@ export class PatientsService extends BaseFirebaseService<Patient> {
       
       // Sort by createdAt descending and limit
       return patients
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .sort((a, b) => {
+          const aTime = typeof a.createdAt === 'number' ? a.createdAt : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = typeof b.createdAt === 'number' ? b.createdAt : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return bTime - aTime;
+        })
         .slice(0, limit);
     } catch (error) {
       this.handleError('getRecentPatients', error);
@@ -215,12 +221,17 @@ export class PatientsService extends BaseFirebaseService<Patient> {
 
           const patients = Object.values(data) as Patient[];
           const recentPatients = patients
-            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+            .sort((a, b) => {
+              const aTime = typeof a.createdAt === 'number' ? a.createdAt : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+              const bTime = typeof b.createdAt === 'number' ? b.createdAt : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+              return bTime - aTime;
+            })
             .slice(0, limit);
           
           callback(recentPatients);
         } catch (error) {
-          onError(new Error(`Failed to process recent patients: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process recent patients: ${errorMessage}`));
         }
       },
       (error) => {
@@ -252,7 +263,7 @@ export class PatientsService extends BaseFirebaseService<Patient> {
       // Import ActivityLogsService to avoid circular dependencies
       const { ActivityLogsService } = await import('./activity-logs.service');
       const activityService = new ActivityLogsService();
-      await activityService.create(activityData);
+      await activityService.createActivityLog(activityData);
     } catch (error) {
       // Don't throw error for logging failures, just log it
       console.error('Failed to log activity:', error);

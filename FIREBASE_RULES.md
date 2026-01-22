@@ -1,4 +1,4 @@
-# 🔐 Firebase Security Rules for UniHealth Admin System
+# Firebase Security Rules for UniHealth Admin System
 
 ## Current Rules Analysis
 

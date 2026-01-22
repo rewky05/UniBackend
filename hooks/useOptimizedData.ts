@@ -1,6 +1,8 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ref, push } from 'firebase/database';
+import { db } from '@/lib/firebase/config';
 import { realDataService } from '@/lib/services/real-data.service';
 import type { Doctor, Clinic, Feedback, ActivityLog } from '@/lib/types';
 
@@ -58,7 +60,7 @@ export function useFeedback() {
 export function useActivityLogs() {
   return useQuery({
     queryKey: queryKeys.activityLogs,
-    queryFn: () => realDataService.getActivityLogs(),
+    queryFn: () => realDataService.getRecentActivity(50),
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 }
@@ -91,7 +93,14 @@ export function useCreateSpecialist() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Omit<Doctor, 'id'>) => realDataService.createDoctor(data),
+    mutationFn: async (data: Omit<Doctor, 'id'>) => {
+      // createDoctor requires doctorId, temporaryPassword, and tempPasswordId
+      // Generate these values
+      const doctorId = push(ref(db, 'doctors')).key!;
+      const temporaryPassword = Math.random().toString(36).slice(-8);
+      const tempPasswordId = push(ref(db, 'tempPasswords')).key!;
+      return realDataService.createDoctor(data, doctorId, temporaryPassword, tempPasswordId);
+    },
     onSuccess: () => {
       // Invalidate and refetch specialists
       queryClient.invalidateQueries({ queryKey: queryKeys.specialists });

@@ -134,11 +134,13 @@ export abstract class BaseFirebaseService<T extends BaseEntity> {
           const entities = data ? Object.values(data) as T[] : [];
           callback(entities);
         } catch (error) {
-          onError(new Error(`Failed to process data: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process data: ${errorMessage}`));
         }
       },
       (error) => {
-        onError(new Error(`Subscription failed: ${error.message}`));
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        onError(new Error(`Subscription failed: ${errorMessage}`));
       }
     );
     
@@ -150,7 +152,7 @@ export abstract class BaseFirebaseService<T extends BaseEntity> {
    */
   subscribeByField<K extends keyof T>(
     field: K,
-    value: T[K],
+    value: string | number | boolean | null,
     callback: (entities: T[]) => void,
     onError: (error: Error) => void
   ): () => void {

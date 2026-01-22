@@ -21,7 +21,7 @@ function testFormStability() {
   console.log('🧪 Testing Form Stability...\n');
 
   // Simulate initial form data
-  let formData: FormData = {
+  let formData: Record<string, any> = {
     clinicId: '',
     roomOrUnit: '',
     dayOfWeek: [],

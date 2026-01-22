@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           const { createUserWithEmailAndPassword } = await import('firebase/auth');
           const { auth } = await import('@/lib/firebase/config');
           
-          console.log(`🔐 [API] Creating Firebase Auth user for doctor ${doctorIndex}: ${doctorData.email}`);
+          console.log(`[API] Creating Firebase Auth user for doctor ${doctorIndex}: ${doctorData.email}`);
           const userCredential = await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
           const doctorId = userCredential.user.uid;
           console.log(`✅ [API] Firebase Auth user created for doctor ${doctorIndex}: ${doctorId}`);
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
           });
 
           // Send welcome email with temporary password
-          console.log(`📧 [API] Sending welcome email for doctor ${doctorIndex}...`);
+          console.log(`[API] Sending welcome email for doctor ${doctorIndex}...`);
           const emailService = EmailService.getInstance();
           const emailResult = await emailService.sendTemporaryPasswordEmail({
             userName: `${doctorData.firstName} ${doctorData.lastName}`,
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
 
         // Small delay between individual doctor creations to prevent rate limiting
         if (j < batch.length - 1) {
-          console.log(`⏳ [API] Waiting 1 second before next doctor creation...`);
+          console.log(`[API] Waiting 1 second before next doctor creation...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
 
       // Delay between batches to prevent API overload
       if (i + batchSize < doctorsData.length) {
-        console.log(`⏳ [API] Waiting 2 seconds before next batch...`);
+        console.log(`[API] Waiting 2 seconds before next batch...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }

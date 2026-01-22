@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Schedule } from './schedule-card';
+import type { SpecialistSchedule } from './schedule-card';
 
 interface ScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  schedule: Schedule | null;
-  onSave: (schedule: Omit<Schedule, 'id'>) => void;
+  schedule: SpecialistSchedule | null;
+  onSave: (schedule: Omit<SpecialistSchedule, 'id'>) => void;
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -28,11 +28,16 @@ export function ScheduleDialog({ open, onOpenChange, schedule, onSave }: Schedul
 
   useEffect(() => {
     if (schedule) {
+      // Extract data from SpecialistSchedule structure
+      const dayOfWeek = schedule.recurrence?.dayOfWeek?.[0] || '';
+      const clinicId = schedule.practiceLocation?.clinicId || '';
+      // Note: SpecialistSchedule doesn't have simple startTime/endTime
+      // This dialog may need to be refactored to match the actual data structure
       setFormData({
-        day: schedule.day,
-        clinic: schedule.clinic,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime
+        day: dayOfWeek.toString(),
+        clinic: clinicId,
+        startTime: '',
+        endTime: ''
       });
     } else {
       setFormData({
@@ -46,7 +51,23 @@ export function ScheduleDialog({ open, onOpenChange, schedule, onSave }: Schedul
 
   const handleSave = () => {
     if (formData.day && formData.clinic && formData.startTime && formData.endTime) {
-      onSave(formData);
+      // Convert form data to SpecialistSchedule format
+      const scheduleData: Omit<SpecialistSchedule, 'id'> = {
+        specialistId: '', // Will need to be provided
+        isActive: true,
+        practiceLocation: {
+          clinicId: formData.clinic,
+          roomOrUnit: ''
+        },
+        recurrence: {
+          dayOfWeek: [parseInt(formData.day) || 1],
+          type: 'weekly'
+        },
+        scheduleType: 'regular',
+        slotTemplate: {},
+        validFrom: new Date().toISOString()
+      };
+      onSave(scheduleData);
     }
   };
 

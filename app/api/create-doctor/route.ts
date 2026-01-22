@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send welcome email with temporary password
-    console.log('📧 [API] Sending welcome email...');
+    console.log('[API] Sending welcome email...');
     const emailService = EmailService.getInstance();
     const emailResult = await emailService.sendTemporaryPasswordEmail({
       userName: `${doctorData.firstName} ${doctorData.lastName}`,

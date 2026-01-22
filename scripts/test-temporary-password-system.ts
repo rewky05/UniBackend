@@ -157,11 +157,11 @@ async function testTemporaryPasswordSystem() {
     console.log('🎉 All tests completed successfully!');
     
     if (!hasResendKey) {
-      console.log('\n📧 To test email sending:');
+      console.log('\nTo test email sending:');
       console.log('1. Set RESEND_API_KEY environment variable');
       console.log('2. Run: npm run test-temp-password -- --send-email');
     } else {
-      console.log('\n📧 To test email sending, run:');
+      console.log('\nTo test email sending, run:');
       console.log('npm run test-temp-password -- --send-email');
     }
     

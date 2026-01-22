@@ -57,7 +57,7 @@ async function main() {
     updateEnvFile('TEMP_PASSWORD_ENCRYPTION_KEY', encryptionKey);
     
     // Check for existing email configuration
-    console.log('\n📧 Checking email configuration...');
+    console.log('\nChecking email configuration...');
     const envPath = join(process.cwd(), '.env.local');
     const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
     

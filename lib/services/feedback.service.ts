@@ -41,11 +41,11 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
     reviewedById?: string
   ): Promise<void> {
     try {
-      const updates: UpdateFeedbackDto = {
+      const updates: UpdateFeedbackDto & { reviewedById?: string } = {
         status,
         reviewedBy,
         reviewedById,
-        reviewedAt: new Date().toISOString()
+        reviewedAt: Date.now()
       };
 
       await this.update(feedbackId, updates);
@@ -116,7 +116,8 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
           const sortedFeedback = feedback.sort((a, b) => b.createdAt - a.createdAt);
           callback(sortedFeedback);
         } catch (error) {
-          onError(new Error(`Failed to process doctor feedback: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process doctor feedback: ${errorMessage}`));
         }
       },
       (error) => {
@@ -414,7 +415,7 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
         if (!acc[f.clinicId]) {
           acc[f.clinicId] = {
             clinicId: f.clinicId,
-            clinicName: f.clinicName || 'Unknown Clinic',
+            clinicName: (f as any).clinicName || 'Unknown Clinic',
             ratings: [],
             totalRating: 0
           };
@@ -483,7 +484,8 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
           
           callback(recentFeedback);
         } catch (error) {
-          onError(new Error(`Failed to process recent feedback: ${error.message}`));
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          onError(new Error(`Failed to process recent feedback: ${errorMessage}`));
         }
       },
       (error) => {
@@ -635,7 +637,7 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
       // Import ActivityLogsService to avoid circular dependencies
       const { ActivityLogsService } = await import('./activity-logs.service');
       const activityService = new ActivityLogsService();
-      await activityService.create(activityData);
+      await activityService.createActivityLog(activityData);
     } catch (error) {
       // Don't throw error for logging failures, just log it
       console.error('Failed to log activity:', error);

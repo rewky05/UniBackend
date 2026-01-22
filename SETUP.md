@@ -51,7 +51,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) 🎉
 
-## 🔐 First Admin User Setup
+## First Admin User Setup
 
 ### Step 1: Create User in Firebase Authentication
 1. Go to [Firebase Console](https://console.firebase.google.com/project/odyssey-test-db)

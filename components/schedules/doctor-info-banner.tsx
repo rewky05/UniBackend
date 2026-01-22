@@ -2,8 +2,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { User } from "lucide-react";
 
 interface Doctor {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   specialty: string;
 }
 
@@ -20,7 +22,9 @@ export function DoctorInfoBanner({ doctor }: DoctorInfoBannerProps) {
             <User className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-lg">{doctor.name}</h3>
+            <h3 className="font-semibold text-lg">
+              {doctor.name || `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || 'Unknown Doctor'}
+            </h3>
             <p className="text-muted-foreground">{doctor.specialty}</p>
           </div>
         </div>

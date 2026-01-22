@@ -268,7 +268,7 @@ export default function DoctorsPage() {
           reason: notes || undefined
         };
 
-        console.log('📧 [CLIENT] Sending email request:', {
+        console.log('[CLIENT] Sending email request:', {
           doctorName: emailData.doctorName,
           doctorEmail: emailData.doctorEmail,
           newStatus: emailData.newStatus,
@@ -283,13 +283,13 @@ export default function DoctorsPage() {
           body: JSON.stringify(emailData),
         });
 
-        console.log('📧 [CLIENT] API Response status:', response.status);
-        console.log('📧 [CLIENT] API Response headers:', Object.fromEntries(response.headers.entries()));
+        console.log('[CLIENT] API Response status:', response.status);
+        console.log('[CLIENT] API Response headers:', Object.fromEntries(response.headers.entries()));
 
         let result;
         try {
           result = await response.json();
-          console.log('📧 [CLIENT] API Response body:', result);
+          console.log('[CLIENT] API Response body:', result);
         } catch (jsonError) {
           console.error('❌ [CLIENT] Failed to parse JSON response:', jsonError);
           console.error('❌ [CLIENT] Response status:', response.status);

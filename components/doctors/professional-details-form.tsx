@@ -148,7 +148,7 @@ export function ProfessionalDetailsForm({ data, onUpdate }: ProfessionalDetailsF
               type="number"
               placeholder="e.g., 2500"
               value={data.professionalFee || undefined}
-              onChange={(e) => handleInputChange('professionalFee', parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleInputChange('professionalFee', String(parseFloat(e.target.value) || 0))}
               min="0"
               step="100"
               required

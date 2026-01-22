@@ -52,7 +52,14 @@ function testFormClearing() {
       resetToFirstTab: true,
       showToast: true,
       toastMessage: 'Test form cleared',
-      initialData: defaultValues // Pass initial data for proper form reset
+      initialData: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        specialty: '',
+        professionalFee: 0
+      } // Pass initial data for proper form reset
     }
   );
   console.log('✓ Form clearing test completed\n');

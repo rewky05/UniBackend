@@ -18,7 +18,7 @@ async function testPasswordReset() {
     const validToken = await passwordResetService.validatePasswordResetToken(token);
     if (validToken) {
       console.log('✅ Token is valid');
-      console.log(`📧 Email: ${validToken.email}`);
+      console.log(`Email: ${validToken.email}`);
       console.log(`⏰ Expires at: ${new Date(validToken.expiresAt).toLocaleString()}`);
       console.log(`🔒 Used: ${validToken.used}`);
     } else {

@@ -6,9 +6,3 @@
 
 [build.environment]
   NODE_VERSION = "22.3.0"
-  NPM_FLAGS = "--legacy-peer-deps"
-
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/next"
-  status = 200

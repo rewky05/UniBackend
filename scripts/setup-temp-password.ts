@@ -72,9 +72,6 @@ async function main() {
     if (!hasResendKey) {
       console.log('\n⚠️ Email configuration missing!');
       console.log('Add these to your .env.local file:');
-      console.log('RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-      console.log('RESEND_FROM_EMAIL=UniHealth Admin <noreply@yourdomain.com>');
-      console.log('NEXT_PUBLIC_APP_URL=http://localhost:3000');
     }
     
     console.log('\n✅ Setup completed!');
